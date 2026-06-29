@@ -1,0 +1,33 @@
+[project]
+name = "easy-apply-automator"
+version = "1.0.0"
+description = "LinkedIn Easy Apply automation bot using Python and Selenium with YAML-based form answering."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+keywords = [
+  "linkedin",
+  "easy-apply",
+  "automation",
+  "python",
+  "selenium",
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "beautifulsoup4>=4.12.3",
+  "lxml>=5.2.2",
+  "packaging>=24.1",
+  "pandas>=2.2.2",
+  "pyautogui>=0.9.54",
+  "python-dotenv>=1.0.1",
+  "pyyaml>=6.0.1",
+  "selenium>=4.23.1",
+]
+
+[tool.setuptools]
+packages = ["easy_apply_automator"]

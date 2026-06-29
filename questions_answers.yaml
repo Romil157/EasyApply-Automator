@@ -1,0 +1,414 @@
+version: 1
+defaults:
+  unknown_years: "0"
+  unknown_text: "user provided"
+  yes: "Yes"
+  no: "No"
+  prefer_not: "Wish not to answer"
+  no_self_id: "I do not wish to self-identify"
+
+profile:
+  years:
+    overall_software: "2"
+    ai_ml: "1"
+    machine_learning: "1"
+    deep_learning: "0"
+    nlp: "0"
+    llm_genai: "0"
+    data_science: "1"
+    data_engineering: "1"
+    python: "2"
+    sql: "1"
+    backend: "1"
+    web_development: "2"
+    html_css: "2"
+    javascript: "1"
+    nodejs: "1"
+    git: "2"
+    data_scraping: "1"
+    cybersecurity: "1"
+    automation: "1"
+    leadership: "1"
+
+  work_auth:
+    us_citizen: "No"
+    require_sponsorship: "Yes"
+    legally_authorized: "Yes"
+    linkedin_profile_url: "https://www.linkedin.com/in/romil-doshi147/"
+
+  demographics:
+    gender: "Male"
+    race: "Asian"
+    ethnicity: "Wish not to answer"
+    lgbtq: "Wish not to answer"
+    nationality: "Indian"
+    government_id: "I do not wish to self-identify"
+
+rules:
+  - id: salary
+    match_any:
+      - "(?i)salary"
+      - "(?i)compensation"
+      - "(?i)desired salary"
+      - "(?i)expected salary"
+      - "(?i)base salary"
+    answer: "{salary}"
+
+  - id: hourly_rate
+    match_any:
+      - "(?i)hourly rate"
+      - "(?i)rate per hour"
+      - "(?i)contract rate"
+      - "(?i)consulting rate"
+    answer: "{hourly_rate}"
+
+  - id: phone_number
+    match_any:
+      - "(?i)phone"
+      - "(?i)mobile"
+      - "(?i)contact number"
+    answer: "9769470770"
+
+  - id: email
+    match_any:
+      - "(?i)email"
+      - "(?i)e-mail"
+    answer: "romildoshi1999@gmail.com"
+
+  - id: name
+    match_any:
+      - "(?i)full name"
+      - "(?i)your name"
+    answer: "Romil Doshi"
+
+  - id: first_name
+    match_any:
+      - "(?i)first name"
+    answer: "Romil"
+
+  - id: last_name
+    match_any:
+      - "(?i)last name"
+      - "(?i)surname"
+    answer: "Doshi"
+
+  - id: city
+    match_any:
+      - "(?i)city"
+      - "(?i)current location"
+      - "(?i)where are you located"
+      - "(?i)current city"
+    answer: "Mumbai"
+
+  - id: address
+    match_any:
+      - "(?i)address"
+      - "(?i)street"
+    answer: "Mumbai, Maharashtra, India"
+
+  - id: university
+    match_any:
+      - "(?i)university"
+      - "(?i)college"
+      - "(?i)school"
+      - "(?i)institution"
+    answer: "University of Mumbai"
+
+  - id: degree
+    match_any:
+      - "(?i)degree"
+      - "(?i)highest education"
+      - "(?i)qualification"
+      - "(?i)education level"
+    answer: "Bachelor of Technology"
+
+  - id: major
+    match_any:
+      - "(?i)major"
+      - "(?i)field of study"
+      - "(?i)specialization"
+      - "(?i)branch"
+    answer: "Computer Engineering"
+
+  - id: graduation_year
+    match_any:
+      - "(?i)graduation year"
+      - "(?i)expected graduation"
+      - "(?i)year of graduation"
+      - "(?i)when.*graduat"
+    answer: "2027"
+
+  - id: gpa
+    match_any:
+      - "(?i)gpa"
+      - "(?i)cgpa"
+      - "(?i)grade"
+    answer: "Wish not to answer"
+
+  - id: sponsorship
+    match_any:
+      - "(?i)sponsor"
+      - "(?i)work sponsorship"
+      - "(?i)visa sponsorship"
+      - "(?i)require sponsorship"
+      - "(?i)need sponsorship"
+    answer: "{require_sponsorship}"
+
+  - id: linkedin_profile
+    match_any:
+      - "(?i)^linkedin\\*?$"
+      - "(?i)linkedin profile"
+      - "(?i)linkedin url"
+      - "(?i)profile url"
+      - "(?i)link to linkedin"
+    answer: "{linkedin_profile_url}"
+
+  - id: current_employer
+    match_any:
+      - "(?i)current employer"
+      - "(?i)current company"
+      - "(?i)employer"
+      - "(?i)company you work for"
+    answer: "Student"
+
+  - id: salutation
+    match_any:
+      - "(?i)salutation"
+      - "(?i)title\\b"
+    answer: "Mr."
+
+  - id: github_profile
+    match_any:
+      - "(?i)github"
+      - "(?i)portfolio"
+      - "(?i)website"
+      - "(?i)personal site"
+    answer: "https://github.com/romildoshi"
+
+  - id: country_of_origin
+    match_any:
+      - "(?i)which country are you from"
+      - "(?i)what country are you from"
+      - "(?i)country of origin"
+      - "(?i)home country"
+      - "(?i)country of birth"
+      - "(?i)country of residence"
+      - "(?i)what is your country"
+      - "(?i)which country do you"
+    answer: "India"
+
+  - id: nationality
+    match_any:
+      - "(?i)nationality"
+      - "(?i)citizenship(?!.*US)"
+    answer: "{nationality}"
+
+  - id: government
+    match_any:
+      - "(?i)government"
+      - "(?i)veteran"
+      - "(?i)disability"
+    answer: "{government_id}"
+
+  # --- Years of Experience Rules ---
+
+  - id: yoe_ml
+    match_any:
+      - "(?i)how many years.*\\b(machine learning|ML)\\b"
+      - "(?i)years of experience.*\\b(machine learning|ML)\\b"
+    answer: "{years.machine_learning}"
+
+  - id: yoe_ai
+    match_any:
+      - "(?i)how many years.*\\b(AI|artificial intelligence)\\b"
+      - "(?i)years of experience.*\\b(AI|artificial intelligence)\\b"
+    answer: "{years.ai_ml}"
+
+  - id: yoe_python
+    match_any:
+      - "(?i)how many years.*\\bpython\\b"
+      - "(?i)years of experience.*\\bpython\\b"
+      - "(?i)experience.*\\bpython\\b"
+    answer: "{years.python}"
+
+  - id: yoe_sql
+    match_any:
+      - "(?i)how many years.*\\bSQL\\b"
+      - "(?i)years of experience.*\\bSQL\\b"
+      - "(?i)experience.*\\bSQL\\b"
+    answer: "{years.sql}"
+
+  - id: yoe_javascript
+    match_any:
+      - "(?i)how many years.*\\b(javascript|JS)\\b"
+      - "(?i)years of experience.*\\b(javascript|JS)\\b"
+    answer: "{years.javascript}"
+
+  - id: yoe_nodejs
+    match_any:
+      - "(?i)how many years.*\\b(node|nodejs|node.js)\\b"
+      - "(?i)years of experience.*\\b(node|nodejs|node.js)\\b"
+    answer: "{years.nodejs}"
+
+  - id: yoe_web
+    match_any:
+      - "(?i)how many years.*\\b(web development|web dev|frontend|front-end|html|css)\\b"
+      - "(?i)years of experience.*\\b(web development|web dev|frontend|front-end|html|css)\\b"
+    answer: "{years.web_development}"
+
+  - id: yoe_backend
+    match_any:
+      - "(?i)how many years.*\\bbackend\\b"
+      - "(?i)years of experience.*\\bbackend\\b"
+      - "(?i)experience.*\\bbackend\\b"
+    answer: "{years.backend}"
+
+  - id: yoe_data_eng
+    match_any:
+      - "(?i)how many years.*\\b(data engineering|ETL|pipelines|data scraping)\\b"
+      - "(?i)years of experience.*\\b(data engineering|ETL|pipelines|data scraping)\\b"
+    answer: "{years.data_engineering}"
+
+  - id: yoe_git
+    match_any:
+      - "(?i)how many years.*\\bgit\\b"
+      - "(?i)years of experience.*\\bgit\\b"
+    answer: "{years.git}"
+
+  - id: yoe_cybersecurity
+    match_any:
+      - "(?i)how many years.*\\b(security|cybersecurity|cyber security)\\b"
+      - "(?i)years of experience.*\\b(security|cybersecurity|cyber security)\\b"
+    answer: "{years.cybersecurity}"
+
+  - id: yoe_leadership
+    match_any:
+      - "(?i)how many years.*\\b(leadership|management|people management|team lead)\\b"
+      - "(?i)years of experience.*\\b(leadership|management|people management|team lead)\\b"
+    answer: "{years.leadership}"
+
+  - id: yoe_overall
+    match_any:
+      - "(?i)how many years.*\\b(experience|professional experience|industry experience|software)\\b"
+      - "(?i)years of experience\\b(?!.*(python|sql|javascript|ml|ai))"
+      - "(?i)total years"
+      - "(?i)overall experience"
+    answer: "{years.overall_software}"
+
+  - id: generic_how_many_years
+    match_any:
+      - "(?i)how many years"
+      - "(?i)years of experience"
+      - "(?i)years experience"
+    answer: "{unknown_years}"
+
+  # --- Other Common Questions ---
+
+  - id: referral_source
+    match_any:
+      - "(?i)how did you hear"
+      - "(?i)how did you find"
+      - "(?i)where did you hear"
+      - "(?i)how were you referred"
+    answer: "LinkedIn"
+
+  - id: start_date
+    match_any:
+      - "(?i)start date"
+      - "(?i)when can you start"
+      - "(?i)earliest start"
+      - "(?i)available to start"
+      - "(?i)date of joining"
+    answer: "Immediately"
+
+  - id: notice_period
+    match_any:
+      - "(?i)notice period"
+      - "(?i)how soon can you"
+    answer: "Immediately"
+
+  - id: relocation
+    match_any:
+      - "(?i)willing to relocate"
+      - "(?i)open to relocation"
+      - "(?i)relocate"
+    answer: "{yes}"
+
+  - id: remote_work
+    match_any:
+      - "(?i)remote"
+      - "(?i)work from home"
+      - "(?i)hybrid"
+    answer: "{yes}"
+
+  - id: cover_letter
+    match_any:
+      - "(?i)cover letter"
+      - "(?i)why.*this (role|position|company)"
+      - "(?i)tell us about yourself"
+      - "(?i)why should we hire"
+    answer: "I am a final-year Computer Engineering student at the University of Mumbai with hands-on experience in software development, data engineering, and cybersecurity through multiple internships and hackathons. I am eager to contribute and learn in a professional environment."
+
+  # --- Generic Yes/No Helpers ---
+
+  - id: can_you
+    match_any:
+      - "(?i)^can you\\b"
+    answer: "{yes}"
+
+  - id: do_you
+    match_any:
+      - "(?i)^do you\\b"
+    answer: "{yes}"
+
+  - id: is_your
+    match_any:
+      - "(?i)^is your\\b"
+      - "(?i)^is the\\b"
+    answer: "{yes}"
+
+  - id: have_you
+    match_any:
+      - "(?i)^have you\\b"
+    answer: "{yes}"
+
+  - id: phd_degree
+    match_any:
+      - "(?i)doctor of philosophy"
+      - "(?i)\\bphd\\b"
+      - "(?i)doctoral degree"
+    answer: "{no}"
+
+  - id: masters_degree
+    match_any:
+      - "(?i)master's degree"
+      - "(?i)masters degree"
+      - "(?i)\\bMS\\b"
+      - "(?i)\\bM\\.S\\.\\b"
+    answer: "{no}"
+
+  - id: bachelors_degree
+    match_any:
+      - "(?i)bachelor"
+      - "(?i)\\bBS\\b"
+      - "(?i)\\bB\\.Tech\\b"
+      - "(?i)undergraduate"
+    answer: "{yes}"
+
+  - id: us_uk_india_resident
+    match_any:
+      - "(?i)resident of the (us|uk|united states|united kingdom)"
+      - "(?i)based in the (us|uk|united states|united kingdom)"
+    answer: "{no}"
+
+  - id: india_resident
+    match_any:
+      - "(?i)resident of.*india"
+      - "(?i)based in.*india"
+      - "(?i)located in.*india"
+    answer: "{yes}"
+
+  - id: are_you
+    match_any:
+      - "(?i)^are you\\b"
+    answer: "{yes}"

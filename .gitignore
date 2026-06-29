@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets & credentials
+.env
+.auth/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Runtime artifacts
+logs/
+debug/
+results/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/

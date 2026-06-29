@@ -1,0 +1,31 @@
+# ─── LinkedIn Easy Apply Bot – Configuration ───
+# Credentials (you can also load them from environment variables)
+username: ""
+password: ""
+
+positions:
+  - Software Engineer
+  - Python Developer
+  - Backend Developer
+  - Data Analyst
+  - Web Developer
+
+locations:
+  - Remote
+  - India
+
+max_pages_per_search: 3
+
+# Session pacing (how long the bot runs and takes breaks)
+session_duration_hours_min: 3
+session_duration_hours_max: 5
+short_break_min_seconds: 1
+short_break_max_seconds: 3
+short_break_every_min_minutes: 60
+short_break_every_max_minutes: 120
+shuffle_search_combos: false
+
+experience_level:
+  - 1  # Entry level
+  - 2  # Associate
+  - 6  # Internship
