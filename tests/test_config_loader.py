@@ -1,4 +1,5 @@
 """Tests for easy_apply_automator.config.loader and .schema."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,6 +15,7 @@ from easy_apply_automator.domain.models import AppConfig
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _write_yaml(content: str, tmp_path: Path, name: str = "config.yaml") -> Path:
     p = tmp_path / name
@@ -56,9 +58,13 @@ phone_number: "9999999999"
 # Test: RunConfig schema
 # ---------------------------------------------------------------------------
 
+
 class TestRunConfig:
     def test_run_config_dataclass_fields(self):
-        rc = RunConfig(parameters={"positions": ["SWE"], "locations": ["Remote"]}, results_filename="results/out.json")
+        rc = RunConfig(
+            parameters={"positions": ["SWE"], "locations": ["Remote"]},
+            results_filename="results/out.json",
+        )
         assert rc.parameters["positions"] == ["SWE"]
         assert rc.results_filename == "results/out.json"
 
@@ -71,6 +77,7 @@ class TestRunConfig:
 # ---------------------------------------------------------------------------
 # Test: load_run_config — valid YAML
 # ---------------------------------------------------------------------------
+
 
 class TestLoadRunConfigValid:
     def test_minimal_config_parses(self, tmp_path):
@@ -122,6 +129,7 @@ class TestLoadRunConfigValid:
 # Test: load_run_config — missing required fields
 # ---------------------------------------------------------------------------
 
+
 class TestLoadRunConfigMissingFields:
     def test_missing_positions_raises_key_error(self, tmp_path):
         content = "locations:\n  - Remote\n"
@@ -164,6 +172,7 @@ class TestLoadRunConfigMissingFields:
 # Test: load_run_config — malformed YAML
 # ---------------------------------------------------------------------------
 
+
 class TestLoadRunConfigMalformedYaml:
     def test_malformed_yaml_raises_yaml_error(self, tmp_path):
         content = "positions: [\nunot closed"
@@ -179,6 +188,7 @@ class TestLoadRunConfigMalformedYaml:
 # ---------------------------------------------------------------------------
 # Test: AppConfig.from_dict
 # ---------------------------------------------------------------------------
+
 
 class TestAppConfigFromDict:
     def _base_params(self, **overrides):

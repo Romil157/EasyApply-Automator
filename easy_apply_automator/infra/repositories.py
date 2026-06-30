@@ -65,6 +65,7 @@ class ResultsRepository:
 
         # Write to a CSV file (Excel-compatible UTF-8 with BOM)
         import csv
+
         csv_path = output_path.with_suffix(".csv")
         if existing:
             keys = []

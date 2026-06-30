@@ -33,9 +33,9 @@ class SessionService(ServiceBase):
                     (By.ID, "session_key"),
                     (By.NAME, "session_key"),
                     (By.CSS_SELECTOR, "input[type='email']"),
-                    (By.CSS_SELECTOR, "input[autocomplete='username']")
+                    (By.CSS_SELECTOR, "input[autocomplete='username']"),
                 ]
-                
+
                 # Check each selector waiting up to 3 seconds for it to be clickable
                 for selector in selectors:
                     try:
@@ -45,14 +45,16 @@ class SessionService(ServiceBase):
                             break
                     except Exception:
                         continue
-                
+
                 if user_field:
                     user_field.clear()
                     user_field.send_keys(username)
                     user_field.send_keys(Keys.TAB)
                     time.sleep(0.5)
                 else:
-                    log.warning("Could not find the email input field on the page. Please enter it manually.")
+                    log.warning(
+                        "Could not find the email input field on the page. Please enter it manually."
+                    )
 
             log.info("=" * 50)
             log.info("Please enter your email and password in the browser and click 'Sign in'")
@@ -81,10 +83,7 @@ class SessionService(ServiceBase):
             current_url = (self.bot.browser.current_url or "").lower()
             if "/login" in current_url or "/checkpoint/challenge" in current_url:
                 return False
-            if any(
-                path in current_url
-                for path in ("/feed", "/jobs", "/mynetwork", "/messaging")
-            ):
+            if any(path in current_url for path in ("/feed", "/jobs", "/mynetwork", "/messaging")):
                 return True
             return (
                 len(

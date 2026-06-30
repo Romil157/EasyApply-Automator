@@ -3,8 +3,8 @@ from __future__ import annotations
 import random
 import re
 import time
-
 from typing import Any
+
 from selenium.webdriver.common.by import By
 
 from easy_apply_automator.observability.logger import log
@@ -20,12 +20,26 @@ class SearchLoopMixin:
     appliedJobIDs: list[str]
     locator: dict[str, tuple[str, str]]
 
-    def _maybe_take_short_break(self, source: str) -> None: pass
-    def log_event(self, event: str, **kwargs) -> None: pass
-    def load_page(self, sleep: float = 0.1, scroll_limit: int = 1500, scroll_step: int = 500) -> Any: return None
-    def is_present(self, locator: tuple) -> bool: return False
-    def get_elements(self, element_type: str) -> list: return []
-    def apply_to_job(self, job_id: str) -> bool: return False
+    def _maybe_take_short_break(self, source: str) -> None:
+        pass
+
+    def log_event(self, event: str, **kwargs) -> None:
+        pass
+
+    def load_page(
+        self, sleep: float = 0.1, scroll_limit: int = 1500, scroll_step: int = 500
+    ) -> Any:
+        return None
+
+    def is_present(self, locator: tuple) -> bool:
+        return False
+
+    def get_elements(self, element_type: str) -> list:
+        return []
+
+    def apply_to_job(self, job_id: str) -> bool:
+        return False
+
     def applications_loop(self, position: str, location: str) -> None:
         jobs_per_page = 0
         pages_processed = 0
@@ -158,16 +172,10 @@ class SearchLoopMixin:
                 if self.stop_requested or time.time() >= self.session_deadline:
                     break
 
-    def next_jobs_page(
-        self, position, location, jobs_per_page: int, experience_level=None
-    ):
+    def next_jobs_page(self, position, location, jobs_per_page: int, experience_level=None):
         experience_level = experience_level or []
-        experience_level_str = (
-            ",".join(map(str, experience_level)) if experience_level else ""
-        )
-        experience_level_param = (
-            f"&f_E={experience_level_str}" if experience_level_str else ""
-        )
+        experience_level_str = ",".join(map(str, experience_level)) if experience_level else ""
+        experience_level_param = f"&f_E={experience_level_str}" if experience_level_str else ""
         self.browser.get(
             "https://www.linkedin.com/jobs/search/?f_LF=f_AL&keywords="
             + position
@@ -191,7 +199,7 @@ class SearchLoopMixin:
             ".jobs-unified-top-card__job-insight",
             ".job-details-jobs-unified-top-card__job-insight",
             "span.jobs-unified-top-card__bullet-item",
-            ".jobs-unified-top-card__bullet-item"
+            ".jobs-unified-top-card__bullet-item",
         ]
         for selector in selectors:
             try:
@@ -202,7 +210,9 @@ class SearchLoopMixin:
             except Exception:
                 pass
 
-        is_internship = bool(re.search(r'\bintern\b|\binternship\b', title)) or bool(re.search(r'\bintern\b|\binternship\b', insights_text))
+        is_internship = bool(re.search(r"\bintern\b|\binternship\b", title)) or bool(
+            re.search(r"\bintern\b|\binternship\b", insights_text)
+        )
 
         if self.experience_level == [1]:
             return is_internship

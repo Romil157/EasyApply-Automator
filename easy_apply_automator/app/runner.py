@@ -9,9 +9,7 @@ from .orchestrator import LinkedInEasyApplyOrchestrator
 
 def run_from_config(config_path: str = "config.yaml") -> None:
     run_cfg = load_run_config(config_path)
-    app_config = AppConfig.from_dict(
-        run_cfg.parameters, results_filename=run_cfg.results_filename
-    )
+    app_config = AppConfig.from_dict(run_cfg.parameters, results_filename=run_cfg.results_filename)
 
     log.info(
         {
@@ -28,7 +26,7 @@ def run_from_config(config_path: str = "config.yaml") -> None:
     print(" 2 -> Entry Level & Associate (Other)")
     print(" 3 -> All Levels (Internship, Entry Level & Associate)")
     print("=" * 50)
-    
+
     choice = "3"
     try:
         user_input = input("Select option (1, 2, or 3) [Default: 3]: ").strip()
@@ -36,7 +34,7 @@ def run_from_config(config_path: str = "config.yaml") -> None:
             choice = user_input
     except (EOFError, OSError):
         pass
-        
+
     if choice == "1":
         app_config.experience_level = [1]
         app_config.positions = [

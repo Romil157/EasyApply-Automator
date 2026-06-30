@@ -31,9 +31,7 @@ class AutoAnswer:
                 if isinstance(cfg, dict):
                     return cfg
         except FileNotFoundError:
-            self.log.warning(
-                f"Answer config not found at {path}, using fallback behavior."
-            )
+            self.log.warning(f"Answer config not found at {path}, using fallback behavior.")
         except Exception as exc:
             self.log.warning(
                 f"Failed to load answer config at {path}: {exc}. Using fallback behavior."
@@ -52,8 +50,8 @@ class AutoAnswer:
             "hourly_rate": self.hourly_rate,
             "unknown_years": str(defaults.get("unknown_years", "1")),
             "unknown_text": str(defaults.get("unknown_text", "user provided")),
-            "yes": str(defaults.get(True, "Yes")),      # bare 'yes:' in YAML → Python True
-            "no": str(defaults.get(False, "No")),        # bare 'no:' in YAML → Python False
+            "yes": str(defaults.get(True, "Yes")),  # bare 'yes:' in YAML → Python True
+            "no": str(defaults.get(False, "No")),  # bare 'no:' in YAML → Python False
             "prefer_not": str(defaults.get("prefer_not", "Wish not to answer")),
             "no_self_id": str(defaults.get("no_self_id", "I do not wish to self-identify")),
             **work_auth,
@@ -92,9 +90,7 @@ class AutoAnswer:
                 break
 
         if answer is None:
-            self.log.info(
-                "Not able to answer question automatically. Please provide answer"
-            )
+            self.log.info("Not able to answer question automatically. Please provide answer")
             answer = self.cfg.get("defaults", {}).get("unknown_text", "user provided")
 
         self.log.info(f"Answering question: {q} with answer: {answer}")
@@ -110,12 +106,8 @@ class AutoAnswer:
                         if not file_exists:
                             writer.writerow(["Question", "Answer"])
                         writer.writerow([q, answer])
-                    self.log.info(
-                        f"Appended to QA file: '{q}' with answer: '{answer}'."
-                    )
+                    self.log.info(f"Appended to QA file: '{q}' with answer: '{answer}'.")
                 except Exception as exc:
-                    self.log.warning(
-                        f"Failed to append QA record to {self.qa_file}: {exc}"
-                    )
+                    self.log.warning(f"Failed to append QA record to {self.qa_file}: {exc}")
 
         return answer

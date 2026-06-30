@@ -63,9 +63,7 @@ class QuestionService(ServiceBase):
             return "12"
         return "1"
 
-    def normalize_text_answer(
-        self, question: str, answer: str, input_id: str = ""
-    ) -> str:
+    def normalize_text_answer(self, question: str, answer: str, input_id: str = "") -> str:
         normalized = (answer or "").strip()
         if self.looks_numeric_question(question, input_id):
             return self.coerce_numeric_answer(question, normalized)
@@ -210,8 +208,15 @@ class QuestionService(ServiceBase):
             return normalized
 
         skip_generic_markers = (
-            "linkedin", "profile url", "github", "portfolio", "website",
-            "salary", "compensation", "expected pay", "annual pay",
+            "linkedin",
+            "profile url",
+            "github",
+            "portfolio",
+            "website",
+            "salary",
+            "compensation",
+            "expected pay",
+            "annual pay",
         )
         if any(m in q_low for m in skip_generic_markers) and low in placeholder_values:
             return ""
@@ -272,9 +277,7 @@ class QuestionService(ServiceBase):
             if not question:
                 continue
             direct = self.derive_direct_answer(question)
-            answer = (
-                direct if direct is not None else self.ans_question(question.lower())
-            )
+            answer = direct if direct is not None else self.ans_question(question.lower())
             answered = False
 
             try:
@@ -286,7 +289,9 @@ class QuestionService(ServiceBase):
                             label_clicked = False
                             if rid:
                                 try:
-                                    label_el = field.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
+                                    label_el = field.find_element(
+                                        By.CSS_SELECTOR, f"label[for='{rid}']"
+                                    )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
                                 except Exception:
@@ -388,9 +393,7 @@ class QuestionService(ServiceBase):
 
                 if text_area is not None:
                     text_input_id = text_area.get_attribute("id") or ""
-                    normalized_answer = self.normalize_text_answer(
-                        question, answer, text_input_id
-                    )
+                    normalized_answer = self.normalize_text_answer(question, answer, text_input_id)
                     normalized_answer = self.humanize_free_text_answer(
                         question, normalized_answer, "textarea"
                     )
@@ -404,17 +407,15 @@ class QuestionService(ServiceBase):
                     )
                     continue
 
-                text_input = field.find_element(
-                    By.CLASS_NAME, "artdeco-text-input--input"
-                )
+                text_input = field.find_element(By.CLASS_NAME, "artdeco-text-input--input")
                 text_input_id = text_input.get_attribute("id") or ""
-                normalized_answer = self.normalize_text_answer(
-                    question, answer, text_input_id
-                )
+                normalized_answer = self.normalize_text_answer(question, answer, text_input_id)
                 normalized_answer = self.humanize_free_text_answer(
                     question, normalized_answer, "text"
                 )
-                is_typeahead = text_input.get_attribute("role") == "combobox" or text_input.get_attribute("aria-autocomplete") in ("list", "both")
+                is_typeahead = text_input.get_attribute(
+                    "role"
+                ) == "combobox" or text_input.get_attribute("aria-autocomplete") in ("list", "both")
                 if is_typeahead:
                     self.bot._fill_typeahead_input(text_input, normalized_answer)
                 else:

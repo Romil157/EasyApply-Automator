@@ -1,4 +1,5 @@
 """Tests for SessionService — pure login-state logic, no real WebDriver."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -8,6 +9,7 @@ from easy_apply_automator.services.session_service import SessionService
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_service(current_url: str = "", find_elements_return=None) -> SessionService:
     bot = MagicMock()
@@ -24,6 +26,7 @@ def _make_service(current_url: str = "", find_elements_return=None) -> SessionSe
 # ---------------------------------------------------------------------------
 # is_logged_in — URL-based detection
 # ---------------------------------------------------------------------------
+
 
 class TestIsLoggedIn:
     def test_login_url_returns_false(self):
@@ -82,6 +85,7 @@ class TestIsLoggedIn:
 # ---------------------------------------------------------------------------
 # restore_session_from_cookies — file-missing path
 # ---------------------------------------------------------------------------
+
 
 class TestRestoreSessionFromCookies:
     def test_returns_false_when_cookie_file_missing(self, tmp_path):

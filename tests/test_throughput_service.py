@@ -1,4 +1,5 @@
 """Tests for ThroughputService — pure logic, no real WebDriver."""
+
 from __future__ import annotations
 
 from collections import deque
@@ -9,6 +10,7 @@ from easy_apply_automator.services.throughput_service import ThroughputService
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_bot(
     *,
@@ -49,6 +51,7 @@ def _make_service(bot: MagicMock) -> ThroughputService:
 # schedule_next_short_break
 # ---------------------------------------------------------------------------
 
+
 class TestScheduleNextShortBreak:
     def test_sets_next_break_in_the_future(self):
         bot = _make_bot()
@@ -70,6 +73,7 @@ class TestScheduleNextShortBreak:
 # ---------------------------------------------------------------------------
 # maybe_take_short_break
 # ---------------------------------------------------------------------------
+
 
 class TestMaybeTakeShortBreak:
     def test_no_break_when_not_due(self):
@@ -95,7 +99,7 @@ class TestMaybeTakeShortBreak:
         now = 1_000_000.0
         bot = _make_bot(
             next_short_break_at=now - 1,  # overdue
-            session_deadline=now + 30,    # only 30 s left
+            session_deadline=now + 30,  # only 30 s left
         )
         svc = _make_service(bot)
         with patch("time.time", return_value=now), patch("time.sleep") as mock_sleep:
@@ -106,10 +110,10 @@ class TestMaybeTakeShortBreak:
         """When a break is overdue and there's enough session time, sleep is called."""
         now = 1_000_000.0
         bot = _make_bot(
-            next_short_break_at=now - 1,       # overdue
-            session_deadline=now + 3600,        # plenty of time left
+            next_short_break_at=now - 1,  # overdue
+            session_deadline=now + 3600,  # plenty of time left
             short_break_min_seconds=15,
-            short_break_max_seconds=15,          # deterministic 15s break
+            short_break_max_seconds=15,  # deterministic 15s break
         )
         svc = _make_service(bot)
         with patch("time.time", return_value=now), patch("time.sleep") as mock_sleep:
@@ -122,6 +126,7 @@ class TestMaybeTakeShortBreak:
 # ---------------------------------------------------------------------------
 # update_session_throughput
 # ---------------------------------------------------------------------------
+
 
 class TestUpdateSessionThroughput:
     def test_no_op_when_session_not_started(self):
@@ -156,14 +161,18 @@ class TestUpdateSessionThroughput:
         bot = _make_bot()
         svc = _make_service(bot)
         with patch("time.time", return_value=1_000_060.0):
-            svc.update_session_throughput(reason="medical_related_title", attempted=True, result=False)
+            svc.update_session_throughput(
+                reason="medical_related_title", attempted=True, result=False
+            )
         assert bot.session_jobs_failed_medical == 1
 
     def test_non_attempted_does_not_count_as_failed_attempt(self):
         bot = _make_bot()
         svc = _make_service(bot)
         with patch("time.time", return_value=1_000_060.0):
-            svc.update_session_throughput(reason="no_easy_apply_button", attempted=False, result=False)
+            svc.update_session_throughput(
+                reason="no_easy_apply_button", attempted=False, result=False
+            )
         assert bot.session_jobs_attempted == 0
         assert bot.session_jobs_failed_attempts == 0
         assert bot.session_jobs_processed == 1

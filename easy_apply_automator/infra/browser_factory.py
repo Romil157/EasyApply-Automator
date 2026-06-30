@@ -25,9 +25,7 @@ def detect_chrome_binary() -> str | None:
     macos_candidates = [
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        str(
-            Path.home() / "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        ),
+        str(Path.home() / "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
         str(Path.home() / "Applications/Chromium.app/Contents/MacOS/Chromium"),
     ]
     for candidate in macos_candidates:
@@ -53,9 +51,7 @@ def build_webdriver(
 ) -> webdriver.Chrome:
     if chromedriver_path:
         try:
-            return webdriver.Chrome(
-                service=ChromeService(chromedriver_path), options=options
-            )
+            return webdriver.Chrome(service=ChromeService(chromedriver_path), options=options)
         except SessionNotCreatedException as exc:
             log.warning(
                 "Chromedriver at PATH is incompatible with your Chrome version. "

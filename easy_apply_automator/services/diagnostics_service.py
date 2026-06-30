@@ -24,13 +24,10 @@ class DiagnosticsService(ServiceBase):
         if not self.bot.first_job_debug_done:
             ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             self.bot.current_job_debug_dir = (
-                self.bot.debug_root
-                / f"first_job_{self.sanitize_for_path(str(job_id))}_{ts}"
+                self.bot.debug_root / f"first_job_{self.sanitize_for_path(str(job_id))}_{ts}"
             )
             self.bot.current_job_debug_dir.mkdir(parents=True, exist_ok=True)
-            self.bot.current_job_first_try_dir = (
-                self.bot.current_job_debug_dir / "first_try"
-            )
+            self.bot.current_job_first_try_dir = self.bot.current_job_debug_dir / "first_try"
             self.bot.current_job_first_try_dir.mkdir(parents=True, exist_ok=True)
             self.bot.log_event(
                 "debug_trace_started",
@@ -53,9 +50,7 @@ class DiagnosticsService(ServiceBase):
             )
 
     def finish_job_debug_trace(self) -> None:
-        mode = (
-            "first_job" if self.bot.current_job_debug_dir is not None else "normal_job"
-        )
+        mode = "first_job" if self.bot.current_job_debug_dir is not None else "normal_job"
         if self.bot.current_job_debug_dir is not None:
             self.bot.log_event(
                 "debug_trace_finished",
@@ -103,28 +98,21 @@ class DiagnosticsService(ServiceBase):
                 **(extra or {}),
             }
             meta_path = target_dir / f"{prefix}_{self.sanitize_for_path(tag)}.json"
-            meta_path.write_text(
-                json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception as exc:
             self.bot.log_event("debug_dump_error", tag=tag, error=str(exc))
 
-    def dump_failure_snapshot(
-        self, reason: str, force_failed_root: bool = False
-    ) -> None:
+    def dump_failure_snapshot(self, reason: str, force_failed_root: bool = False) -> None:
         reason_safe = self.sanitize_for_path(reason)
 
         if self.bot.current_job_debug_dir is not None and not force_failed_root:
             self.bot.current_job_failure_count += 1
             failure_dir = (
-                self.bot.current_job_debug_dir
-                / f"failed_{self.bot.current_job_failure_count:04d}"
+                self.bot.current_job_debug_dir / f"failed_{self.bot.current_job_failure_count:04d}"
             )
         else:
             ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            job_id = self.sanitize_for_path(
-                str(self.bot.current_job_id or "unknown_job")
-            )
+            job_id = self.sanitize_for_path(str(self.bot.current_job_id or "unknown_job"))
             job_debug_dir = self.bot.debug_failed_root / f"job_{job_id}_{ts}"
             job_debug_dir.mkdir(parents=True, exist_ok=True)
             failure_dir = job_debug_dir / "failed_0001"
@@ -205,9 +193,7 @@ class DiagnosticsService(ServiceBase):
         def normalize_salary(value: str) -> str:
             return re.sub(r"\s+", " ", value).strip(" ,;:-")
 
-        def extract_salary_from_text(
-            text: str, require_context: bool = True
-        ) -> str | None:
+        def extract_salary_from_text(text: str, require_context: bool = True) -> str | None:
             if not text:
                 return None
 
@@ -264,10 +250,7 @@ class DiagnosticsService(ServiceBase):
                 payload = json.loads(raw)
                 entries = payload if isinstance(payload, list) else [payload]
                 for entry in entries:
-                    if (
-                        not isinstance(entry, dict)
-                        or entry.get("@type") != "JobPosting"
-                    ):
+                    if not isinstance(entry, dict) or entry.get("@type") != "JobPosting":
                         continue
                     base_salary = entry.get("baseSalary")
                     if isinstance(base_salary, dict):
@@ -288,9 +271,7 @@ class DiagnosticsService(ServiceBase):
                                 "WEEK": "/week",
                             }
                             unit_suffix = (
-                                unit_map.get(
-                                    str(unit_text).upper(), f"/{unit_text.lower()}"
-                                )
+                                unit_map.get(str(unit_text).upper(), f"/{unit_text.lower()}")
                                 if unit_text
                                 else ""
                             )

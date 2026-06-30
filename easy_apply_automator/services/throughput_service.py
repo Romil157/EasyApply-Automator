@@ -42,14 +42,10 @@ class ThroughputService(ServiceBase):
         )
         log.info(f"Taking a short break for {pause_seconds}s")
         time.sleep(pause_seconds)
-        self.bot.log_event(
-            "short_break_end", source=source, duration_seconds=pause_seconds
-        )
+        self.bot.log_event("short_break_end", source=source, duration_seconds=pause_seconds)
         self.schedule_next_short_break()
 
-    def update_session_throughput(
-        self, *, reason: str, attempted: bool, result: bool
-    ) -> None:
+    def update_session_throughput(self, *, reason: str, attempted: bool, result: bool) -> None:
         if self.bot.session_started_at <= 0:
             return
 
@@ -76,10 +72,7 @@ class ThroughputService(ServiceBase):
         )
 
         window_start = now - self.bot.throughput_window_seconds
-        while (
-            self.bot.submitted_timestamps
-            and self.bot.submitted_timestamps[0] < window_start
-        ):
+        while self.bot.submitted_timestamps and self.bot.submitted_timestamps[0] < window_start:
             self.bot.submitted_timestamps.popleft()
         window_seconds = min(self.bot.throughput_window_seconds, elapsed_seconds)
         window_hours = max(1.0 / 3600.0, window_seconds / 3600.0)

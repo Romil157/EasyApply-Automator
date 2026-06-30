@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from selenium.webdriver.common.by import By
 
-
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from easy_apply_automator.app.orchestrator import LinkedInEasyApplyOrchestrator
 
 
 class FormFillerMixin:
     bot: LinkedInEasyApplyOrchestrator
+
     def fill_easy_apply_required_fields(self) -> None:
         self.fill_required_radios_from_context()
 
@@ -33,9 +33,7 @@ class FormFillerMixin:
                     current = (select_el.get_attribute("value") or "").strip().lower()
                     if current in ("", "select an option"):
                         if "phone country code" in label_text:
-                            if not self.bot._select_option_by_answer(
-                                select_el, "Czechia (+420)"
-                            ):
+                            if not self.bot._select_option_by_answer(select_el, "Czechia (+420)"):
                                 self.bot._select_non_default_option(select_el)
                         else:
                             self.bot._select_non_default_option(select_el)
@@ -67,11 +65,7 @@ class FormFillerMixin:
                     continue
 
                 direct = self.bot._derive_direct_answer(question)
-                answer = (
-                    direct
-                    if direct is not None
-                    else self.bot.ans_question(question.lower())
-                )
+                answer = direct if direct is not None else self.bot.ans_question(question.lower())
                 answer_aliases = self.bot._answer_aliases(answer)
 
                 selected = False
@@ -82,7 +76,9 @@ class FormFillerMixin:
                             label_clicked = False
                             if rid:
                                 try:
-                                    label_el = group.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
+                                    label_el = group.find_element(
+                                        By.CSS_SELECTOR, f"label[for='{rid}']"
+                                    )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
                                 except Exception:
@@ -104,7 +100,9 @@ class FormFillerMixin:
                             label_clicked = False
                             if rid:
                                 try:
-                                    label_el = group.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
+                                    label_el = group.find_element(
+                                        By.CSS_SELECTOR, f"label[for='{rid}']"
+                                    )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
                                 except Exception:
@@ -133,7 +131,9 @@ class FormFillerMixin:
                             label_clicked = False
                             if rid:
                                 try:
-                                    label_el = group.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
+                                    label_el = group.find_element(
+                                        By.CSS_SELECTOR, f"label[for='{rid}']"
+                                    )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
                                 except Exception:
@@ -160,7 +160,9 @@ class FormFillerMixin:
                             label_clicked = False
                             if rid:
                                 try:
-                                    label_el = group.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
+                                    label_el = group.find_element(
+                                        By.CSS_SELECTOR, f"label[for='{rid}']"
+                                    )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
                                 except Exception:
@@ -217,15 +219,18 @@ class FormFillerMixin:
                         question, input_el.get_attribute("id") or ""
                     )
                     answer = (
-                        direct
-                        if direct is not None
-                        else self.bot.ans_question(question.lower())
+                        direct if direct is not None else self.bot.ans_question(question.lower())
                     )
                     normalized_answer = self.bot._normalize_text_answer(
                         question, answer, input_el.get_attribute("id") or ""
                     )
                     if normalized_answer:
-                        is_typeahead = input_el.get_attribute("role") == "combobox" or input_el.get_attribute("aria-autocomplete") in ("list", "both")
+                        is_typeahead = input_el.get_attribute(
+                            "role"
+                        ) == "combobox" or input_el.get_attribute("aria-autocomplete") in (
+                            "list",
+                            "both",
+                        )
                         if is_typeahead:
                             self.bot._fill_typeahead_input(input_el, normalized_answer)
                         else:
@@ -254,11 +259,7 @@ class FormFillerMixin:
                 raw_question = group.text or ""
                 question = self.bot._clean_question_text(raw_question)
                 direct = self.bot._derive_direct_answer(question)
-                answer = (
-                    direct
-                    if direct is not None
-                    else self.bot.ans_question(question.lower())
-                )
+                answer = direct if direct is not None else self.bot.ans_question(question.lower())
 
                 matched_radio = None
                 for radio in radios:
@@ -350,14 +351,8 @@ class FormFillerMixin:
                     continue
 
                 direct = self.bot._derive_direct_answer(question, field_id)
-                answer = (
-                    direct
-                    if direct is not None
-                    else self.bot.ans_question(question.lower())
-                )
-                normalized_answer = self.bot._normalize_text_answer(
-                    question, answer, field_id
-                )
+                answer = direct if direct is not None else self.bot.ans_question(question.lower())
+                normalized_answer = self.bot._normalize_text_answer(question, answer, field_id)
                 normalized_answer = self.bot.questions.humanize_free_text_answer(
                     question,
                     normalized_answer,
@@ -366,10 +361,9 @@ class FormFillerMixin:
                 if not normalized_answer:
                     normalized_answer = "N/A"
 
-                is_typeahead = (
-                    field.get_attribute("role") == "combobox"
-                    or field.get_attribute("aria-autocomplete") in ("list", "both")
-                )
+                is_typeahead = field.get_attribute("role") == "combobox" or field.get_attribute(
+                    "aria-autocomplete"
+                ) in ("list", "both")
                 if is_typeahead:
                     if not self.bot._fill_typeahead_input(field, normalized_answer):
                         continue

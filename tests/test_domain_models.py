@@ -1,4 +1,5 @@
 """Tests for easy_apply_automator.domain.models dataclasses."""
+
 from __future__ import annotations
 
 import pytest
@@ -9,6 +10,7 @@ from easy_apply_automator.domain.models import AppConfig, RuntimeConfig, Session
 # ---------------------------------------------------------------------------
 # SessionMetrics
 # ---------------------------------------------------------------------------
+
 
 class TestSessionMetrics:
     def test_default_values(self):
@@ -34,6 +36,7 @@ class TestSessionMetrics:
 # ---------------------------------------------------------------------------
 # RuntimeConfig
 # ---------------------------------------------------------------------------
+
 
 class TestRuntimeConfig:
     def test_all_defaults(self):
@@ -63,6 +66,7 @@ class TestRuntimeConfig:
 # ---------------------------------------------------------------------------
 # AppConfig defaults
 # ---------------------------------------------------------------------------
+
 
 class TestAppConfigDefaults:
     def test_default_field_values(self):
@@ -102,6 +106,7 @@ class TestAppConfigDefaults:
 # ---------------------------------------------------------------------------
 # AppConfig.from_dict
 # ---------------------------------------------------------------------------
+
 
 class TestAppConfigFromDict:
     def _params(self, **kw):
@@ -159,6 +164,7 @@ class TestAppConfigFromDict:
 # ---------------------------------------------------------------------------
 # RunConfig schema
 # ---------------------------------------------------------------------------
+
 
 class TestRunConfig:
     def test_run_config_holds_parameters_and_filename(self):

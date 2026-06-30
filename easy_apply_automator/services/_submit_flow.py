@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import re
 import time
+from typing import TYPE_CHECKING
 
 from selenium.webdriver.common.by import By
 
 from easy_apply_automator.observability.logger import log
 
-
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from easy_apply_automator.app.orchestrator import LinkedInEasyApplyOrchestrator
 
@@ -16,11 +15,21 @@ if TYPE_CHECKING:
 class SubmitFlowMixin:
     bot: LinkedInEasyApplyOrchestrator
 
-    def fill_easy_apply_required_fields(self) -> None: pass
-    def recover_inline_validation_errors(self) -> int: return 0
-    def recover_unanswered_radio_groups(self) -> int: return 0
-    def recover_empty_required_text_fields(self) -> int: return 0
-    def uncheck_follow_company(self) -> None: pass
+    def fill_easy_apply_required_fields(self) -> None:
+        pass
+
+    def recover_inline_validation_errors(self) -> int:
+        return 0
+
+    def recover_unanswered_radio_groups(self) -> int:
+        return 0
+
+    def recover_empty_required_text_fields(self) -> int:
+        return 0
+
+    def uncheck_follow_company(self) -> None:
+        pass
+
     def detect_daily_easy_apply_limit(self) -> tuple[bool, str | None]:
         try:
             page_source = (self.bot.browser.page_source or "").replace("’", "'").lower()
@@ -116,10 +125,7 @@ class SubmitFlowMixin:
             elif current is not None and current != previous_progress:
                 return current
             page_text = (self.bot.browser.page_source or "").lower()
-            if (
-                "application was sent" in page_text
-                or "application submitted" in page_text
-            ):
+            if "application was sent" in page_text or "application submitted" in page_text:
                 return current
             time.sleep(0.05)
         return self.get_easy_apply_progress()
@@ -197,9 +203,7 @@ class SubmitFlowMixin:
         current_url = (self.bot.browser.current_url or "").lower()
         return "/apply/" in current_url and "linkedin.com/jobs" in current_url
 
-    def wait_for_apply_flow_ready(
-        self, timeout_seconds: float = 8.0
-    ) -> tuple[bool, str]:
+    def wait_for_apply_flow_ready(self, timeout_seconds: float = 8.0) -> tuple[bool, str]:
         end = time.time() + timeout_seconds
         while time.time() < end:
             limit_reached, _ = self.detect_daily_easy_apply_limit()
@@ -319,9 +323,7 @@ class SubmitFlowMixin:
             return "modal_no_cta", details
         return "outside_modal", details
 
-    def collect_apply_stall_diagnostics(
-        self, state: str, progress: int | None, loop: int
-    ) -> dict:
+    def collect_apply_stall_diagnostics(self, state: str, progress: int | None, loop: int) -> dict:
         diagnostics: dict[str, object] = {
             "state": state,
             "loop": loop,
@@ -440,9 +442,7 @@ class SubmitFlowMixin:
                     self.bot._dump_failure_snapshot("daily_limit_reached")
                     return False
                 retried_ok, retry_mode = self.retry_open_apply_flow()
-                self.bot.log_event(
-                    "easy_apply_flow_retry", success=retried_ok, mode=retry_mode
-                )
+                self.bot.log_event("easy_apply_flow_retry", success=retried_ok, mode=retry_mode)
                 self.bot._dump_debug_html(
                     "easy_apply_flow_retry",
                     extra={"success": retried_ok, "mode": retry_mode},
@@ -488,12 +488,8 @@ class SubmitFlowMixin:
                 time.sleep(0.15)
 
                 progress = self.get_easy_apply_progress()
-                self.bot.log_event(
-                    "easy_apply_step_enter", progress=progress, loop=loop
-                )
-                self.bot._dump_debug_html(
-                    f"step_enter_loop_{loop}", extra={"progress": progress}
-                )
+                self.bot.log_event("easy_apply_step_enter", progress=progress, loop=loop)
+                self.bot._dump_debug_html(f"step_enter_loop_{loop}", extra={"progress": progress})
 
                 state, state_details = self.detect_easy_apply_state()
                 if state != last_state:
@@ -673,9 +669,7 @@ class SubmitFlowMixin:
                 self.bot._dump_debug_html(
                     f"clicked_{action}_loop_{loop}", extra={"progress_before": progress}
                 )
-                next_progress = self.wait_for_progress_change(
-                    progress, timeout_seconds=8.0
-                )
+                next_progress = self.wait_for_progress_change(progress, timeout_seconds=8.0)
                 self.bot.log_event(
                     "easy_apply_step_exit",
                     step=action,

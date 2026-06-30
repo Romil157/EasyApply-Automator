@@ -1,4 +1,5 @@
 """Tests for easy_apply_automator.qa.auto_answer — pure regex / template logic."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,6 +11,7 @@ from easy_apply_automator.qa.auto_answer import AutoAnswer
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_yaml(content: str, tmp_path: Path) -> Path:
     """Write a YAML string to a temp file and return its path."""
@@ -82,6 +84,7 @@ rules:
 # Test: exact pattern match
 # ---------------------------------------------------------------------------
 
+
 class TestExactMatch:
     def test_authorized_match(self, tmp_path):
         aa = _make_auto_answer(BASIC_YAML, tmp_path)
@@ -107,6 +110,7 @@ class TestExactMatch:
 # Test: case-insensitive matching
 # ---------------------------------------------------------------------------
 
+
 class TestCaseInsensitive:
     def test_upper_case_question(self, tmp_path):
         aa = _make_auto_answer(BASIC_YAML, tmp_path)
@@ -127,6 +131,7 @@ class TestCaseInsensitive:
 # ---------------------------------------------------------------------------
 # Test: no-match fallback
 # ---------------------------------------------------------------------------
+
 
 class TestNoMatchFallback:
     def test_unknown_question_returns_unknown_text(self, tmp_path):
@@ -154,6 +159,7 @@ class TestNoMatchFallback:
 # Test: template rendering
 # ---------------------------------------------------------------------------
 
+
 class TestTemplateRendering:
     def test_linkedin_profile_url_rendered(self, tmp_path):
         aa = _make_auto_answer(
@@ -177,7 +183,10 @@ class TestTemplateRendering:
 
     def test_years_template_unknown_key_falls_back_to_unknown_years(self, tmp_path):
         # 'java' is not in the years map, should return unknown_years = "1"
-        yaml_with_java = BASIC_YAML + "\n  - id: java_years\n    match_any:\n      - \"(?i)java years\"\n    answer: \"{years.java}\"\n"
+        yaml_with_java = (
+            BASIC_YAML
+            + '\n  - id: java_years\n    match_any:\n      - "(?i)java years"\n    answer: "{years.java}"\n'
+        )
         result = _make_auto_answer(yaml_with_java, tmp_path).ans_question("java years")
         assert result == "1"
 
@@ -193,6 +202,7 @@ class TestTemplateRendering:
 # ---------------------------------------------------------------------------
 # Test: ambiguous-pattern edge case
 # ---------------------------------------------------------------------------
+
 
 class TestAmbiguousPatterns:
     def test_first_matching_rule_wins(self, tmp_path):
@@ -263,6 +273,7 @@ rules:
 # ---------------------------------------------------------------------------
 # Test: missing / empty YAML file
 # ---------------------------------------------------------------------------
+
 
 class TestYamlLoading:
     def test_missing_yaml_does_not_raise(self, tmp_path):
