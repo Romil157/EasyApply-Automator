@@ -17,8 +17,8 @@ locations:
 max_pages_per_search: 3
 
 # Session pacing (how long the bot runs and takes breaks)
-session_duration_hours_min: 3
-session_duration_hours_max: 5
+session_duration_hours_min: 2
+session_duration_hours_max: 4
 short_break_min_seconds: 1
 short_break_max_seconds: 3
 short_break_every_min_minutes: 60

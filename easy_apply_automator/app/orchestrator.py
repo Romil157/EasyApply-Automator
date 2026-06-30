@@ -416,20 +416,31 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         combos = [
             (position, location) for position in randomized_positions for location in locations
         ]
-        if self.shuffle_search_combos:
-            random.shuffle(combos)
+        if not combos:
+            log.warning("No search combinations (positions/locations) available.")
+            return
 
-        for position, location in combos[:500]:
-            if self.stop_requested or time.time() >= self.session_deadline:
-                self.log_event(
-                    "session_deadline_reached",
-                    stop_reason=self.stop_reason or "time_budget_exhausted",
+        while not self.stop_requested and time.time() < self.session_deadline:
+            if self.shuffle_search_combos:
+                random.shuffle(combos)
+
+            for position, location in combos:
+                if self.stop_requested or time.time() >= self.session_deadline:
+                    break
+                self._maybe_take_short_break(source="combo_loop")
+                log.info(f"Applying to {position}: {location}")
+                self.log_event("combo_start", position=position, location=location)
+                self.applications_loop(position, f"&location={location}")
+
+            if not self.stop_requested and time.time() < self.session_deadline:
+                log.info(
+                    "Finished all search combinations. Restarting search loop to keep running until session deadline."
                 )
-                break
-            self._maybe_take_short_break(source="combo_loop")
-            log.info(f"Applying to {position}: {location}")
-            self.log_event("combo_start", position=position, location=location)
-            self.applications_loop(position, f"&location={location}")
+
+        self.log_event(
+            "session_deadline_reached",
+            stop_reason=self.stop_reason or "time_budget_exhausted",
+        )
 
     def apply_to_job(self, job_id: str) -> bool:
         self._start_job_debug_trace(str(job_id))
