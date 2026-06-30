@@ -4,7 +4,6 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-
 log = logging.getLogger("easy_apply_automator")
 
 

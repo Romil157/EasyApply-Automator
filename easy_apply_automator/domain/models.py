@@ -53,7 +53,7 @@ class AppConfig:
     @classmethod
     def from_dict(
         cls, parameters: dict[str, Any], results_filename: str
-    ) -> "AppConfig":
+    ) -> AppConfig:
         uploads = parameters.get("uploads") or {}
         if not isinstance(uploads, dict):
             uploads = {}
@@ -98,7 +98,7 @@ class AppConfig:
                 str(p) for p in parameters.get("positions", []) if p is not None
             ],
             locations=[
-                str(l) for l in parameters.get("locations", []) if l is not None
+                str(loc) for loc in parameters.get("locations", []) if loc is not None
             ],
             uploads=uploads,
             location_country=str(parameters.get("location_country", "IN")).strip()

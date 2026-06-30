@@ -13,7 +13,7 @@ def load_recent_applied_ids(filename: str, days: int = 2) -> list[str] | None:
     if not file_path.exists():
         return None
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             payload = json.load(f)
         if not isinstance(payload, list):
             return None
@@ -54,7 +54,7 @@ class ResultsRepository:
 
         existing: list[Any] = []
         if output_path.exists():
-            with open(output_path, "r", encoding="utf-8") as f:
+            with open(output_path, encoding="utf-8") as f:
                 loaded = json.load(f)
                 if isinstance(loaded, list):
                     existing = loaded

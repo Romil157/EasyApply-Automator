@@ -1,5 +1,13 @@
 # EasyApply Automator
 
+[![Python 3.12](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/Romil157/EasyApply-Automator/actions/workflows/ci.yml/badge.svg)](https://github.com/Romil157/EasyApply-Automator/actions/workflows/ci.yml)
+
+## Disclaimer
+
+This software is for educational purposes only. LinkedIn's User Agreement prohibits the use of bots or automated tools that scrape or automate activity. Use this software at your own risk. The developers are not responsible for any account restrictions, suspensions, or bans resulting from the use of this tool.
+
 > A robust, clean, and high-performance automation engine to apply to LinkedIn jobs using the **Easy Apply** feature — built with Python and Selenium.
 
 This project is designed as a clean, production-grade automation bot that parses job criteria, performs searches, filters matching positions, automatically handles multi-step form questions using customized YAML rules, and submits applications in seconds.
@@ -160,3 +168,26 @@ If presenting this project for a college demo or showcase, highlight the followi
 * **Structured Logs:** Events are logged sequentially in `logs/events.jsonl` for offline parsing.
 
 ---
+
+## Testing
+
+The project includes a comprehensive unit testing suite using `pytest`. You can run tests, code formatting checks, and type analysis using the commands below:
+
+```bash
+# Run pytest tests
+python -m pytest tests/ -v
+
+# Run ruff style checks
+python -m ruff check easy_apply_automator tests
+
+# Run mypy static type checking
+python -m mypy easy_apply_automator --ignore-missing-imports
+```
+
+---
+
+## Demo
+
+Here is a visual overview demonstrating the bot in action:
+
+<!-- [DEMO PLACEHOLDER IMAGE] -->

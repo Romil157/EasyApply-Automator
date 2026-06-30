@@ -7,5 +7,5 @@ if TYPE_CHECKING:
 
 
 class ServiceBase:
-    def __init__(self, bot: "LinkedInEasyApplyOrchestrator") -> None:
+    def __init__(self, bot: LinkedInEasyApplyOrchestrator) -> None:
         self.bot = bot

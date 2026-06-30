@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import getpass
 import os
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
 import yaml
+from dotenv import load_dotenv
 
 from .schema import RunConfig
-
 
 ENV_TO_CONFIG_KEY = {
     "LINKEDIN_USERNAME": "username",

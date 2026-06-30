@@ -29,5 +29,34 @@ dependencies = [
   "selenium>=4.23.1",
 ]
 
-[tool.setuptools]
-packages = ["easy_apply_automator"]
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-mock>=3.12",
+  "ruff>=0.4",
+  "mypy>=1.10",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["easy_apply_automator*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = [
+  "E501",   # line too long — enforced by formatter, not linter
+]
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = false
+ignore_missing_imports = true
+warn_return_any = false
+warn_unused_ignores = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

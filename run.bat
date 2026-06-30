@@ -29,7 +29,7 @@ if not exist "venv" (
 
 :: Install dependencies using the virtual environment's pip
 echo [2/3] Installing/verifying dependencies...
-"venv\Scripts\pip.exe" install -r "requirements.txt"
+"venv\Scripts\python.exe" -m pip install -r "requirements.txt"
 echo       Done.
 
 :: Run the bot using the virtual environment's python

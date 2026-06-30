@@ -1,6 +1,5 @@
 import csv
 import re
-import time
 from pathlib import Path
 
 import yaml
@@ -27,7 +26,7 @@ class AutoAnswer:
 
     def _load_yaml(self, path: Path) -> dict:
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
                 if isinstance(cfg, dict):
                     return cfg

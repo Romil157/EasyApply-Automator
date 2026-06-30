@@ -109,7 +109,7 @@ class SessionService(ServiceBase):
             return False
 
         try:
-            with open(cookie_file, "r", encoding="utf-8") as f:
+            with open(cookie_file, encoding="utf-8") as f:
                 cookies = json.load(f)
             if not isinstance(cookies, list):
                 self.bot.log_event(

@@ -7,8 +7,6 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
-from easy_apply_automator.observability.logger import log
-
 from .base import ServiceBase
 
 
