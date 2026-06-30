@@ -1,3 +1,4 @@
+"""Clean domain models and data container classes representing configurations and run status."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -7,6 +8,7 @@ from typing import Any
 
 @dataclass(slots=True)
 class SessionMetrics:
+    """Holds job counts and status metrics for the current execution session."""
     jobs_processed: int = 0
     jobs_submitted: int = 0
     jobs_attempted: int = 0
@@ -16,6 +18,7 @@ class SessionMetrics:
 
 @dataclass(slots=True)
 class RuntimeConfig:
+    """Holds operational constraints like durations, thresholds, and break timing limits."""
     max_pages_per_search: int = 3
     session_duration_hours_min: float = 3.0
     session_duration_hours_max: float = 5.0
@@ -30,6 +33,7 @@ class RuntimeConfig:
 
 @dataclass(slots=True)
 class AppConfig:
+    """Holds user profile preferences, login credentials, blacklist keywords, and file targets."""
     username: str = ""
     password: str = ""
     phone_number: str = ""

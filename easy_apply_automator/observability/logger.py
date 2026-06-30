@@ -1,3 +1,4 @@
+"""Sets up logger configuration formatting and directory endpoints."""
 from __future__ import annotations
 
 import logging
@@ -8,6 +9,7 @@ log = logging.getLogger("easy_apply_automator")
 
 
 class _SecondPrecisionFormatter(logging.Formatter):
+    """Custom log formatter that strips sub-second parts for terminal output readability."""
     def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
         dt = datetime.fromtimestamp(record.created)
         if datefmt:

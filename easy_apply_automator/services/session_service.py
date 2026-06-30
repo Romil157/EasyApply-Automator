@@ -1,3 +1,4 @@
+"""Service that manages login states, session cookie persistence, and authentication flows."""
 from __future__ import annotations
 
 import json
@@ -13,12 +14,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 
+from easy_apply_automator.config.timing import (
+    MODAL_TRANSITION_PAUSE_SECONDS,
+    PAGE_LOAD_PAUSE_SECONDS,
+)
 from easy_apply_automator.observability.logger import log
 
 from .base import ServiceBase
 
 
 class SessionService(ServiceBase):
+    """Verifies authentication, signs in to LinkedIn, and restores cookies from cache."""
     def start_linkedin(self, username: str, password: str) -> None:
         log.info("Opening LinkedIn login page...")
         self.bot.browser.get(
@@ -50,7 +56,7 @@ class SessionService(ServiceBase):
                     user_field.clear()
                     user_field.send_keys(username)
                     user_field.send_keys(Keys.TAB)
-                    time.sleep(0.5)
+                    time.sleep(MODAL_TRANSITION_PAUSE_SECONDS)
                 else:
                     log.warning(
                         "Could not find the email input field on the page. Please enter it manually."
@@ -62,7 +68,7 @@ class SessionService(ServiceBase):
 
             # Wait up to 120 seconds for the user to log in manually
             for _ in range(60):
-                time.sleep(2)
+                time.sleep(PAGE_LOAD_PAUSE_SECONDS)
                 if self.is_logged_in():
                     log.info("Login successful!")
                     self.bot.log_event("login_success", method="manual")
@@ -136,7 +142,7 @@ class SessionService(ServiceBase):
                     continue
 
             self.bot.browser.get("https://www.linkedin.com/feed/")
-            time.sleep(2)
+            time.sleep(PAGE_LOAD_PAUSE_SECONDS)
             ok = self.is_logged_in()
             self.bot.log_event(
                 "cookies_restore_result",

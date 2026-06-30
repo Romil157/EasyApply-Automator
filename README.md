@@ -3,6 +3,8 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/Romil157/EasyApply-Automator/actions/workflows/ci.yml/badge.svg)](https://github.com/Romil157/EasyApply-Automator/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/Coverage-14%25-yellow.svg)](#testing)
+
 
 ## Disclaimer
 
@@ -42,22 +44,54 @@ This project is designed as a clean, production-grade automation bot that parses
 
 ```text
 easy-apply-automator/
-├── run.bat            # One-click startup script (Windows)
+├── .github/
+│   └── workflows/
+│       └── ci.yml          # GitHub Actions continuous integration pipeline
+├── easy_apply_automator/   # Core Python source package
+│   ├── app/                # Orchestrator & runner entrypoints
+│   │   ├── orchestrator.py # Main Selenium/BS4 crawler engine
+│   │   ├── runner.py       # Config parser and CLI prompt loop
+│   │   └── search_loop.py  # Crawling state machine & search combination loop
+│   ├── config/             # Configuration parser and schema mapping
+│   │   ├── loader.py       # YAML parser and environment variables injector
+│   │   ├── schema.py       # Config validators and schema parameters
+│   │   └── timing.py       # Centralized timing and pause duration constants
+│   ├── domain/             # Clean dataclass architectures
+│   │   └── models.py       # App configurations, execution and session metrics
+│   ├── infra/              # WebDriver initialization & session handling
+│   │   ├── browser_factory.py # Chrome/Chromium manager and options builder
+│   │   └── repositories.py # Local result storage and caching layer
+│   ├── observability/      # Event-driven logging and JSONL tracers
+│   │   ├── events.py       # JSONL trace writer and execution tracker
+│   │   └── logger.py       # Setup global python log levels and formats
+│   ├── qa/                 # Question parsing and matching service
+│   │   └── auto_answer.py  # QA selector rules and regex patterns resolver
+│   └── services/           # Business logic services (Apply flow, Session, Throughput)
+│       ├── _form_filler.py # Internal mixin logic for radio/select/text forms
+│       ├── _submit_flow.py # Internal mixin logic for apply loops and timeouts
+│       ├── apply_flow_service.py # Mixin composer exposing public API
+│       ├── base.py         # Abstract base service injection class
+│       ├── diagnostics_service.py # HTML trace logger and debugging snapshots
+│       ├── question_service.py # Normalizes text, alias checks, numeric conversion
+│       ├── session_service.py # Validates login state and cookie persistence
+│       └── throughput_service.py # Breaks Scheduler and application speed limiter
+├── tests/                  # Pytest test suite modules
+│   ├── conftest.py         # Standard fixtures for temporary files and mocks
+│   ├── test_auto_answer.py # YAML pattern resolution and radio click tests
+│   ├── test_config_loader.py # Loader priority and missing parameter coverage
+│   ├── test_domain_models.py # Dataclass slot constraints and remapping tests
+│   ├── test_question_service.py # Pure logical conversions and aliases verification
+│   ├── test_session_service.py # Ambiguous URL login states and cookie fallback checks
+│   └── test_throughput_service.py # Break intervals, session metrics and timestamp limits
+├── .env.example            # Environment variables template
+├── config.yaml             # Job search settings (Keywords, Locations)
 ├── easy_apply_bot.py       # Main bot entry point
-├── config.yaml          # Job search settings (Keywords, Locations)
-├── questions_answers.yaml     # Auto-answering database & matching rules
-├── requirements.txt        # Project dependency package index
-├── .env.example          # Environment variable template
-└── easy_apply_automator/      # Core Python source package
-  ├── app/            # Orchestrator & runner entrypoints
-  │  ├── orchestrator.py    # Main Selenium/BS4 crawler engine
-  │  └── runner.py       # Config parser and CLI prompt loop
-  ├── config/          # Configuration parser and schema mapping
-  ├── domain/          # Clean dataclass architectures
-  ├── infra/           # WebDriver initialization & session handling
-  ├── observability/       # Event-driven logging and JSONL tracers
-  ├── qa/            # Question parsing and matching service
-  └── services/         # Business logic services (Apply flow, Session, Throughput)
+├── LICENSE                 # MIT License details
+├── pyproject.toml          # Packaging specifications and dependencies
+├── questions_answers.yaml  # Auto-answering database & matching rules
+├── requirements.txt        # Legacy pip packages layout index
+├── run.bat                 # One-click startup script (Windows)
+└── run.sh                  # One-click startup script (macOS/Linux)
 ```
 
 ---
@@ -174,8 +208,9 @@ If presenting this project for a college demo or showcase, highlight the followi
 The project includes a comprehensive unit testing suite using `pytest`. You can run tests, code formatting checks, and type analysis using the commands below:
 
 ```bash
-# Run pytest tests
-python -m pytest tests/ -v
+# Run pytest tests with code coverage
+python -m pytest tests/ -v --cov=easy_apply_automator --cov-report=term-missing
+
 
 # Run ruff style checks
 python -m ruff check easy_apply_automator tests

@@ -1,3 +1,4 @@
+"""Service that limits automation speed, controls session intervals, and schedules random breaks."""
 from __future__ import annotations
 
 import random
@@ -9,6 +10,7 @@ from .base import ServiceBase
 
 
 class ThroughputService(ServiceBase):
+    """Enforces pause durations and short breaks to emulate natural user typing and navigation speeds."""
     def schedule_next_short_break(self) -> None:
         interval_minutes = random.randint(
             self.bot.short_break_every_min_minutes,

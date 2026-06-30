@@ -1,3 +1,4 @@
+"""Configuration loader module that parses settings from YAML files and environment variables."""
 from __future__ import annotations
 
 import os

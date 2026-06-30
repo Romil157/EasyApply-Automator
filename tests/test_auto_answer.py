@@ -34,7 +34,7 @@ def _make_auto_answer(yaml_content: str, tmp_path: Path, **kwargs) -> AutoAnswer
     )
 
 
-BASIC_YAML = """
+BASIC_YAML = r"""
 defaults:
   unknown_text: "user provided"
   unknown_years: "1"

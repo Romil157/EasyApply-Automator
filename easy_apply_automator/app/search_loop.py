@@ -7,6 +7,7 @@ from typing import Any
 
 from selenium.webdriver.common.by import By
 
+from easy_apply_automator.config.timing import PAGE_LOAD_PAUSE_SECONDS
 from easy_apply_automator.observability.logger import log
 
 
@@ -148,7 +149,7 @@ class SearchLoopMixin:
                     jobs_page_start=jobs_per_page,
                     error=error_message,
                 )
-                time.sleep(2)
+                time.sleep(PAGE_LOAD_PAUSE_SECONDS)
 
     def apply_loop(self, job_ids: dict[str, str]) -> None:
         for job_id in job_ids:

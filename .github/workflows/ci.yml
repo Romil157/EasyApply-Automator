@@ -35,4 +35,5 @@ jobs:
       run: python -m mypy easy_apply_automator --ignore-missing-imports
 
     - name: Run Tests
-      run: python -m pytest tests/ -v
+      run: python -m pytest tests/ -v --cov=easy_apply_automator --cov-report=term-missing --cov-report=xml
+

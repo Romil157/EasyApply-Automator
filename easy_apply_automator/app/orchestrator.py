@@ -11,12 +11,19 @@ from pathlib import Path
 
 import pyautogui
 from bs4 import BeautifulSoup
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from easy_apply_automator.app.search_loop import SearchLoopMixin
+from easy_apply_automator.config.timing import (
+    CLICK_PAUSE_SECONDS,
+    MICRO_PAUSE_SECONDS,
+    MODAL_TRANSITION_PAUSE_SECONDS,
+    QUESTION_LOAD_PAUSE_SECONDS,
+    TYPEAHEAD_PAUSE_SECONDS,
+)
 from easy_apply_automator.domain.models import AppConfig
 from easy_apply_automator.infra.browser_factory import (
     build_browser_options,
@@ -65,6 +72,24 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         else:
             log.info("Applying for all experience levels")
 
+        self._init_config(config)
+        self._init_browser(config)
+        self._init_services(config)
+
+        restored = self.restore_session_from_cookies()
+        if not restored:
+            self.start_linkedin(config.username, config.password)
+            self.save_session_cookies()
+
+        self.log_event(
+            "bot_initialized",
+            results_json=self.results_filename,
+            events_jsonl=self.events_filename,
+            cookies_path=self.cookies_path,
+            experience_levels=self.experience_level,
+        )
+
+    def _init_config(self, config: AppConfig) -> None:
         self.uploads = config.uploads
         self.salary = config.salary
         self.rate = config.rate
@@ -84,24 +109,9 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         Path(self.cookies_path).parent.mkdir(parents=True, exist_ok=True)
 
         past_ids = load_recent_applied_ids(self.results_filename)
-        self.appliedJobIDs: list[str] = past_ids if past_ids is not None else []
+        self.appliedJobIDs = past_ids if past_ids is not None else []
         self.results_repo = ResultsRepository(self.results_filename)
         self.event_logger = EventLogger(self.events_filename)
-
-        self.options = build_browser_options()
-        chromedriver_path = shutil.which("chromedriver")
-        chrome_path = detect_chrome_binary()
-        if chrome_path:
-            self.options.binary_location = chrome_path
-            log.info(f"Using browser binary: {chrome_path}")
-        else:
-            log.warning(
-                "No explicit Chromium/Chrome binary found in PATH. "
-                "Proceeding with Selenium default browser discovery."
-            )
-
-        self.browser = build_webdriver(self.options, chromedriver_path)
-        self.wait = WebDriverWait(self.browser, 30)
 
         self.database_related_title_keywords = [
             "database",
@@ -241,6 +251,23 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.qa_file: Path | None = None
         self.answers: dict[str, str] = {}
 
+    def _init_browser(self, config: AppConfig) -> None:
+        self.options = build_browser_options()
+        chromedriver_path = shutil.which("chromedriver")
+        chrome_path = detect_chrome_binary()
+        if chrome_path:
+            self.options.binary_location = chrome_path
+            log.info(f"Using browser binary: {chrome_path}")
+        else:
+            log.warning(
+                "No explicit Chromium/Chrome binary found in PATH. "
+                "Proceeding with Selenium default browser discovery."
+            )
+
+        self.browser = build_webdriver(self.options, chromedriver_path)
+        self.wait = WebDriverWait(self.browser, 30)
+
+    def _init_services(self, config: AppConfig) -> None:
         self.auto_answer = AutoAnswer(
             qa_file=self.qa_file,
             ans_yaml_path=Path(config.ans_yaml_path),
@@ -410,7 +437,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
 
         self.get_job_page(job_id)
         self._dump_debug_html("job_page_loaded")
-        time.sleep(0.1)
+        time.sleep(MICRO_PAUSE_SECONDS)
 
         if not self._matches_selected_experience_level():
             log.info(
@@ -438,6 +465,11 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             self._finish_job_debug_trace()
             return False
 
+        result, reason, string_easy = self._classify_job(job_id, button)
+        return self._record_job_result(job_id, button, result, reason, string_easy)
+
+    def _classify_job(self, job_id: str, button) -> tuple[bool, str, str]:
+        """Check blacklist, medical, database keywords, and click easy apply button if all match."""
         if button is not False:
             normalized_title = f" {self.browser.title.lower()} "
             matched_medical_keyword = self._medical_keyword_match()
@@ -464,17 +496,13 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                     title=self.browser.title,
                     matched_keyword=matched_medical_keyword,
                 )
-                string_easy = "* Medical-related role skipped"
-                result = False
-                reason = "medical_related_title"
-            elif matched_blacklist_title:
+                return False, "medical_related_title", "* Medical-related role skipped"
+            if matched_blacklist_title:
                 log.info(
                     "skipping this application, a blacklisted keyword was found in the job position"
                 )
-                string_easy = "* Contains blacklisted keyword"
-                result = False
-                reason = "title_blacklisted"
-            elif matched_database_title:
+                return False, "title_blacklisted", "* Contains blacklisted keyword"
+            if matched_database_title:
                 log.info("Skipping this application, database-related keyword found in title.")
                 self.log_event(
                     "job_skipped_database_related_title",
@@ -482,39 +510,31 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                     title=self.browser.title,
                     matched_keyword=matched_database_title,
                 )
-                string_easy = "* Contains database-related keyword"
-                result = False
-                reason = "database_related_title"
-            else:
-                string_easy = "* has Easy Apply Button"
-                log.info("Clicking the EASY apply button")
-                self._click_easy_apply(button)
-                self._dump_debug_html("easy_apply_clicked")
-                time.sleep(1)
-                self.fill_out_fields()
-                result = self.send_resume()
-                if result:
-                    string_easy = "*Applied: Sent Resume"
-                    reason = "submitted"
-                elif self.stop_requested and self.stop_reason == "daily_easy_apply_limit_reached":
-                    string_easy = "*Stopped: LinkedIn Easy Apply daily limit reached"
-                    reason = "daily_limit_reached"
-                else:
-                    string_easy = "*Did not apply: Failed to send Resume"
-                    reason = "apply_flow_failed"
-        elif self._is_already_applied_job_page():
+                return False, "database_related_title", "* Contains database-related keyword"
+
+            log.info("Clicking the EASY apply button")
+            self._click_easy_apply(button)
+            self._dump_debug_html("easy_apply_clicked")
+            time.sleep(QUESTION_LOAD_PAUSE_SECONDS)
+            self.fill_out_fields()
+            result = self.send_resume()
+            if result:
+                return True, "submitted", "*Applied: Sent Resume"
+            if self.stop_requested and self.stop_reason == "daily_easy_apply_limit_reached":
+                return False, "daily_limit_reached", "*Stopped: LinkedIn Easy Apply daily limit reached"
+            return False, "apply_flow_failed", "*Did not apply: Failed to send Resume"
+
+        if self._is_already_applied_job_page():
             log.info(
                 "You have already applied to this position. (verified by top-card apply status)"
             )
-            string_easy = "* Already Applied"
-            result = False
-            reason = "already_applied"
-        else:
-            log.info("The Easy apply button does not exist.")
-            string_easy = "* Doesn't have Easy Apply Button"
-            result = False
-            reason = "no_easy_apply_button"
+            return False, "already_applied", "* Already Applied"
 
+        log.info("The Easy apply button does not exist.")
+        return False, "no_easy_apply_button", "* Doesn't have Easy Apply Button"
+
+    def _record_job_result(self, job_id: str, button, result: bool, reason: str, string_easy: str) -> bool:
+        """Write job application results to repo/file and update throughput counters."""
         log.info(f"\nPosition {job_id}:\n {self.browser.title} \n {string_easy} \n")
 
         metadata = self._extract_job_metadata(job_id=job_id)
@@ -594,16 +614,18 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         try:
             detected, _ = self.apply_flow.detect_daily_easy_apply_limit()
             return detected
-        except Exception:
+        except Exception as exc:
+            log.debug(f"Error checking daily limit: {exc}")
             return False
 
     def get_easy_apply_button(self):
+        # Left intact: Flat selection and deduplication flow is a cohesive single-purpose block.
         try:
             self.wait.until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "button, a, a[role='button']"))
             )
-        except Exception:
-            pass
+        except TimeoutException as exc:
+            log.debug(f"Timeout waiting for Easy Apply button presence: {exc}")
 
         selectors = [
             (By.ID, "jobs-apply-button-id"),
@@ -626,7 +648,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         for by, value in selectors:
             try:
                 candidates.extend(self.browser.find_elements(by, value))
-            except Exception:
+            except Exception as exc:
+                log.debug(f"Failed to find elements by {by} with value {value}: {exc}")
                 continue
 
         seen_ids = set()
@@ -646,7 +669,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                     continue
                 if button.is_displayed() and button.is_enabled():
                     return button
-            except Exception:
+            except Exception as exc:
+                log.debug(f"Failed to check properties of button candidate: {exc}")
                 continue
 
         try:
@@ -656,20 +680,20 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 if "easy apply" in aria or "easy apply" in text:
                     if button.is_displayed() and button.is_enabled():
                         return button
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug(f"Fallback check for all buttons/links failed: {exc}")
 
         log.debug("Easy Apply button not found after all selector strategies")
         return False
 
     def _click_easy_apply(self, element) -> None:
         self.browser.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
-        time.sleep(0.2)
+        time.sleep(CLICK_PAUSE_SECONDS)
         try:
             element.click()
             return
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug(f"Direct click failed on element: {exc}")
         try:
             self.browser.execute_script("arguments[0].click();", element)
             return
@@ -697,15 +721,16 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
     def _safe_click(self, element) -> bool:
         try:
             self.browser.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
-            time.sleep(0.2)
+            time.sleep(CLICK_PAUSE_SECONDS)
             element.click()
             return True
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug(f"Direct click failed in _safe_click: {exc}")
         try:
             self.browser.execute_script("arguments[0].click();", element)
             return True
-        except Exception:
+        except Exception as exc:
+            log.debug(f"JS click failed in _safe_click: {exc}")
             return False
 
     def _find_clickable(self, selectors: list[tuple[str, str]]):
@@ -715,7 +740,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 for element in elements:
                     if element.is_displayed() and element.is_enabled():
                         return element
-            except Exception:
+            except Exception as exc:
+                log.debug(f"Error checking clickable element for selector {by}='{value}': {exc}")
                 continue
         return None
 
@@ -729,7 +755,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                     continue
                 option.click()
                 return True
-        except Exception:
+        except Exception as exc:
+            log.debug(f"Select fallback failed: {exc}")
             return False
         return False
 
@@ -751,7 +778,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 if answer_norm in text or answer_norm in value:
                     option.click()
                     return True
-        except Exception:
+        except Exception as exc:
+            log.debug(f"Select option by answer '{answer}' failed: {exc}")
             return False
         return False
 
@@ -760,7 +788,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         try:
             input_el.clear()
             input_el.send_keys(answer)
-            time.sleep(0.4)
+            time.sleep(TYPEAHEAD_PAUSE_SECONDS)
             for selector in [
                 "div[role='option'].basic-typeahead__selectable",
                 "[role='listbox'] [role='option']",
@@ -771,11 +799,11 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 if visible:
                     self.browser.execute_script("arguments[0].click();", visible[0])
                     return True
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug(f"Fill typeahead input failed for answer '{answer}': {exc}")
         return False
 
-    def load_page(self, sleep: float = 0.1, scroll_limit: int = 1500, scroll_step: int = 500):
+    def load_page(self, sleep: float = MICRO_PAUSE_SECONDS, scroll_limit: int = 1500, scroll_step: int = 500):
         scroll_page = 0
         while scroll_page < scroll_limit:
             self.browser.execute_script(f"window.scrollTo(0,{scroll_page} );")
@@ -795,5 +823,5 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         pyautogui.keyDown("ctrl")
         pyautogui.press("esc")
         pyautogui.keyUp("ctrl")
-        time.sleep(0.5)
+        time.sleep(MODAL_TRANSITION_PAUSE_SECONDS)
         pyautogui.press("esc")

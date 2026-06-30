@@ -1,3 +1,4 @@
+"""Data storage repository module for loading and appending job application results."""
 from __future__ import annotations
 
 import json
@@ -9,6 +10,7 @@ from easy_apply_automator.observability.logger import log
 
 
 def load_recent_applied_ids(filename: str, days: int = 2) -> list[str] | None:
+    """Loads job IDs from a JSON file that were applied within the specified number of days."""
     file_path = Path(filename)
     if not file_path.exists():
         return None
@@ -20,17 +22,23 @@ def load_recent_applied_ids(filename: str, days: int = 2) -> list[str] | None:
 
         threshold = datetime.now() - timedelta(days=days)
         job_ids: list[str] = []
-        for item in payload:
-            if not isinstance(item, dict):
+        for record in payload:
+            if not isinstance(record, dict):
                 continue
-            ts = item.get("timestamp")
-            job_id = item.get("job_id")
-            if not ts or not job_id:
+            job_id = record.get("job_id")
+            if not job_id:
+                continue
+            ts = record.get("timestamp")
+            if not ts:
                 continue
             parsed_ts = None
-            try:
-                parsed_ts = datetime.fromisoformat(str(ts))
-            except Exception:
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+                try:
+                    parsed_ts = datetime.strptime(str(ts), fmt)
+                    break
+                except Exception:
+                    continue
+            if parsed_ts is None:
                 try:
                     parsed_ts = datetime.strptime(str(ts), "%Y-%m-%d %H:%M:%S")
                 except Exception:
@@ -45,6 +53,7 @@ def load_recent_applied_ids(filename: str, days: int = 2) -> list[str] | None:
 
 
 class ResultsRepository:
+    """Manages reading and appending job application statistics to a local JSON file."""
     def __init__(self, filename: str) -> None:
         self.filename = str(Path(filename).expanduser())
         Path(self.filename).parent.mkdir(parents=True, exist_ok=True)

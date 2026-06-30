@@ -1,3 +1,4 @@
+"""WebDriver and Chrome binary detection factory helper routines."""
 from __future__ import annotations
 
 import os
@@ -35,10 +36,21 @@ def detect_chrome_binary() -> str | None:
     return None
 
 
-def build_browser_options() -> webdriver.ChromeOptions:
+def build_browser_options(ignore_cert_errors: bool | None = None) -> webdriver.ChromeOptions:
     options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
-    options.add_argument("--ignore-certificate-errors")
+
+    if ignore_cert_errors is None:
+        val = os.getenv("EASYAPPLY_IGNORE_CERT_ERRORS", "false").lower()
+        ignore_cert_errors = val in ("true", "1", "yes")
+
+    if ignore_cert_errors:
+        options.add_argument("--ignore-certificate-errors")
+        log.warning(
+            "Certificate validation is disabled (--ignore-certificate-errors). "
+            "This should only be done for corporate TLS-inspecting proxy compatibility."
+        )
+
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-blink-features")

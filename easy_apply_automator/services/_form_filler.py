@@ -1,9 +1,13 @@
+# This is an internal module intended for mixin implementation only.
+# Do not import it directly; use ApplyFlowService instead.
 from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING
 
 from selenium.webdriver.common.by import By
+
+from easy_apply_automator.observability.logger import log
 
 if TYPE_CHECKING:
     from easy_apply_automator.app.orchestrator import LinkedInEasyApplyOrchestrator
@@ -37,10 +41,11 @@ class FormFillerMixin:
                                 self.bot._select_non_default_option(select_el)
                         else:
                             self.bot._select_non_default_option(select_el)
-                except Exception:
+                except Exception as exc:
+                    log.debug(f"Failed to check/select non-default select option: {exc}")
                     continue
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug(f"Select element lookup failed in fill_required_selects_from_context: {exc}")
 
     def fill_required_radios_from_context(self) -> None:
         try:
@@ -48,7 +53,8 @@ class FormFillerMixin:
                 By.CSS_SELECTOR,
                 ".jobs-easy-apply-form-section__grouping, fieldset, .fb-form-element",
             )
-        except Exception:
+        except Exception as exc:
+            log.debug(f"Group lookup failed in fill_required_radios_from_context: {exc}")
             return
 
         for group in groups:
@@ -81,8 +87,8 @@ class FormFillerMixin:
                                     )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    log.debug(f"Failed to click label for rid '{rid}': {exc}")
                             if not label_clicked:
                                 self.bot._safe_click(radio)
                             selected = True
@@ -105,8 +111,8 @@ class FormFillerMixin:
                                     )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    log.debug(f"Failed to click label for rid '{rid}': {exc}")
                             if not label_clicked:
                                 self.bot._safe_click(radio)
                             selected = True
@@ -117,7 +123,8 @@ class FormFillerMixin:
                                 answer=answer,
                             )
                             break
-                    except Exception:
+                    except Exception as exc:
+                        log.debug(f"Failed to set radio option: {exc}")
                         continue
 
                 if not selected and {"yes", "true", "1", "y"} & answer_aliases:
@@ -136,8 +143,8 @@ class FormFillerMixin:
                                     )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    log.debug(f"Failed to click fallback label for rid '{rid}': {exc}")
                             if not label_clicked:
                                 self.bot._safe_click(radio)
                             selected = True
@@ -165,8 +172,8 @@ class FormFillerMixin:
                                     )
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    log.debug(f"Failed to click fallback label for rid '{rid}': {exc}")
                             if not label_clicked:
                                 self.bot._safe_click(radio)
                             selected = True
@@ -177,7 +184,8 @@ class FormFillerMixin:
                                 answer=answer,
                             )
                             break
-            except Exception:
+            except Exception as exc:
+                log.debug(f"Radio processing loop error for group: {exc}")
                 continue
 
         try:
@@ -191,8 +199,8 @@ class FormFillerMixin:
                     digits_only = re.sub(r"[^\d]", "", str(self.bot.phone_number))
                     if digits_only:
                         phone_input.send_keys(digits_only)
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug(f"Phone number input logic failed: {exc}")
 
         try:
             text_inputs = self.bot.browser.find_elements(
@@ -212,7 +220,8 @@ class FormFillerMixin:
                         )
                         if labels:
                             question = labels[0].text.strip()
-                except Exception:
+                except Exception as exc:
+                    log.debug(f"Label lookup failed for input element '{input_id}': {exc}")
                     question = ""
                 if question:
                     direct = self.bot._derive_direct_answer(
@@ -235,8 +244,8 @@ class FormFillerMixin:
                             self.bot._fill_typeahead_input(input_el, normalized_answer)
                         else:
                             input_el.send_keys(normalized_answer)
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug(f"Text inputs processing failed: {exc}")
 
     def recover_unanswered_radio_groups(self) -> int:
         recovered = 0
@@ -245,7 +254,8 @@ class FormFillerMixin:
                 By.CSS_SELECTOR,
                 ".jobs-easy-apply-form-section__grouping, fieldset, .fb-form-element",
             )
-        except Exception:
+        except Exception as exc:
+            log.debug(f"Radio group lookup failed in recover_unanswered_radio_groups: {exc}")
             return recovered
 
         for group in groups:
@@ -283,8 +293,8 @@ class FormFillerMixin:
                         label_el = group.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
                         self.bot._safe_click(label_el)
                         label_clicked = True
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        log.debug(f"Failed to click label for rid '{rid}': {exc}")
                 if not label_clicked and not self.bot._safe_click(target_radio):
                     continue
 
@@ -299,7 +309,8 @@ class FormFillerMixin:
                     question=question,
                     answer=answer,
                 )
-            except Exception:
+            except Exception as exc:
+                log.debug(f"Failed to process radio group recovery: {exc}")
                 continue
         return recovered
 
@@ -311,7 +322,8 @@ class FormFillerMixin:
                 "textarea[required], textarea[aria-required='true'], "
                 "input[required], input[aria-required='true']",
             )
-        except Exception:
+        except Exception as exc:
+            log.debug(f"Required fields lookup failed in recover_empty_required_text_fields: {exc}")
             return recovered
 
         for field in fields:
@@ -382,7 +394,8 @@ class FormFillerMixin:
                     question=question,
                     answer=normalized_answer,
                 )
-            except Exception:
+            except Exception as exc:
+                log.debug(f"Failed to recover empty field: {exc}")
                 continue
         return recovered
 
@@ -408,9 +421,11 @@ class FormFillerMixin:
                     input_el.clear()
                     input_el.send_keys(answer)
                     recovered += 1
-                except Exception:
+                except Exception as exc:
+                    log.debug(f"Failed to clear/fill error field '{input_id}': {exc}")
                     continue
-        except Exception:
+        except Exception as exc:
+            log.debug(f"Failed to process inline validation recovery: {exc}")
             return recovered
         return recovered
 
@@ -422,5 +437,5 @@ class FormFillerMixin:
                     By.CSS_SELECTOR, "label[for='follow-company-checkbox']"
                 )
                 self.bot._safe_click(label)
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug(f"Failed to uncheck follow company check: {exc}")

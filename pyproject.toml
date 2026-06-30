@@ -35,11 +35,16 @@ dev = [
   "pytest-mock>=3.12",
   "ruff>=0.4",
   "mypy>=1.10",
+  "pytest-cov>=5.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["easy_apply_automator*"]
+
+[tool.coverage.run]
+source = ["easy_apply_automator"]
+
 
 [tool.ruff]
 line-length = 100

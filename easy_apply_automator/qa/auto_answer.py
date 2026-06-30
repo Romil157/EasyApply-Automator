@@ -1,3 +1,4 @@
+"""Automatic question answering service containing match rules and pattern lists."""
 import csv
 import re
 from pathlib import Path
@@ -6,6 +7,7 @@ import yaml
 
 
 class AutoAnswer:
+    """Uses loaded YAML config rules and regular expressions to resolve form question answers."""
     def __init__(
         self,
         qa_file: Path | None,

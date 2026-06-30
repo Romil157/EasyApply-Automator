@@ -1,16 +1,20 @@
+"""Service for question parsing, normalization, answer coercion, and form filling."""
 from __future__ import annotations
 
 import re
 import time
 
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 
+from easy_apply_automator.config.timing import QUESTION_LOAD_PAUSE_SECONDS
 from easy_apply_automator.observability.logger import log
 
 from .base import ServiceBase
 
 
 class QuestionService(ServiceBase):
+    """Analyzes form labels/attributes and fills out text inputs, select dropdowns, and checkboxes."""
     def looks_numeric_question(self, question: str, input_id: str = "") -> bool:
         q = (question or "").lower()
         i = (input_id or "").lower()
@@ -35,8 +39,8 @@ class QuestionService(ServiceBase):
             try:
                 if float(value) > 0:
                     return value
-            except Exception:
-                pass
+            except ValueError as exc:
+                log.debug(f"Failed to convert value '{value}' to float: {exc}")
 
         if any(
             token in q
@@ -112,8 +116,8 @@ class QuestionService(ServiceBase):
                 ltxt = (label.text or "").strip().lower()
                 if ltxt:
                     candidates.append(ltxt)
-            except Exception:
-                pass
+            except NoSuchElementException as exc:
+                log.debug(f"Label element for rid '{rid}' not found: {exc}")
 
         for c in candidates:
             c_norm = re.sub(r"\s+", " ", c)
@@ -253,7 +257,7 @@ class QuestionService(ServiceBase):
         return None
 
     def process_questions(self) -> None:
-        time.sleep(1)
+        time.sleep(QUESTION_LOAD_PAUSE_SECONDS)
         form = []
         seen_ids = set()
         selectors = [
@@ -270,7 +274,8 @@ class QuestionService(ServiceBase):
                         continue
                     seen_ids.add(fid)
                     form.append(field)
-            except Exception:
+            except Exception as exc:
+                log.debug(f"Failed to find elements by {by} with value {value}: {exc}")
                 continue
         for field in form:
             question = self.clean_question_text(field.text)
@@ -322,8 +327,8 @@ class QuestionService(ServiceBase):
                                 break
                 if answered:
                     continue
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug(f"Failed to process radios for question '{question}': {exc}")
 
             try:
                 selects = field.find_elements(By.TAG_NAME, "select")
@@ -346,8 +351,8 @@ class QuestionService(ServiceBase):
                         answered = True
                 if answered:
                     continue
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug(f"Failed to process selects for question '{question}': {exc}")
 
             try:
                 radio = field.find_element(
@@ -360,8 +365,8 @@ class QuestionService(ServiceBase):
                         label_el = field.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
                         self.bot._safe_click(label_el)
                         label_clicked = True
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        log.debug(f"Failed to click label for CSS radio in question '{question}': {exc}")
                 if not label_clicked:
                     self.bot._safe_click(radio)
                 self.bot.log_event(
@@ -371,8 +376,8 @@ class QuestionService(ServiceBase):
                     answer=answer,
                 )
                 continue
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug(f"Failed to process CSS radio value for question '{question}': {exc}")
 
             try:
                 multi = field.find_element(
@@ -381,14 +386,15 @@ class QuestionService(ServiceBase):
                 multi.clear()
                 multi.send_keys(answer)
                 continue
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug(f"Failed to process multi text component for question '{question}': {exc}")
 
             try:
                 text_area = None
                 try:
                     text_area = field.find_element(By.TAG_NAME, "textarea")
-                except Exception:
+                except Exception as exc:
+                    log.debug(f"TextArea element lookup failed in question '{question}': {exc}")
                     text_area = None
 
                 if text_area is not None:
