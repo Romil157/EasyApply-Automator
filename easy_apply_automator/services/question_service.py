@@ -33,12 +33,14 @@ class QuestionService(ServiceBase):
     def coerce_numeric_answer(self, question: str, answer: str) -> str:
         q = (question or "").lower()
         raw = re.sub(r"[,$€£]", "", (answer or "").strip())
-        match = re.search(r"\d+(?:\.\d+)?", raw)
+        match = re.search(r"-?\d+(?:\.\d+)?", raw)
         if match:
             value = match.group(0)
             try:
                 if float(value) > 0:
                     return value
+            except ValueError as exc:
+                log.debug(f"Failed to convert value '{value}' to float: {exc}")
             except ValueError as exc:
                 log.debug(f"Failed to convert value '{value}' to float: {exc}")
 
@@ -79,7 +81,7 @@ class QuestionService(ServiceBase):
     def clean_question_text(question: str) -> str:
         q = (question or "").strip()
         q = re.sub(r"(?i)\bplease enter a valid answer\b", "", q)
-        q = re.sub(r"(.{12,}?)\1+", r"\1", q)
+        q = re.sub(r"(.{10,})\s*\1+", r"\1", q)
         q = re.sub(r"\s+", " ", q).strip()
         return q
 

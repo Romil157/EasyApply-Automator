@@ -5,7 +5,7 @@ import os
 import shutil
 from pathlib import Path
 
-from selenium import webdriver
+import undetected_chromedriver as uc
 from selenium.common.exceptions import SessionNotCreatedException, WebDriverException
 from selenium.webdriver.chrome.service import Service as ChromeService
 
@@ -36,8 +36,8 @@ def detect_chrome_binary() -> str | None:
     return None
 
 
-def build_browser_options(ignore_cert_errors: bool | None = None) -> webdriver.ChromeOptions:
-    options = webdriver.ChromeOptions()
+def build_browser_options(ignore_cert_errors: bool | None = None) -> uc.ChromeOptions:
+    options = uc.ChromeOptions()
     options.add_argument("--start-maximized")
 
     if ignore_cert_errors is None:
@@ -53,40 +53,23 @@ def build_browser_options(ignore_cert_errors: bool | None = None) -> webdriver.C
 
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-extensions")
-    options.add_argument("--disable-blink-features")
-    options.add_argument("--disable-blink-features=AutomationControlled")
+    # AutomationControlled is handled by undetected-chromedriver by default
     return options
 
 
 def build_webdriver(
-    options: webdriver.ChromeOptions, chromedriver_path: str | None
-) -> webdriver.Chrome:
-    if chromedriver_path:
-        try:
-            return webdriver.Chrome(service=ChromeService(chromedriver_path), options=options)
-        except SessionNotCreatedException as exc:
-            log.warning(
-                "Chromedriver at PATH is incompatible with your Chrome version. "
-                "Retrying with Selenium Manager auto-driver resolution."
-            )
-            log.debug(f"Original driver error: {exc}")
-        except WebDriverException as exc:
-            log.warning(
-                "Failed to start with chromedriver from PATH. "
-                "Retrying with Selenium Manager auto-driver resolution."
-            )
-            log.debug(f"Original driver error: {exc}")
-
-    log.info("Starting Chrome via Selenium Manager (auto driver resolution).")
-    original_path = os.environ.get("PATH", "")
+    options: uc.ChromeOptions, chromedriver_path: str | None
+) -> uc.Chrome:
+    log.info("Starting undetected-chromedriver for better anti-detection...")
     try:
-        filtered_entries = []
-        for path_entry in original_path.split(os.pathsep):
-            chromedriver_candidate = Path(path_entry) / "chromedriver"
-            if chromedriver_candidate.exists():
-                continue
-            filtered_entries.append(path_entry)
-        os.environ["PATH"] = os.pathsep.join(filtered_entries)
-        return webdriver.Chrome(options=options)
-    finally:
-        os.environ["PATH"] = original_path
+        # undetected-chromedriver automatically finds the browser binary
+        # but we can pass driver_executable_path if provided
+        driver = uc.Chrome(
+            options=options,
+            driver_executable_path=chromedriver_path,
+            use_subprocess=True
+        )
+        return driver
+    except Exception as exc:
+        log.error(f"Failed to start undetected-chromedriver: {exc}")
+        raise WebDriverException(f"Critical failure starting browser: {exc}")

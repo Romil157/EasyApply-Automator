@@ -47,6 +47,8 @@ class AppConfig:
     linkedin_profile_url: str = ""
     blacklist: list[str] = field(default_factory=list)
     blacklist_titles: list[str] = field(default_factory=list)
+    filters: dict[str, list[str]] = field(default_factory=dict)
+    locators: dict[str, list[str]] = field(default_factory=dict)
     experience_level: list[int] = field(default_factory=list)
     ans_yaml_path: str = "questions_answers.yaml"
     results_filename: str = "results.json"
@@ -94,6 +96,8 @@ class AppConfig:
             linkedin_profile_url=str(parameters.get("linkedin_profile_url", "")),
             blacklist=[str(v) for v in parameters.get("blacklist", [])],
             blacklist_titles=[str(v) for v in parameters.get("blackListTitles", [])],
+            filters=parameters.get("filters", {}),
+            locators=parameters.get("locators", {}),
             experience_level=experience_level,
             ans_yaml_path=str(parameters.get("ans_yaml_path", "questions_answers.yaml")),
             results_filename=str(Path(results_filename).expanduser()),

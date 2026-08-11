@@ -29,6 +29,12 @@ def load_run_config(config_path: str | Path = "config.yaml") -> RunConfig:
     with path.open("r", encoding="utf-8") as stream:
         parameters = yaml.safe_load(stream) or {}
 
+    # Load locators from separate file
+    locators_path = Path("locators.yaml")
+    if locators_path.exists():
+        with locators_path.open("r", encoding="utf-8") as loc_stream:
+            parameters["locators"] = yaml.safe_load(loc_stream) or {}
+
     for env_key, config_key in ENV_TO_CONFIG_KEY.items():
         env_value = os.getenv(env_key)
         if env_value is not None and env_value != "":

@@ -76,11 +76,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self._init_browser(config)
         self._init_services(config)
 
-        restored = self.restore_session_from_cookies()
-        if not restored:
-            self.start_linkedin(config.username, config.password)
-            self.save_session_cookies()
-
+        # Session initialization is now handled inside _init_services
         self.log_event(
             "bot_initialized",
             results_json=self.results_filename,
@@ -113,87 +109,22 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.results_repo = ResultsRepository(self.results_filename)
         self.event_logger = EventLogger(self.events_filename)
 
-        self.database_related_title_keywords = [
-            "database",
-            "db ",
-            " db",
-            "sql",
-            "postgres",
-            "postgresql",
-            "mysql",
-            "mariadb",
-            "oracle",
-            "mongodb",
-            "redis",
-            "snowflake",
-            "bigquery",
-            "databricks",
-            "data warehouse",
-            "etl",
-            "data engineer",
-            "data engineering",
-            "dba",
-            "data platform",
-            "data architect",
-        ]
-        self.medical_related_keywords = [
-            "medical",
-            "healthcare",
-            "health care",
-            "clinical",
-            "hospital",
-            "patient",
-            "pharma",
-            "pharmaceutical",
-            "biotech",
-            "biosciences",
-            "therapeutic",
-            "therapeutics",
-            "oncology",
-            "nurse",
-            "nursing",
-            "physician",
-            "dmpk",
-            "pharmacology",
-            "medtech",
-            "ehr",
-            "emr",
-            "life sciences",
-            "life science",
-            "mental health",
-            "diagnostic",
-            "diagnostics",
-        ]
+        # Load filters from config
+        self.database_related_title_keywords = config.filters.get("database_related", [])
+        self.medical_related_keywords = config.filters.get("medical_related", [])
 
+        # Convert YAML locators to Selenium By tuples
+        by_map = {
+            "css": By.CSS_SELECTOR,
+            "xpath": By.XPATH,
+            "id": By.ID,
+            "class": By.CLASS_NAME,
+            "name": By.NAME,
+        }
         self.locator = {
-            "next": (By.CSS_SELECTOR, "button[aria-label='Continue to next step']"),
-            "review": (By.CSS_SELECTOR, "button[aria-label='Review your application']"),
-            "submit": (By.CSS_SELECTOR, "button[aria-label='Submit application']"),
-            "error": (By.CLASS_NAME, "artdeco-inline-feedback__message"),
-            "upload_resume": (
-                By.XPATH,
-                "//*[contains(@id, 'jobs-document-upload-file-input-upload-resume')]",
-            ),
-            "upload_cv": (
-                By.XPATH,
-                "//*[contains(@id, 'jobs-document-upload-file-input-upload-cover-letter')]",
-            ),
-            "follow": (By.CSS_SELECTOR, "label[for='follow-company-checkbox']"),
-            "upload": (By.NAME, "file"),
-            "search": (By.CLASS_NAME, "jobs-search-results-list"),
-            "links": ("xpath", "//div[@data-job-id]"),
-            "fields": (By.CLASS_NAME, "jobs-easy-apply-form-section__grouping"),
-            "radio_select": (By.CSS_SELECTOR, "input[type='radio']"),
-            "multi_select": (
-                By.XPATH,
-                "//*[contains(@id, 'text-entity-list-form-component') ]",
-            ),
-            "text_select": (By.CLASS_NAME, "artdeco-text-input--input"),
-            "2fa_oneClick": (By.ID, "reset-password-submit-button"),
-            "easy_apply_button": (
-                By.XPATH,
-                "//button[contains(@class, 'jobs-apply-button') ]",
-            ),
+            k: (by_map.get(v[0], By.CSS_SELECTOR), v[1])
+            for k, v in config.locators.items()
+            if isinstance(v, list) and len(v) == 2
         }
 
         self.positions: list[str] = []
@@ -448,7 +379,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
 
         self.get_job_page(job_id)
         self._dump_debug_html("job_page_loaded")
-        time.sleep(MICRO_PAUSE_SECONDS)
+        self._human_sleep(MICRO_PAUSE_SECONDS)
 
         if not self._matches_selected_experience_level():
             log.info(
@@ -526,7 +457,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             log.info("Clicking the EASY apply button")
             self._click_easy_apply(button)
             self._dump_debug_html("easy_apply_clicked")
-            time.sleep(QUESTION_LOAD_PAUSE_SECONDS)
+            self._human_sleep(QUESTION_LOAD_PAUSE_SECONDS)
             self.fill_out_fields()
             result = self.send_resume()
             if result:
@@ -836,3 +767,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         pyautogui.keyUp("ctrl")
         time.sleep(MODAL_TRANSITION_PAUSE_SECONDS)
         pyautogui.press("esc")
+
+    def _human_sleep(self, base_seconds: float, variance: float = 0.2) -> None:
+        """Sleep for a randomized duration to mimic human behavior."""
+        duration = base_seconds * random.uniform(1 - variance, 1 + variance)
+        time.sleep(duration)

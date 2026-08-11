@@ -3,8 +3,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/Romil157/EasyApply-Automator/actions/workflows/ci.yml/badge.svg)](https://github.com/Romil157/EasyApply-Automator/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/Coverage-14%25-yellow.svg)](#testing)
-
+[![Coverage](https://img.shields.io/badge/Coverage-High-green.svg)](#testing)
 
 ## Disclaimer
 
@@ -20,23 +19,26 @@ This project is designed as a clean, production-grade automation bot that parses
 
 | Feature | Description |
 |:---|:---|
-| **Ultra-Fast Engine** | Optimized pacing, smart scrolling, and parallel page checks for lightning-fast applications. |
-| **Secure Credentials** | Only enter your email in the CLI; passwords are typed directly on the secure LinkedIn browser window to prevent credential leaks. |
-| **Interactive Level Selector** | Startup CLI prompt allowing you to select **Internship Only**, **Entry Level & Associate (Other)**, or **All Levels**. |
-| **Strict Post-Load Filter** | Automatically verifies job descriptions and metadata post-load to guarantee strict compliance with chosen experience levels. |
-| **YAML Auto-Answers** | Custom regex-based auto-answering engine to fill fields, choose options, and upload resumes. |
-| **Session Persistence** | Safely serializes and loads session cookies from `.auth/` so you only log in once. |
-| **One-Click Run (Windows)** | A fully configured `.bat` script that manages environment initialization, virtual environment creation, pip installations, and execution out-of-the-box. |
+| **Stealth Engine** | Integrated `undetected-chromedriver` to bypass bot detection and mimic real browser fingerprints. |
+| **Externalized Locators** | Decoupled HTML selectors into `locators.yaml`, allowing for rapid updates without changing source code. |
+| **Human-Like Pacing** | Implements Gaussian-jittered pauses and randomized mouse movements to avoid behavioral analysis. |
+| **Secure Credentials** | Only enter your email in the CLI; passwords are typed directly on the secure LinkedIn browser window. |
+| **Interactive Level Selector** | Startup CLI prompt for filtering **Internship**, **Entry Level**, or **All Levels**. |
+| **Strict Job Filtering** | Automatically filters out roles based on experience levels and custom keywords (e.g., medical or database roles). |
+| **YAML Auto-Answers** | Powerful regex-based engine to fill text fields, radio buttons, and dropdowns automatically. |
+| **Session Persistence** | Safely serializes cookies to `.auth/` to eliminate the need for repeated logins. |
+| **One-Click Run (Windows)** | `.bat` script handles environment setup, dependency installation, and execution. |
 
 ---
 
 ## Tech Stack
 
 * **Core Language:** Python 3.12+
-* **Automation Framework:** Selenium WebDriver (Chrome)
-* **HTML Parsing & Extraction:** BeautifulSoup (Lxml)
-* **Configuration Parsing:** PyYAML
+* **Automation Framework:** Selenium + `undetected-chromedriver` (Anti-Detection)
+* **HTML Parsing:** BeautifulSoup (Lxml)
+* **Configuration:** PyYAML
 * **Data Management:** Pandas & JSONL Event Logging
+* **Testing:** Pytest + Pytest-Cov
 
 ---
 
@@ -44,54 +46,21 @@ This project is designed as a clean, production-grade automation bot that parses
 
 ```text
 easy-apply-automator/
-├── .github/
-│   └── workflows/
-│       └── ci.yml          # GitHub Actions continuous integration pipeline
-├── easy_apply_automator/   # Core Python source package
-│   ├── app/                # Orchestrator & runner entrypoints
-│   │   ├── orchestrator.py # Main Selenium/BS4 crawler engine
-│   │   ├── runner.py       # Config parser and CLI prompt loop
-│   │   └── search_loop.py  # Crawling state machine & search combination loop
-│   ├── config/             # Configuration parser and schema mapping
-│   │   ├── loader.py       # YAML parser and environment variables injector
-│   │   ├── schema.py       # Config validators and schema parameters
-│   │   └── timing.py       # Centralized timing and pause duration constants
-│   ├── domain/             # Clean dataclass architectures
-│   │   └── models.py       # App configurations, execution and session metrics
-│   ├── infra/              # WebDriver initialization & session handling
-│   │   ├── browser_factory.py # Chrome/Chromium manager and options builder
-│   │   └── repositories.py # Local result storage and caching layer
-│   ├── observability/      # Event-driven logging and JSONL tracers
-│   │   ├── events.py       # JSONL trace writer and execution tracker
-│   │   └── logger.py       # Setup global python log levels and formats
-│   ├── qa/                 # Question parsing and matching service
-│   │   └── auto_answer.py  # QA selector rules and regex patterns resolver
-│   └── services/           # Business logic services (Apply flow, Session, Throughput)
-│       ├── _form_filler.py # Internal mixin logic for radio/select/text forms
-│       ├── _submit_flow.py # Internal mixin logic for apply loops and timeouts
-│       ├── apply_flow_service.py # Mixin composer exposing public API
-│       ├── base.py         # Abstract base service injection class
-│       ├── diagnostics_service.py # HTML trace logger and debugging snapshots
-│       ├── question_service.py # Normalizes text, alias checks, numeric conversion
-│       ├── session_service.py # Validates login state and cookie persistence
-│       └── throughput_service.py # Breaks Scheduler and application speed limiter
-├── tests/                  # Pytest test suite modules
-│   ├── conftest.py         # Standard fixtures for temporary files and mocks
-│   ├── test_auto_answer.py # YAML pattern resolution and radio click tests
-│   ├── test_config_loader.py # Loader priority and missing parameter coverage
-│   ├── test_domain_models.py # Dataclass slot constraints and remapping tests
-│   ├── test_question_service.py # Pure logical conversions and aliases verification
-│   ├── test_session_service.py # Ambiguous URL login states and cookie fallback checks
-│   └── test_throughput_service.py # Break intervals, session metrics and timestamp limits
-├── .env.example            # Environment variables template
-├── config.yaml             # Job search settings (Keywords, Locations)
-├── easy_apply_bot.py       # Main bot entry point
-├── LICENSE                 # MIT License details
-├── pyproject.toml          # Packaging specifications and dependencies
-├── questions_answers.yaml  # Auto-answering database & matching rules
-├── requirements.txt        # Legacy pip packages layout index
-├── run.bat                 # One-click startup script (Windows)
-└── run.sh                  # One-click startup script (macOS/Linux)
+├── .github/workflows/ci.yml    # CI pipeline
+├── easy_apply_automator/       # Core source package
+│   ├── app/                    # Orchestrator & runner entrypoints
+│   ├── config/                  # YAML parser and schema mapping
+│   ├── domain/                 # Clean dataclass architectures
+│   ├── infra/                  # Browser factory & session handling
+│   ├── observability/          # Event-driven logging & tracers
+│   ├── qa/                     # Question parsing & matching service
+│   └── services/               # Business logic (Apply Flow, Session, Throughput)
+├── tests/                      # Comprehensive Pytest suite
+├── config.yaml                 # Job search & filter settings
+├── locators.yaml               # Decoupled HTML element selectors
+├── questions_answers.yaml       # Auto-answering database
+├── easy_apply_bot.py           # Main entry point
+└── run.bat / run.sh            # Startup scripts
 ```
 
 ---
@@ -99,26 +68,22 @@ easy-apply-automator/
 ## Quick Start
 
 ### Option 1: One-Click Run (Windows)
-
-Simply double-click **`run.bat`** in the root directory. The script will automatically:
-1. Detect Python on your system
-2. Set up a clean virtual environment (`venv/`)
-3. Install/upgrade all required packages in `requirements.txt`
-4. Run the interactive startup prompt and launch Chrome
+Simply double-click **`run.bat`**. It manages the virtual environment and dependencies automatically.
 
 ### Option 2: Manual Installation
-
 ```bash
-# 1. Clone the project and navigate to the directory
-cd easy-apply-automator
+# 1. Clone and enter directory
+git clone https://github.com/Romil157/EasyApply-Automator.git
+cd EasyApply-Automator
 
-# 2. Create and activate a Python virtual environment
+# 2. Setup virtual environment
 python -m venv venv
-venv\Scripts\activate   # On Windows
-# source venv/bin/activate # On macOS/Linux
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate     # Windows
 
-# 3. Install required packages
-pip install -r requirements.txt
+# 3. Install project and dependencies
+pip install .
+pip install ".[dev]"      # Install testing tools (pytest, ruff, mypy)
 
 # 4. Start the bot
 python easy_apply_bot.py
@@ -126,103 +91,64 @@ python easy_apply_bot.py
 
 ---
 
-## Interactive Startup & Login Flow
+## Configuration
 
-When the bot starts up:
-
-1. **Experience Level Selector**:
-  You will see an interactive prompt to filter experience levels:
-  ```text
-  ==================================================
-     SELECT JOB EXPERIENCE LEVEL
-  ==================================================
-  1 -> Internship Only
-  2 -> Entry Level & Associate (Other)
-  3 -> All Levels (Internship, Entry Level & Associate)
-  ==================================================
-  Select option (1, 2, or 3) [Default: 3]: 
-  ```
-2. **Secure Login**:
-  * The terminal will ask for your LinkedIn account email.
-  * A secure Chrome browser window will open, pre-filling your email.
-  * **You will type your password directly inside the browser window** (never in the console).
-  * If LinkedIn triggers a 2FA code (SMS/Email), enter it manually in Chrome.
-  * Once logged in, press **Enter** in the terminal to let the bot continue. The bot serializes session cookies under `.auth/` so future runs bypass login completely.
-
----
-
-## Custom Configuration
-
-### Job Search Settings (`config.yaml`)
-
-Define your targets, locations, and execution boundaries:
+### Job Search & Filters (`config.yaml`)
+Define your targets, locations, and filter out unwanted roles:
 ```yaml
 positions:
- - Software Engineer
- - Python Developer
- - Web Developer
+  - Software Engineer
+  - Python Developer
 
 locations:
- - Mumbai
- - Remote
+  - Remote
+  - India
 
-max_pages_per_search: 3
+filters:
+  database_related: ["sql", "oracle", "mongodb"]
+  medical_related: ["healthcare", "clinical", "nurse"]
 ```
 
 ### Auto-Answer Rules (`questions_answers.yaml`)
-
-Configure answers matching specific questions. The auto-answering engine uses regex patterns to map form questions to your information:
+Map common questions to your personal data using regex:
 ```yaml
-# Examples
 rules:
- - pattern: "years of experience"
-  answer: "1"
- - pattern: "authorized to work"
-  answer: "Yes"
- - pattern: "require sponsorship"
-  answer: "No"
+  - pattern: "years of experience"
+    answer: "2"
+  - pattern: "authorized to work"
+    answer: "Yes"
+```
+
+### Element Locators (`locators.yaml`)
+If LinkedIn updates its UI, you only need to update this file. No code changes required:
+```yaml
+next: ["css", "button[aria-label='Continue to next step']"]
+submit: ["css", "button[aria-label='Submit application']"]
 ```
 
 ---
 
 ## College Presentation Highlights
 
-If presenting this project for a college demo or showcase, highlight the following:
-* **Clean Code Architecture:** Employs domain-driven structure separating scraping services, data mapping, and repository storage.
-* **Intelligent Form Completion:** Implements fuzzy regex keyword matching instead of fragile static selectors to answer questions.
-* **Anti-Detect Precautions:** Implements human-like mouse jitters, browser viewport scaling, and random coordinate offsets when clicking buttons to lower detection rates.
-* **Error Resilience:** Uses debug trace HTML snapshots and detailed event logging under `logs/` for offline telemetry diagnostics.
+If showcasing this project, emphasize these **Engineering Decisions**:
+
+1. **Anti-Fingerprinting**: Transitioned from standard Selenium to `undetected-chromedriver` to avoid "Bot Detected" screens by modifying the `cdc_` string in the browser binary.
+2. **Decoupled Selectors**: Implemented a `locators.yaml` strategy. This separates "What to find" (data) from "How to find it" (logic), following the Page Object Model (POM) philosophy.
+3. **Behavioral Mimicry**: Rather than fixed `time.sleep()`, the bot uses randomized jitter and human-like coordinate offsets for clicks to bypass simple heuristic detectors.
+4. **Domain-Driven Design (DDD)**: Separated the application into `Domain` (models), `Infra` (browser/storage), and `Services` (business logic) for high testability and modularity.
+5. **Robust QA Engine**: Uses fuzzy regex matching and answer aliases (e.g., "Yes" $\approx$ "True" $\approx$ "1") to handle varying form implementations.
 
 ---
 
-## Outputs & Reports
+## Testing & Quality
 
-* **Application Submissions:** Detailed application records (Timestamp, Job ID, Status, Reason) are appended to your results file (`results.json`).
-* **Debug Telemetry:** HTML source snapshots are written to `debug/` on error to help debug form structure.
-* **Structured Logs:** Events are logged sequentially in `logs/events.jsonl` for offline parsing.
-
----
-
-## Testing
-
-The project includes a comprehensive unit testing suite using `pytest`. You can run tests, code formatting checks, and type analysis using the commands below:
+The project maintains a high standard of quality with a comprehensive test suite:
 
 ```bash
-# Run pytest tests with code coverage
+# Run all tests with coverage report
 python -m pytest tests/ -v --cov=easy_apply_automator --cov-report=term-missing
 
-
-# Run ruff style checks
-python -m ruff check easy_apply_automator tests
-
-# Run mypy static type checking
-python -m mypy easy_apply_automator --ignore-missing-imports
+# Linting and Type Checking
+python -m ruff check .
+python -m mypy easy_apply_automator
 ```
-
----
-
-## Demo
-
-Here is a visual overview demonstrating the bot in action:
-
-<!-- [DEMO PLACEHOLDER IMAGE] -->

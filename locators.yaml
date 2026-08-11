@@ -1,0 +1,20 @@
+# LinkedIn Easy Apply - Element Locators
+# Format: key: [type, value]
+# Types: css, xpath, id, class, name
+
+next: ["css", "button[aria-label='Continue to next step']"]
+review: ["css", "button[aria-label='Review your application']"]
+submit: ["css", "button[aria-label='Submit application']"]
+error: ["class", "artdeco-inline-feedback__message"]
+upload_resume: ["xpath", "//*[contains(@id, 'jobs-document-upload-file-input-upload-resume')]"]
+upload_cv: ["xpath", "//*[contains(@id, 'jobs-document-upload-file-input-upload-cover-letter')]"]
+follow: ["css", "label[for='follow-company-checkbox']"]
+upload: ["name", "file"]
+search: ["class", "jobs-search-results-list"]
+links: ["xpath", "//div[@data-job-id]"]
+fields: ["class", "jobs-easy-apply-form-section__grouping"]
+radio_select: ["css", "input[type='radio']"]
+multi_select: ["xpath", "//*[contains(@id, 'text-entity-list-form-component') ]"]
+text_select: ["class", "artdeco-text-input--input"]
+2fa_oneClick: ["id", "reset-password-submit-button"]
+easy_apply_button: ["xpath", "//button[contains(@class, 'jobs-apply-button') ]"]

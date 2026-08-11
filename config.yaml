@@ -25,6 +25,58 @@ short_break_every_min_minutes: 60
 short_break_every_max_minutes: 120
 shuffle_search_combos: false
 
+# Job Filtering Keywords
+filters:
+  database_related:
+    - "database"
+    - "db "
+    - " db"
+    - "sql"
+    - "postgres"
+    - "postgresql"
+    - "mysql"
+    - "mariadb"
+    - "oracle"
+    - "mongodb"
+    - "redis"
+    - "snowflake"
+    - "bigquery"
+    - "databricks"
+    - "data warehouse"
+    - "etl"
+    - "data engineer"
+    - "data engineering"
+    - "dba"
+    - "data platform"
+    - "data architect"
+  medical_related:
+    - "medical"
+    - "healthcare"
+    - "health care"
+    - "clinical"
+    - "hospital"
+    - "patient"
+    - "pharma"
+    - "pharmaceutical"
+    - "biotech"
+    - "biosciences"
+    - "therapeutic"
+    - "therapeutics"
+    - "oncology"
+    - "nurse"
+    - "nursing"
+    - "physician"
+    - "dmpk"
+    - "pharmacology"
+    - "medtech"
+    - "ehr"
+    - "emr"
+    - "life sciences"
+    - "life science"
+    - "mental health"
+    - "diagnostic"
+    - "diagnostics"
+
 experience_level:
   - 1  # Entry level
   - 2  # Associate
