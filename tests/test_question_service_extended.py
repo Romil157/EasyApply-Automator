@@ -1,9 +1,12 @@
 """Extended tests for QuestionService logic."""
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from easy_apply_automator.services.question_service import QuestionService
+
 
 @pytest.fixture
 def service():

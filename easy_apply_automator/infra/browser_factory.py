@@ -6,8 +6,7 @@ import shutil
 from pathlib import Path
 
 import undetected_chromedriver as uc
-from selenium.common.exceptions import SessionNotCreatedException, WebDriverException
-from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.common.exceptions import WebDriverException
 
 from easy_apply_automator.observability.logger import log
 

@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import json
-import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-from selenium.common.exceptions import WebDriverException
+from unittest.mock import ANY, MagicMock, patch
+
+import pytest
+
 from easy_apply_automator.services.session_service import SessionService
-from unittest.mock import MagicMock, patch, ANY
+
 
 @pytest.fixture
 def service():
@@ -91,7 +92,7 @@ class TestSessionServiceLogic:
 
         cookie_file = Path(service.bot.cookies_path)
         assert cookie_file.exists()
-        with open(cookie_file, "r") as f:
+        with open(cookie_file) as f:
             saved = json.load(f)
         assert saved[0]["name"] == "test"
         service.bot.log_event.assert_called_with(
