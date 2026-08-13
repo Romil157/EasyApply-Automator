@@ -3,12 +3,43 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import undetected_chromedriver as uc
 from selenium.common.exceptions import WebDriverException
 
 from easy_apply_automator.observability.logger import log
+
+
+# Patch uc.Chrome.__del__ to prevent OSError: [WinError 6] during interpreter shutdown
+def _safe_uc_del(self: uc.Chrome) -> None:
+    try:
+        self.quit()
+    except Exception:
+        pass
+
+
+uc.Chrome.__del__ = _safe_uc_del
+
+
+def detect_chrome_major_version() -> int | None:
+    """Detect main version of installed Google Chrome on Windows registry."""
+    if sys.platform == "win32":
+        try:
+            import winreg
+
+            for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+                try:
+                    key = winreg.OpenKey(root, r"Software\Google\Chrome\BLBeacon")
+                    ver, _ = winreg.QueryValueEx(key, "version")
+                    if ver:
+                        return int(ver.split(".")[0])
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    return None
 
 
 def detect_chrome_binary() -> str | None:
@@ -60,15 +91,20 @@ def build_webdriver(
     options: uc.ChromeOptions, chromedriver_path: str | None
 ) -> uc.Chrome:
     log.info("Starting undetected-chromedriver for better anti-detection...")
+    version_main = detect_chrome_major_version()
+    if version_main:
+        log.info(f"Detected Chrome major version: {version_main}")
     try:
         # undetected-chromedriver automatically finds the browser binary
         # but we can pass driver_executable_path if provided
         driver = uc.Chrome(
             options=options,
             driver_executable_path=chromedriver_path,
-            use_subprocess=True
+            version_main=version_main,
+            use_subprocess=True,
         )
         return driver
     except Exception as exc:
         log.error(f"Failed to start undetected-chromedriver: {exc}")
         raise WebDriverException(f"Critical failure starting browser: {exc}")
+
