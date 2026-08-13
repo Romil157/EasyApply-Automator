@@ -191,20 +191,60 @@ class SubmitFlowMixin:
             return None
         return None
 
+    def _get_action_selectors(self, action_name: str) -> list[tuple[str, str]]:
+        """Return selector tuples for action_name prioritizing locators configured in self.bot.locator."""
+        fallbacks: dict[str, list[tuple[str, str]]] = {
+            "submit": [
+                (By.CSS_SELECTOR, "button[data-live-test-easy-apply-submit-button]"),
+                (By.CSS_SELECTOR, "button[aria-label*='Submit application']"),
+                (By.XPATH, "//button[contains(@aria-label, 'Submit application')]"),
+                (
+                    By.XPATH,
+                    "//button[.//span[contains(normalize-space(), 'Submit application')]]",
+                ),
+            ],
+            "review": [
+                (By.CSS_SELECTOR, "button[data-live-test-easy-apply-review-button]"),
+                (By.CSS_SELECTOR, "button[aria-label*='Review your application']"),
+                (By.XPATH, "//button[contains(@aria-label, 'Review your application')]"),
+                (
+                    By.XPATH,
+                    "//button[.//span[contains(normalize-space(), 'Review your application')]]",
+                ),
+            ],
+            "next": [
+                (By.CSS_SELECTOR, "button[data-live-test-easy-apply-next-button]"),
+                (By.CSS_SELECTOR, "button[data-easy-apply-next-button]"),
+                (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']"),
+                (By.XPATH, "//button[contains(@aria-label, 'Continue to next step')]"),
+                (
+                    By.XPATH,
+                    "//button[.//span[contains(normalize-space(), 'Continue to next step')]]",
+                ),
+            ],
+        }
+        res: list[tuple[str, str]] = []
+        loc = getattr(self.bot, "locator", None)
+        if isinstance(loc, dict) and action_name in loc and isinstance(loc[action_name], tuple):
+            res.append(loc[action_name])
+
+        for item in fallbacks.get(action_name, []):
+            if item not in res:
+                res.append(item)
+        return res
+
     def has_apply_controls(self) -> bool:
-        selectors = [
-            (By.CSS_SELECTOR, "button[data-live-test-easy-apply-next-button]"),
-            (By.CSS_SELECTOR, "button[data-easy-apply-next-button]"),
-            (By.CSS_SELECTOR, "button[data-live-test-easy-apply-review-button]"),
-            (By.CSS_SELECTOR, "button[data-live-test-easy-apply-submit-button]"),
-            (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']"),
-            (By.CSS_SELECTOR, "button[aria-label*='Review your application']"),
-            (By.CSS_SELECTOR, "button[aria-label*='Submit application']"),
-            (
-                By.CSS_SELECTOR,
-                "progress.artdeco-completeness-meter-linear__progress-element",
-            ),
-        ]
+        selectors = (
+            self._get_action_selectors("next")
+            + self._get_action_selectors("review")
+            + self._get_action_selectors("submit")
+            + [
+                (
+                    By.CSS_SELECTOR,
+                    "progress.artdeco-completeness-meter-linear__progress-element",
+                ),
+            ]
+        )
         for by, value in selectors:
             try:
                 if self.bot.browser.find_elements(by, value):
@@ -281,11 +321,52 @@ class SubmitFlowMixin:
                 "application was sent",
                 "your application was sent",
                 "submitted application",
+                "your application was submitted",
+                "application sent",
+                "your application has been sent",
+                "application has been sent",
+                "your application went to",
+                "application went to",
+                "thanks for applying",
+                "thank you for applying",
+                "application received",
+                "easy apply submission",
             )
-            return any(marker in page_text for marker in markers)
+            if any(marker in page_text for marker in markers):
+                return True
+
+            modal = self.find_easy_apply_modal()
+            if modal is not None:
+                modal_html = (modal.get_attribute("innerHTML") or "").lower()
+                if any(m in modal_html for m in markers):
+                    return True
+
+                try:
+                    has_done_button = bool(
+                        modal.find_elements(By.CSS_SELECTOR, "button[aria-label='Dismiss']")
+                        or [
+                            el
+                            for el in modal.find_elements(By.TAG_NAME, "button")
+                            if (el.text or "").strip().lower() == "done"
+                        ]
+                    )
+                    has_form_fields = bool(
+                        modal.find_elements(
+                            By.CSS_SELECTOR,
+                            ".jobs-easy-apply-form-section__grouping, input, textarea, select",
+                        )
+                    )
+                    has_submit = bool(
+                        self.bot._find_clickable(self._get_action_selectors("submit"))
+                    )
+                    if has_done_button and not has_form_fields and not has_submit:
+                        return True
+                except Exception as exc:
+                    log.debug(f"Error checking structural confirmation inside modal: {exc}")
         except Exception as exc:
             log.debug(f"Failed to retrieve page source for confirmation state: {exc}")
             return False
+        return False
 
     def detect_easy_apply_state(self) -> tuple[str, dict]:
         details = {
@@ -295,42 +376,11 @@ class SubmitFlowMixin:
         }
         if details["confirmation_detected"]:
             return "done", details
-        if (
-            self.bot._find_clickable(
-                [
-                    (
-                        By.CSS_SELECTOR,
-                        "button[data-live-test-easy-apply-submit-button]",
-                    ),
-                    (By.CSS_SELECTOR, "button[aria-label*='Submit application']"),
-                ]
-            )
-            is not None
-        ):
+        if self.bot._find_clickable(self._get_action_selectors("submit")) is not None:
             return "submit", details
-        if (
-            self.bot._find_clickable(
-                [
-                    (
-                        By.CSS_SELECTOR,
-                        "button[data-live-test-easy-apply-review-button]",
-                    ),
-                    (By.CSS_SELECTOR, "button[aria-label*='Review your application']"),
-                ]
-            )
-            is not None
-        ):
+        if self.bot._find_clickable(self._get_action_selectors("review")) is not None:
             return "review", details
-        if (
-            self.bot._find_clickable(
-                [
-                    (By.CSS_SELECTOR, "button[data-live-test-easy-apply-next-button]"),
-                    (By.CSS_SELECTOR, "button[data-easy-apply-next-button]"),
-                    (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']"),
-                ]
-            )
-            is not None
-        ):
+        if self.bot._find_clickable(self._get_action_selectors("next")) is not None:
             return "next", details
         if details["has_modal"]:
             return "modal_no_cta", details
@@ -354,24 +404,17 @@ class SubmitFlowMixin:
 
     def _collect_cta_diagnostics(self, diagnostics: dict) -> None:
         ctas = [
-            (
-                "next",
-                "button[data-live-test-easy-apply-next-button], button[data-easy-apply-next-button], button[aria-label*='Continue to next step']",
-            ),
-            (
-                "review",
-                "button[data-live-test-easy-apply-review-button], button[aria-label*='Review your application']",
-            ),
-            (
-                "submit",
-                "button[data-live-test-easy-apply-submit-button], button[aria-label*='Submit application']",
-            ),
+            ("next", self._get_action_selectors("next")),
+            ("review", self._get_action_selectors("review")),
+            ("submit", self._get_action_selectors("submit")),
         ]
-        for name, selector in ctas:
+        for name, selectors in ctas:
             try:
-                elements = self.bot.browser.find_elements(By.CSS_SELECTOR, selector)
-                if any(el.is_displayed() for el in elements):
-                    diagnostics["visible_ctas"].append(name)  # type: ignore[attr-defined]
+                for by, value in selectors:
+                    elements = self.bot.browser.find_elements(by, value)
+                    if any(el.is_displayed() for el in elements):
+                        diagnostics["visible_ctas"].append(name)  # type: ignore[attr-defined]
+                        break
             except Exception as exc:
                 log.debug(f"Failed to locate button element for CTA '{name}': {exc}")
                 continue
@@ -817,36 +860,11 @@ class SubmitFlowMixin:
         """Map the current apply-flow state to an action name and button selectors."""
         if state == "submit":
             self.uncheck_follow_company()
-            return "submit", [
-                (
-                    By.CSS_SELECTOR,
-                    "button[data-live-test-easy-apply-submit-button]",
-                ),
-                (By.CSS_SELECTOR, "button[aria-label*='Submit application']"),
-            ]
+            return "submit", self._get_action_selectors("submit")
         if state == "review":
-            return "review", [
-                (
-                    By.CSS_SELECTOR,
-                    "button[data-live-test-easy-apply-review-button]",
-                ),
-                (
-                    By.CSS_SELECTOR,
-                    "button[aria-label*='Review your application']",
-                ),
-            ]
+            return "review", self._get_action_selectors("review")
         if state == "next":
-            return "next", [
-                (
-                    By.CSS_SELECTOR,
-                    "button[data-live-test-easy-apply-next-button]",
-                ),
-                (By.CSS_SELECTOR, "button[data-easy-apply-next-button]"),
-                (
-                    By.CSS_SELECTOR,
-                    "button[aria-label*='Continue to next step']",
-                ),
-            ]
+            return "next", self._get_action_selectors("next")
         return None, []
 
 
