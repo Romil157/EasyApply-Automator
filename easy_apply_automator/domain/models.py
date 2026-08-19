@@ -45,6 +45,13 @@ class AppConfig:
     location_country: str = "IN"
     location_city: str = "Mumbai"
     linkedin_profile_url: str = ""
+    # High-sensitivity PII used to auto-fill Easy Apply forms. Sourced from env
+    # vars (see .env.example) — never persisted inside the repo.
+    full_name: str = ""
+    first_name: str = ""
+    last_name: str = ""
+    form_email: str = ""
+    github_url: str = ""
     blacklist: list[str] = field(default_factory=list)
     blacklist_titles: list[str] = field(default_factory=list)
     filters: dict[str, list[str]] = field(default_factory=dict)
@@ -94,6 +101,11 @@ class AppConfig:
             location_country=str(parameters.get("location_country", "IN")).strip() or "IN",
             location_city=str(parameters.get("location_city", "Mumbai")),
             linkedin_profile_url=str(parameters.get("linkedin_profile_url", "")),
+            full_name=str(parameters.get("full_name", "")),
+            first_name=str(parameters.get("first_name", "")),
+            last_name=str(parameters.get("last_name", "")),
+            form_email=str(parameters.get("form_email", "")),
+            github_url=str(parameters.get("github_url", "")),
             blacklist=[str(v) for v in parameters.get("blacklist", [])],
             blacklist_titles=[str(v) for v in parameters.get("blackListTitles", [])],
             filters=parameters.get("filters", {}),

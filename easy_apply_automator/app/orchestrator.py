@@ -207,6 +207,13 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             answers=self.answers,
             log=log,
             linkedin_profile_url=config.linkedin_profile_url,
+            full_name=config.full_name,
+            first_name=config.first_name,
+            last_name=config.last_name,
+            form_email=config.form_email,
+            phone_number=config.phone_number,
+            github_url=config.github_url,
+            location_city=config.location_city,
         )
 
         self.diagnostics = DiagnosticsService(self)

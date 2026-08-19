@@ -8,6 +8,7 @@ import yaml
 
 class AutoAnswer:
     """Uses loaded YAML config rules and regular expressions to resolve form question answers."""
+
     def __init__(
         self,
         qa_file: Path | None,
@@ -17,13 +18,32 @@ class AutoAnswer:
         answers: dict,
         log,
         linkedin_profile_url: str = "",
+        *,
+        full_name: str = "",
+        first_name: str = "",
+        last_name: str = "",
+        form_email: str = "",
+        phone_number: str = "",
+        github_url: str = "",
+        location_city: str = "",
     ):
         self.qa_file = qa_file
         self.salary = salary
         self.hourly_rate = hourly_rate
         self.answers = answers
         self.log = log
+        # High-sensitivity PII is sourced from environment variables (see
+        # .env.example) and injected into rule-answer templates as {placeholders}.
+        # Keeping these out of the YAML file prevents personal data from being
+        # committed to git.
         self.linkedin_profile_url = (linkedin_profile_url or "").strip()
+        self.full_name = (full_name or "").strip()
+        self.first_name = (first_name or "").strip()
+        self.last_name = (last_name or "").strip()
+        self.form_email = (form_email or "").strip()
+        self.phone_number = (phone_number or "").strip()
+        self.github_url = (github_url or "").strip()
+        self.location_city = (location_city or "").strip()
         self.cfg = self._load_yaml(ans_yaml_path)
 
     def _load_yaml(self, path: Path) -> dict:
@@ -33,7 +53,31 @@ class AutoAnswer:
                 if isinstance(cfg, dict):
                     return cfg
         except FileNotFoundError:
-            self.log.warning(f"Answer config not found at {path}, using fallback behavior.")
+            # Fall back to the tracked template file (e.g. questions_answers.example.yaml)
+            # so a fresh clone still works without manual setup. Personal values are
+            # then sourced from env vars / the user's later-edited local copy.
+            example_path = path.with_name(path.stem + ".example" + path.suffix)
+            if example_path != path and example_path.exists():
+                self.log.info(
+                    f"Answer config not found at {path}. Falling back to template at "
+                    f"{example_path}. Copy this template to {path.name} and fill in "
+                    f"your personal values, or supply them via env vars."
+                )
+                try:
+                    with open(example_path, encoding="utf-8") as f:
+                        cfg = yaml.safe_load(f) or {}
+                        if isinstance(cfg, dict):
+                            return cfg
+                except Exception as exc:
+                    self.log.warning(
+                        f"Failed to load answer template at {example_path}: {exc}. "
+                        f"Using fallback behavior."
+                    )
+                    return {}
+            else:
+                self.log.warning(
+                    f"Answer config not found at {path}, using fallback behavior."
+                )
         except Exception as exc:
             self.log.warning(
                 f"Failed to load answer config at {path}: {exc}. Using fallback behavior."
@@ -60,8 +104,23 @@ class AutoAnswer:
             **demographics,
         }
 
-        if self.linkedin_profile_url:
-            ctx["linkedin_profile_url"] = self.linkedin_profile_url
+        # Env-sourced personal fields override anything that happens to be
+        # present in the YAML profile blocks. Only inject when non-empty so
+        # that an unset env var leaves the {placeholder} intact in the answer
+        # (a visible signal to the user that the value is missing).
+        personal = {
+            "linkedin_profile_url": self.linkedin_profile_url,
+            "full_name": self.full_name,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "form_email": self.form_email,
+            "phone_number": self.phone_number,
+            "github_url": self.github_url,
+            "location_city": self.location_city,
+        }
+        for key, value in personal.items():
+            if value:
+                ctx[key] = value
 
         def repl_years(match):
             key = match.group(1)

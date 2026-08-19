@@ -19,6 +19,14 @@ ENV_TO_CONFIG_KEY = {
     "LINKEDIN_PROFILE_URL": "linkedin_profile_url",
     "LINKEDIN_SALARY": "salary",
     "LINKEDIN_RATE": "rate",
+    # High-sensitivity PII used to auto-fill Easy Apply forms. Sourced from
+    # env vars (instead of questions_answers.yaml) to keep personal data out of
+    # git. These are injected into rule-answer {placeholders} at render time.
+    "LINKEDIN_FULL_NAME": "full_name",
+    "LINKEDIN_FIRST_NAME": "first_name",
+    "LINKEDIN_LAST_NAME": "last_name",
+    "LINKEDIN_EMAIL": "form_email",
+    "LINKEDIN_GITHUB_URL": "github_url",
 }
 
 

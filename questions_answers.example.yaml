@@ -1,15 +1,18 @@
-# ─── EasyApply Automator – Local Answer Profile (gitignored) ───────────────
-# This file lives only on your local disk (gitignored). It holds the
-# lower-sensitivity profile data that you chose to keep in YAML form:
-# years of experience per skill, work-authorization answers, demographics,
-# education, cover-letter pitch, etc.
+# ─── EasyApply Automator – Answer Profile (TEMPLATE) ──────────────────────────
+# Copy this file to questions_answers.yaml (which is gitignored) and fill in your
+# personal values. questions_answers.yaml is YOUR local file and never gets
+# committed to git.
 #
-# High-sensitivity PII (full name, phone, email, LinkedIn/GitHub URLs) is
-# sourced from environment variables (see .env.example) and injected into
-# rule answers via {placeholders} like {full_name}, {phone_number}. Leave
-# those placeholders in place — the AutoAnswer engine resolves them at
-# runtime from your .env. If an env var is missing, the literal {placeholder}
-# stays in the answer as a visible signal to the user.
+# High-sensitivity PII (full name, phone, email, profile URLs) is sourced from
+# environment variables (see .env.example) and injected into rule answers via
+# {placeholders} like {full_name}, {phone_number}, {form_email}, etc. Leave
+# those placeholders in place — the AutoAnswer engine will substitute the env
+# values at runtime. If an env var is empty, the placeholder is left intact as
+# a signal that the value is missing.
+#
+# Lower-sensitivity profile data (years of experience per skill, work
+# authorization answers, demographics, education, cover-letter text) lives in
+# the profile blocks below. Fill those in with your own values.
 # ─────────────────────────────────────────────────────────────────────────────
 
 version: 1
@@ -24,41 +27,38 @@ defaults:
 
 profile:
   years:
-    overall_software: "2"
-    ai_ml: "1"
-    machine_learning: "1"
+    overall_software: "0"
+    ai_ml: "0"
+    machine_learning: "0"
     deep_learning: "0"
     nlp: "0"
     llm_genai: "0"
-    data_science: "1"
-    data_engineering: "1"
-    python: "2"
-    sql: "1"
-    backend: "1"
-    web_development: "2"
-    html_css: "2"
-    javascript: "1"
-    nodejs: "1"
-    git: "2"
-    data_scraping: "1"
-    cybersecurity: "1"
-    automation: "1"
-    leadership: "1"
+    data_science: "0"
+    data_engineering: "0"
+    python: "0"
+    sql: "0"
+    backend: "0"
+    web_development: "0"
+    html_css: "0"
+    javascript: "0"
+    nodejs: "0"
+    git: "0"
+    data_scraping: "0"
+    cybersecurity: "0"
+    automation: "0"
+    leadership: "0"
 
   work_auth:
-    us_citizen: "No"
-    require_sponsorship: "Yes"
-    legally_authorized: "Yes"
-    # LinkedIn profile URL sourced from LINKEDIN_PROFILE_URL env var; leave
-    # blank here so the env value is the single source of truth.
-    linkedin_profile_url: ""
+    us_citizen: "No"            # "Yes" / "No"
+    require_sponsorship: "No"  # "Yes" / "No"
+    legally_authorized: "Yes" # "Yes" / "No"
 
   demographics:
-    gender: "Male"
-    race: "Asian"
-    ethnicity: "Wish not to answer"
-    lgbtq: "Wish not to answer"
-    nationality: "Indian"
+    gender: "Wish not to answer"      # "Male" / "Female" / "Non-binary" / "Wish not to answer"
+    race: "Wish not to answer"        # free text or "Wish not to answer"
+    ethnicity: "Wish not to answer"   # free text or "Wish not to answer"
+    lgbtq: "Wish not to answer"      # "Yes" / "No" / "Wish not to answer"
+    nationality: ""                  # e.g. "Indian" — required by some forms
     government_id: "I do not wish to self-identify"
 
 rules:
@@ -121,19 +121,13 @@ rules:
       - "(?i)current city"
     answer: "{location_city}"
 
-  - id: address
-    match_any:
-      - "(?i)address"
-      - "(?i)street"
-    answer: "Mumbai, Maharashtra, India"
-
   - id: university
     match_any:
       - "(?i)university"
       - "(?i)college"
       - "(?i)school"
       - "(?i)institution"
-    answer: "University of Mumbai"
+    answer: "<your university>"
 
   - id: degree
     match_any:
@@ -141,7 +135,7 @@ rules:
       - "(?i)highest education"
       - "(?i)qualification"
       - "(?i)education level"
-    answer: "Bachelor of Technology"
+    answer: "<your degree>"
 
   - id: major
     match_any:
@@ -149,7 +143,7 @@ rules:
       - "(?i)field of study"
       - "(?i)specialization"
       - "(?i)branch"
-    answer: "Computer Engineering"
+    answer: "<your major>"
 
   - id: graduation_year
     match_any:
@@ -157,14 +151,14 @@ rules:
       - "(?i)expected graduation"
       - "(?i)year of graduation"
       - "(?i)when.*graduat"
-    answer: "2027"
+    answer: "<your graduation year>"
 
   - id: gpa
     match_any:
       - "(?i)gpa"
       - "(?i)cgpa"
       - "(?i)grade"
-    answer: "9"
+    answer: "{prefer_not}"
 
   - id: sponsorship
     match_any:
@@ -190,7 +184,7 @@ rules:
       - "(?i)current company"
       - "(?i)employer"
       - "(?i)company you work for"
-    answer: "Student"
+    answer: "<your current employer or 'Student'>"
 
   - id: salutation
     match_any:
@@ -216,7 +210,7 @@ rules:
       - "(?i)country of residence"
       - "(?i)what is your country"
       - "(?i)which country do you"
-    answer: "India"
+    answer: "<your country>"
 
   - id: nationality
     match_any:
@@ -368,7 +362,7 @@ rules:
       - "(?i)why.*this (role|position|company)"
       - "(?i)tell us about yourself"
       - "(?i)why should we hire"
-    answer: "I am a final-year Computer Engineering student at the University of Mumbai with hands-on experience in software development, data engineering, and cybersecurity through multiple internships and hackathons. I am eager to contribute and learn in a professional environment."
+    answer: "<your cover letter pitch>"
 
   # --- Generic Yes/No Helpers ---
 

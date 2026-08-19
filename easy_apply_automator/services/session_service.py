@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -162,8 +163,19 @@ class SessionService(ServiceBase):
     def save_session_cookies(self) -> None:
         try:
             cookies = self.bot.browser.get_cookies()
-            with open(self.bot.cookies_path, "w", encoding="utf-8") as f:
+            cookie_path = Path(self.bot.cookies_path)
+            with open(cookie_path, "w", encoding="utf-8") as f:
                 json.dump(cookies, f, ensure_ascii=False, indent=2)
+            # Tighten file permissions on POSIX hosts so other users on the
+            # machine cannot read the LinkedIn session cookies (which are
+            # effectively a credential for the session lifetime). On Windows
+            # the file is already restricted to the current user via the
+            # user-profile directory ACL.
+            if os.name == "posix":
+                try:
+                    os.chmod(cookie_path, 0o600)
+                except OSError as exc:
+                    log.warning(f"Could not tighten permissions on {cookie_path}: {exc}")
             self.bot.log_event(
                 "cookies_saved",
                 cookies_path=self.bot.cookies_path,

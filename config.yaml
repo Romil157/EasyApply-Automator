@@ -13,6 +13,7 @@ positions:
 locations:
   - Remote
   - India
+  - Mumbai
 
 max_pages_per_search: 3
 

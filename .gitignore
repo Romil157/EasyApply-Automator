@@ -14,6 +14,8 @@ env/
 .env
 .auth/
 
+
+
 # IDE
 .idea/
 .vscode/
@@ -33,3 +35,9 @@ Thumbs.db
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
+
+# Test / coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
