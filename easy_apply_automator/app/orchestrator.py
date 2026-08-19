@@ -10,7 +10,6 @@ from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 
-import pyautogui
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.common.by import By
