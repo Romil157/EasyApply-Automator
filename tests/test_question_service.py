@@ -49,8 +49,13 @@ class TestCoerceNumericAnswer:
 
 class TestCleanQuestionText:
     def test_basic_cleaning(self):
-        assert QuestionService.clean_question_text("  Are you authorized?  ") == "Are you authorized?"
-        assert QuestionService.clean_question_text("Please enter a valid answer Are you authorized?") == "Are you authorized?"
+        assert (
+            QuestionService.clean_question_text("  Are you authorized?  ") == "Are you authorized?"
+        )
+        assert (
+            QuestionService.clean_question_text("Please enter a valid answer Are you authorized?")
+            == "Are you authorized?"
+        )
 
     def test_duplicate_substring_removal(self):
         # repeating substrings of exactly 12+ chars get deduped

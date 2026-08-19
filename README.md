@@ -18,14 +18,15 @@ This project is designed as a clean, production-grade automation bot that parses
 
 | Feature | Description |
 |:---|:---|
-| **Stealth Engine** | Integrated `undetected-chromedriver` to bypass bot detection and mimic real browser fingerprints. |
+| **Stealth Engine** | Integrated `undetected-chromedriver` with human-like keystroke pacing and anti-detection Chrome flags. |
+| **Smart Form Answering** | Regex engine + dynamic skill-to-experience extraction + heuristic fallback for unknown recruiter questions. |
+| **Multi-Resume Auto-Match**| Automatically selects matching resume based on job title / keywords from configured resume files. |
+| **Country Dial-Code Resolver**| Dynamically selects proper phone country dial codes for any ISO country (IN, US, GB, CA, etc.). |
+| **Granular Search Filters** | Filter jobs by posted date (`past_24h`, `past_week`, `past_month`), workplace type (Remote/Hybrid/Onsite), and job type. |
+| **Interactive & CLI Modes** | Rich CLI with `--dry-run`, `--headless`, `--level`, `--date-posted`, `--max-apps`, and `--remote-only`. |
+| **HTML Analytics Dashboard**| Automatically generates a standalone interactive HTML dashboard (`results/report_latest.html`) after every run. |
 | **Externalized Locators** | Decoupled HTML selectors into `locators.yaml`, allowing for rapid updates without changing source code. |
-| **Human-Like Pacing** | Implements Gaussian-jittered pauses and randomized mouse movements to avoid behavioral analysis. |
-| **Hybrid PII Model** | High-sensitivity personal data (name, phone, email, profile URLs) is sourced from environment variables, never committed to git. Lower-sensitivity profile data lives in a gitignored local YAML file. |
-| **Secure Credentials** | The login password is typed manually in the LinkedIn browser window and never persisted. Session cookies are written with `0600` permissions on POSIX hosts. |
-| **Interactive Level Selector** | Startup CLI prompt for filtering **Internship**, **Entry Level**, or **All Levels**. |
-| **Strict Job Filtering** | Automatically filters out roles based on experience levels and custom keywords (e.g., medical or database roles). |
-| **YAML Auto-Answers** | Regex-based engine with `{placeholder}` templating to fill text fields, radio buttons, and dropdowns automatically. |
+| **Hybrid PII Model** | High-sensitivity personal data is sourced from environment variables, never committed to git. |
 | **Session Persistence** | Safely serializes cookies to `.auth/` (gitignored) to eliminate the need for repeated logins. |
 | **One-Click Run (Windows)** | `.bat` script handles environment setup, dependency installation, and execution. |
 

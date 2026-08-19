@@ -1,4 +1,5 @@
 """Extended tests for QuestionService logic."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -15,10 +16,14 @@ def service():
     mock_bot.location_country = "India"
     return QuestionService(mock_bot)
 
+
 class TestQuestionServiceLogic:
     def test_looks_numeric_question(self, service):
         assert service.looks_numeric_question("How many years of experience?") is True
-        assert service.looks_numeric_question("Years of python experience", "input_numeric_123") is True
+        assert (
+            service.looks_numeric_question("Years of python experience", "input_numeric_123")
+            is True
+        )
         assert service.looks_numeric_question("What is your name?") is False
         assert service.looks_numeric_question("", "") is False
 
@@ -55,7 +60,12 @@ class TestQuestionServiceLogic:
         # The regex r"(.{12,}?)\1+" removes repetitions of 12+ characters.
         # "test test test test" is 4 * 5 chars, but it's not a single sequence of 12+ chars repeated.
         # Let's test a real repetition.
-        assert service.clean_question_text("This is a long sentence that repeats. This is a long sentence that repeats.") == "This is a long sentence that repeats."
+        assert (
+            service.clean_question_text(
+                "This is a long sentence that repeats. This is a long sentence that repeats."
+            )
+            == "This is a long sentence that repeats."
+        )
         assert service.clean_question_text("Too    many    spaces") == "Too many spaces"
 
     def test_answer_aliases(self, service):
@@ -74,19 +84,27 @@ class TestQuestionServiceLogic:
         # Mission
         assert "mission resonates" in service.compose_long_form_answer("What is our mission?")
         # Project
-        assert "proud of is building" in service.compose_long_form_answer("Tell us about a project")
+        assert "Sentinel Verify" in service.compose_long_form_answer("Tell us about a project")
         # Default
         assert "excited about this role" in service.compose_long_form_answer("Random question")
 
     def test_humanize_free_text_answer(self, service):
         # Placeholder handling
-        assert service.humanize_free_text_answer("Question", "n/a", "text") == "I enjoy solving practical engineering problems with clear user impact, and I value collaboration, ownership, and continuous improvement in how software is built and operated."
+        assert (
+            service.humanize_free_text_answer("Question", "n/a", "text")
+            == "I enjoy solving practical engineering problems with clear user impact, and I value collaboration, ownership, and continuous improvement in how software is built and operated."
+        )
 
         # Long form prompt triggering
-        assert "mission resonates" in service.humanize_free_text_answer("Why us?", "too short", "text")
+        assert "mission resonates" in service.humanize_free_text_answer(
+            "Why us?", "too short", "text"
+        )
 
         # Adjustment request
-        assert service.humanize_free_text_answer("Do you require accommodation?", "none", "text") == "N/A"
+        assert (
+            service.humanize_free_text_answer("Do you require accommodation?", "none", "text")
+            == "N/A"
+        )
 
         # Numeric questions should not be humanized
         assert service.humanize_free_text_answer("How many years?", "5", "text") == "5"
@@ -96,7 +114,7 @@ class TestQuestionServiceLogic:
 
         # TextArea minimum length - avoid "tell us" to not trigger project answer
         ans = service.humanize_free_text_answer("Random Question", "Hello", "textarea")
-        assert "I focus on delivering practical" in ans
+        assert "excited about this role" in ans
 
     def test_derive_direct_answer(self, service):
         assert service.derive_direct_answer("What is your location city?") == "Mumbai"

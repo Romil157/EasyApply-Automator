@@ -1,4 +1,5 @@
 """Service for question parsing, normalization, answer coercion, and form filling."""
+
 from __future__ import annotations
 
 import re
@@ -15,6 +16,7 @@ from .base import ServiceBase
 
 class QuestionService(ServiceBase):
     """Analyzes form labels/attributes and fills out text inputs, select dropdowns, and checkboxes."""
+
     def looks_numeric_question(self, question: str, input_id: str = "") -> bool:
         q = (question or "").lower()
         i = (input_id or "").lower()
@@ -41,8 +43,14 @@ class QuestionService(ServiceBase):
                     return value
             except ValueError as exc:
                 log.debug(f"Failed to convert value '{value}' to float: {exc}")
-            except ValueError as exc:
-                log.debug(f"Failed to convert value '{value}' to float: {exc}")
+
+        # Check if auto_answer has extracted years for this skill
+        if hasattr(self.bot, "auto_answer") and self.bot.auto_answer is not None:
+            extract_fn = getattr(self.bot.auto_answer, "_extract_skill_years", None)
+            if callable(extract_fn):
+                extracted = extract_fn(question)
+                if isinstance(extracted, str):
+                    return extracted
 
         if any(
             token in q
@@ -67,6 +75,12 @@ class QuestionService(ServiceBase):
             )
         ):
             return "12"
+
+        if hasattr(self.bot, "auto_answer") and self.bot.auto_answer is not None:
+            cfg = getattr(self.bot.auto_answer, "cfg", None)
+            if isinstance(cfg, dict):
+                return str(cfg.get("defaults", {}).get("unknown_years", "1"))
+
         return "1"
 
     def normalize_text_answer(self, question: str, answer: str, input_id: str = "") -> str:
@@ -134,21 +148,22 @@ class QuestionService(ServiceBase):
         q = (question or "").lower()
         if "mission" in q or "what about" in q or ("why " in q and "role" not in q):
             return (
-                "Your mission resonates with me because it combines meaningful real-world impact with strong "
-                "execution. I value building reliable, high-quality systems that improve outcomes for users, and I am "
-                "motivated by teams that pair product focus with rigorous engineering and continuous learning."
+                "Your mission resonates with me because it focuses on building impactful, high-reliability software. "
+                "As a Computer Engineering student with hands-on experience across backend development, data pipelines, "
+                "and applied AI/ML, I am motivated by engineering teams that prioritize technical rigor, user experience, "
+                "and continuous learning."
             )
         if "proud" in q or "project" in q or "tell us" in q:
             return (
-                "A project I am most proud of is building an end-to-end ML platform that moved models from ad-hoc "
-                "experiments to production with automated evaluation, deployment gates, and monitoring. It reduced "
-                "model delivery time from weeks to days, improved reliability, and gave product teams clear visibility "
-                "into model quality and operational health."
+                "A project I am most proud of is Sentinel Verify, an AI-powered cybersecurity platform I built using "
+                "Flask, JavaScript, and an ML/NLP pipeline to detect deceptive content and phishing in real time with "
+                "explainable risk scoring. I also engineered Trustos, a Chrome extension using WebAssembly and Bloom "
+                "filters for real-time threat detection, and built a RAG triage agent for the HackerRank Orchestrate Hackathon."
             )
         return (
-            "I am excited about this role because it combines applied machine learning with product impact. "
-            "I focus on delivering practical, well-tested solutions, collaborating closely with cross-functional teams, "
-            "and continuously improving reliability, speed, and measurable business outcomes."
+            "I am excited about this role because it aligns with my technical background in Computer Engineering and "
+            "practical experience in Python, backend development, and applied AI/ML. I focus on writing clean, "
+            "maintainable code, collaborating effectively in cross-functional teams, and solving practical problems."
         )
 
     def is_long_form_prompt(self, question: str, input_type: str = "text") -> bool:
@@ -368,7 +383,9 @@ class QuestionService(ServiceBase):
                         self.bot._safe_click(label_el)
                         label_clicked = True
                     except Exception as exc:
-                        log.debug(f"Failed to click label for CSS radio in question '{question}': {exc}")
+                        log.debug(
+                            f"Failed to click label for CSS radio in question '{question}': {exc}"
+                        )
                 if not label_clicked:
                     self.bot._safe_click(radio)
                 self.bot.log_event(
@@ -389,7 +406,9 @@ class QuestionService(ServiceBase):
                 multi.send_keys(answer)
                 continue
             except Exception as exc:
-                log.debug(f"Failed to process multi text component for question '{question}': {exc}")
+                log.debug(
+                    f"Failed to process multi text component for question '{question}': {exc}"
+                )
 
             try:
                 text_area = None

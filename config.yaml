@@ -7,23 +7,57 @@ positions:
   - Software Engineer
   - Python Developer
   - Backend Developer
-  - Data Analyst
   - Web Developer
+  - Data Analyst
+  - Machine Learning Intern
+  - Software Engineering Intern
 
 locations:
   - Remote
-  - India
   - Mumbai
+  - India
+  - Bengaluru
+
+# Search Filters
+# date_posted: past_24h | past_week | past_month | all
+date_posted: "past_week"
+
+# workplace_types: remote | hybrid | onsite
+workplace_types:
+  - remote
+  - hybrid
+
+# job_types: full_time | contract | part_time | internship
+job_types:
+  - internship
+  - full_time
+  - contract
+
+# Maximum number of applications to submit per session (0 = unlimited)
+max_applications: 0
+
+# Multi-Resume mapping (selects matching resume by job title keyword, falls back to Resume/default)
+uploads:
+  Resume: "resumes/resume.pdf"
+  # data: "resumes/data_engineer_resume.pdf"
+  # python: "resumes/python_resume.pdf"
+  # "Cover Letter": "resumes/cover_letter.pdf"
+
+# Runtime Flags
+dry_run: false
+headless: false
+user_data_dir: ""
+proxy: ""
 
 max_pages_per_search: 3
 
 # Session pacing (how long the bot runs and takes breaks)
 session_duration_hours_min: 2
 session_duration_hours_max: 4
-short_break_min_seconds: 1
-short_break_max_seconds: 3
-short_break_every_min_minutes: 60
-short_break_every_max_minutes: 120
+short_break_min_seconds: 15
+short_break_max_seconds: 45
+short_break_every_min_minutes: 30
+short_break_every_max_minutes: 60
 shuffle_search_combos: false
 
 # Job Filtering Keywords

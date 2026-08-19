@@ -1,4 +1,5 @@
 """Service that manages login states, session cookie persistence, and authentication flows."""
+
 from __future__ import annotations
 
 import json
@@ -26,6 +27,7 @@ from .base import ServiceBase
 
 class SessionService(ServiceBase):
     """Verifies authentication, signs in to LinkedIn, and restores cookies from cache."""
+
     def start_linkedin(self, username: str, password: str) -> None:
         log.info("Opening LinkedIn login page...")
         self.bot.browser.get(

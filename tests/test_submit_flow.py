@@ -100,18 +100,14 @@ class TestIsSubmitConfirmationState:
 class TestGetActionSelectorsAndLocatorsWiring:
     def test_get_action_selectors_prioritizes_custom_locator(self):
         custom_submit = (By.CSS_SELECTOR, "button.custom-submit-btn")
-        svc = _make_submit_flow_service(
-            locator_overrides={"submit": custom_submit}
-        )
+        svc = _make_submit_flow_service(locator_overrides={"submit": custom_submit})
         selectors = svc._get_action_selectors("submit")
         assert selectors[0] == custom_submit
         assert len(selectors) > 1
 
     def test_resolve_step_action_uses_custom_locators(self):
         custom_next = (By.XPATH, "//button[@id='custom-next']")
-        svc = _make_submit_flow_service(
-            locator_overrides={"next": custom_next}
-        )
+        svc = _make_submit_flow_service(locator_overrides={"next": custom_next})
         action, selectors = svc._resolve_step_action("next")
         assert action == "next"
         assert selectors[0] == custom_next

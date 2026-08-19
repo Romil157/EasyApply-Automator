@@ -1,4 +1,5 @@
 """Configuration loader module that parses settings from YAML files and environment variables."""
+
 from __future__ import annotations
 
 import os
@@ -27,6 +28,12 @@ ENV_TO_CONFIG_KEY = {
     "LINKEDIN_LAST_NAME": "last_name",
     "LINKEDIN_EMAIL": "form_email",
     "LINKEDIN_GITHUB_URL": "github_url",
+    "EASYAPPLY_HEADLESS": "headless",
+    "EASYAPPLY_DRY_RUN": "dry_run",
+    "EASYAPPLY_MAX_APPLICATIONS": "max_applications",
+    "EASYAPPLY_CHROME_USER_DATA_DIR": "user_data_dir",
+    "EASYAPPLY_PROXY": "proxy",
+    "EASYAPPLY_DATE_POSTED": "date_posted",
 }
 
 

@@ -155,6 +155,15 @@ class SearchLoopMixin:
         for job_id in job_ids:
             if self.stop_requested or time.time() >= self.session_deadline:
                 break
+
+            max_apps = getattr(self, "max_applications", 0)
+            submitted_count = getattr(self, "session_jobs_submitted", 0)
+            if max_apps > 0 and submitted_count >= max_apps:
+                log.info(f"Target application cap of {max_apps} reached. Ending session.")
+                if hasattr(self, "request_stop"):
+                    self.request_stop("max_applications_reached", max_applications=max_apps)
+                break
+
             if job_ids[job_id] == "To be processed":
                 if str(job_id) in self.appliedJobIDs:
                     self.log_event(
@@ -173,19 +182,97 @@ class SearchLoopMixin:
                 if self.stop_requested or time.time() >= self.session_deadline:
                     break
 
+    def build_search_url(
+        self,
+        position: str,
+        location: str,
+        jobs_per_page: int,
+        experience_level: list[int] | None = None,
+    ) -> str:
+        """Constructs an advanced LinkedIn search URL incorporating all configured search filters."""
+        import urllib.parse
+
+        params: dict[str, str] = {
+            "f_LF": "f_AL",
+            "keywords": position,
+            "start": str(jobs_per_page),
+        }
+        if location:
+            loc_clean = location.lstrip("&location=")
+            if loc_clean:
+                params["location"] = loc_clean
+
+        # Experience levels (e.g. 1=intern, 2=entry, 3=associate)
+        exp_levels = experience_level or getattr(self, "experience_level", [])
+        if exp_levels:
+            params["f_E"] = ",".join(map(str, exp_levels))
+
+        # Date posted filter
+        date_filter = getattr(self, "date_posted", "") or ""
+        date_map = {
+            "past_24h": "r86400",
+            "24h": "r86400",
+            "r86400": "r86400",
+            "past_week": "r604800",
+            "week": "r604800",
+            "r604800": "r604800",
+            "past_month": "r2592000",
+            "month": "r2592000",
+            "r2592000": "r2592000",
+        }
+        if date_filter.lower() in date_map:
+            params["f_TPR"] = date_map[date_filter.lower()]
+
+        # Workplace types (1=On-site, 2=Remote, 3=Hybrid)
+        wp_types = getattr(self, "workplace_types", []) or []
+        wp_codes = []
+        wp_map = {
+            "onsite": "1",
+            "on-site": "1",
+            "remote": "2",
+            "hybrid": "3",
+            "1": "1",
+            "2": "2",
+            "3": "3",
+        }
+        for w in wp_types:
+            code = wp_map.get(str(w).strip().lower())
+            if code and code not in wp_codes:
+                wp_codes.append(code)
+        if wp_codes:
+            params["f_WT"] = ",".join(wp_codes)
+
+        # Job types (F=Full-time, P=Part-time, C=Contract, T=Temporary, I=Internship)
+        job_types = getattr(self, "job_types", []) or []
+        jt_codes = []
+        jt_map = {
+            "full_time": "F",
+            "full-time": "F",
+            "fulltime": "F",
+            "f": "F",
+            "part_time": "P",
+            "part-time": "P",
+            "p": "P",
+            "contract": "C",
+            "c": "C",
+            "internship": "I",
+            "i": "I",
+            "temporary": "T",
+            "t": "T",
+        }
+        for j in job_types:
+            code = jt_map.get(str(j).strip().lower())
+            if code and code not in jt_codes:
+                jt_codes.append(code)
+        if jt_codes:
+            params["f_JT"] = ",".join(jt_codes)
+
+        return f"https://www.linkedin.com/jobs/search/?{urllib.parse.urlencode(params)}"
+
     def next_jobs_page(self, position, location, jobs_per_page: int, experience_level=None):
-        experience_level = experience_level or []
-        experience_level_str = ",".join(map(str, experience_level)) if experience_level else ""
-        experience_level_param = f"&f_E={experience_level_str}" if experience_level_str else ""
-        self.browser.get(
-            "https://www.linkedin.com/jobs/search/?f_LF=f_AL&keywords="
-            + position
-            + location
-            + "&start="
-            + str(jobs_per_page)
-            + experience_level_param
-        )
-        log.info("Loading next job page?")
+        search_url = self.build_search_url(position, location, jobs_per_page, experience_level)
+        self.browser.get(search_url)
+        log.info(f"Loading jobs page (start={jobs_per_page}): {search_url}")
         self.load_page()
         return self.browser, jobs_per_page + 25
 

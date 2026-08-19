@@ -159,7 +159,9 @@ class SubmitFlowMixin:
                     if re.search(r"\byou applied on\b|\bapplied\b", text):
                         return True
                 except Exception as exc:
-                    log.debug(f"Failed to read text/attributes of top-card control candidate: {exc}")
+                    log.debug(
+                        f"Failed to read text/attributes of top-card control candidate: {exc}"
+                    )
                     continue
         except Exception as exc:
             log.debug(f"Failed to locate apply controls on top-card: {exc}")
@@ -485,9 +487,7 @@ class SubmitFlowMixin:
                 return False
             loop, last_progress, last_transition_at = flow_state
 
-            submitted = self._run_apply_step_loop(
-                loop, last_progress, last_transition_at
-            )
+            submitted = self._run_apply_step_loop(loop, last_progress, last_transition_at)
         except Exception as exc:
             log.error(exc)
             log.error("cannot apply to this job")
@@ -685,9 +685,7 @@ class SubmitFlowMixin:
                 self.bot._dump_failure_snapshot(f"{action}_click_failed")
                 break
 
-            self.bot.log_event(
-                "easy_apply_click", step=action, progress_before=progress, loop=loop
-            )
+            self.bot.log_event("easy_apply_click", step=action, progress_before=progress, loop=loop)
             self.bot._dump_debug_html(
                 f"clicked_{action}_loop_{loop}", extra={"progress_before": progress}
             )
@@ -719,8 +717,18 @@ class SubmitFlowMixin:
                 unchanged_progress_loops = 0
 
             if unchanged_progress_loops >= 3 and action in ("next", "review"):
-                should_break, validation_recovery_attempts, unchanged_progress_loops, last_transition_at = self._handle_stalled_step(
-                    state, progress, loop, validation_recovery_attempts, unchanged_progress_loops, last_transition_at
+                (
+                    should_break,
+                    validation_recovery_attempts,
+                    unchanged_progress_loops,
+                    last_transition_at,
+                ) = self._handle_stalled_step(
+                    state,
+                    progress,
+                    loop,
+                    validation_recovery_attempts,
+                    unchanged_progress_loops,
+                    last_transition_at,
                 )
                 if should_break:
                     break
@@ -793,9 +801,50 @@ class SubmitFlowMixin:
             return True, recovery_attempts, unchanged_loops, last_transition
         return False, recovery_attempts, unchanged_loops, last_transition
 
+    def dismiss_easy_apply_modal(self) -> bool:
+        """Safely dismisses and closes the Easy Apply modal if open."""
+        try:
+            dismiss_selectors = [
+                (By.CSS_SELECTOR, "button[aria-label='Dismiss']"),
+                (By.CSS_SELECTOR, "button[data-test-modal-close-btn]"),
+                (By.CSS_SELECTOR, ".artdeco-modal__dismiss"),
+                (By.XPATH, "//button[@aria-label='Dismiss']"),
+            ]
+            btn = self.bot._find_clickable(dismiss_selectors)
+            if btn is not None:
+                self.bot._safe_click(btn)
+                time.sleep(MICRO_PAUSE_SECONDS)
+
+                # Check for "Discard application" confirmation dialog
+                discard_selectors = [
+                    (
+                        By.CSS_SELECTOR,
+                        "button[data-control-name='discard_application_confirm_btn']",
+                    ),
+                    (By.XPATH, "//button[contains(., 'Discard')]"),
+                ]
+                discard_btn = self.bot._find_clickable(discard_selectors)
+                if discard_btn is not None:
+                    self.bot._safe_click(discard_btn)
+                return True
+        except Exception as exc:
+            log.debug(f"Error dismissing easy apply modal: {exc}")
+        return False
+
     def _handle_submit_action(self, submit_clicked: bool) -> tuple[bool, bool]:
         """Perform submit checking and return (submitted, submit_clicked)."""
         submit_clicked = True
+        is_dry_run = bool(getattr(getattr(self.bot, "runtime", None), "dry_run", False))
+        if is_dry_run:
+            log.info("[DRY RUN] Easy Apply reached final submit step - simulation successful!")
+            self.bot.log_event(
+                "easy_apply_dry_run_submitted",
+                job_id=str(self.bot.current_job_id or ""),
+                title=self.bot.browser.title,
+            )
+            self.dismiss_easy_apply_modal()
+            return True, submit_clicked
+
         time.sleep(CLICK_PAUSE_SECONDS)
         modal_after_submit = self.find_easy_apply_modal()
         confirmation = self.is_submit_confirmation_state()
@@ -817,11 +866,41 @@ class SubmitFlowMixin:
             return True, submit_clicked
         return False, submit_clicked
 
+    def _select_matching_resume(self) -> str | None:
+        """Selects the best matching resume file path based on current job title/context."""
+        uploads = getattr(self.bot, "uploads", {})
+        if not uploads:
+            return None
+
+        if isinstance(uploads, str):
+            return uploads
+
+        title = (getattr(self.bot.browser, "title", "") or "").lower()
+        for key, path in uploads.items():
+            k_low = str(key).lower()
+            if (
+                k_low not in ("resume", "cover letter", "cover_letter", "default")
+                and k_low in title
+            ):
+                return str(path)
+
+        for default_key in ("Resume", "resume", "default", "Default"):
+            if default_key in uploads:
+                return str(uploads[default_key])
+
+        for v in uploads.values():
+            if str(v).lower().endswith((".pdf", ".doc", ".docx")):
+                return str(v)
+        return None
+
     def _try_upload_documents(self) -> None:
         """Attempt to upload resume and cover letter if file inputs are present."""
+        from pathlib import Path
+
         try:
-            resume_locator = self.bot._find_clickable(
-                [
+            resume_path = self._select_matching_resume()
+            if resume_path:
+                resume_locators = [
                     (
                         By.XPATH,
                         "//*[contains(@id, 'jobs-document-upload-file-input-upload-resume')]",
@@ -830,16 +909,28 @@ class SubmitFlowMixin:
                         By.CSS_SELECTOR,
                         "input[type='file'][id*='upload-resume']",
                     ),
+                    (
+                        By.CSS_SELECTOR,
+                        "input[type='file'][name*='file']",
+                    ),
+                    (
+                        By.CSS_SELECTOR,
+                        "input[type='file']",
+                    ),
                 ]
-            )
-            resume = self.bot.uploads.get("Resume")
-            if resume_locator is not None and resume:
-                resume_locator.send_keys(resume)
+                resume_el = self.bot._find_clickable(resume_locators)
+                if resume_el is not None:
+                    full_path = str(Path(resume_path).expanduser().resolve())
+                    if Path(full_path).exists():
+                        resume_el.send_keys(full_path)
+                        self.bot.log_event("document_uploaded", type="resume", path=resume_path)
         except Exception as exc:
             log.debug(f"Failed to find or upload Resume document: {exc}")
+
         try:
-            cv_locator = self.bot._find_clickable(
-                [
+            cv = self.bot.uploads.get("Cover Letter") or self.bot.uploads.get("cover_letter")
+            if cv:
+                cv_locators = [
                     (
                         By.XPATH,
                         "//*[contains(@id, 'jobs-document-upload-file-input-upload-cover-letter')]",
@@ -849,10 +940,12 @@ class SubmitFlowMixin:
                         "input[type='file'][id*='upload-cover-letter']",
                     ),
                 ]
-            )
-            cv = self.bot.uploads.get("Cover Letter")
-            if cv_locator is not None and cv:
-                cv_locator.send_keys(cv)
+                cv_el = self.bot._find_clickable(cv_locators)
+                if cv_el is not None:
+                    full_cv_path = str(Path(cv).expanduser().resolve())
+                    if Path(full_cv_path).exists():
+                        cv_el.send_keys(full_cv_path)
+                        self.bot.log_event("document_uploaded", type="cover_letter", path=cv)
         except Exception as exc:
             log.debug(f"Failed to find or upload Cover Letter document: {exc}")
 
@@ -866,5 +959,3 @@ class SubmitFlowMixin:
         if state == "next":
             return "next", self._get_action_selectors("next")
         return None, []
-
-

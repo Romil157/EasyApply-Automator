@@ -86,6 +86,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         )
 
     def _init_config(self, config: AppConfig) -> None:
+        self.runtime = config.runtime
         self.uploads = config.uploads
         self.salary = config.salary
         self.rate = config.rate
@@ -96,6 +97,11 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.blacklist_titles = config.blacklist_titles
         self.experience_level = config.experience_level
         self.max_pages_per_search = max(1, int(config.runtime.max_pages_per_search))
+        self.max_applications = int(config.runtime.max_applications)
+        self.dry_run = bool(config.runtime.dry_run)
+        self.date_posted = config.date_posted
+        self.workplace_types = config.workplace_types
+        self.job_types = config.job_types
 
         self.results_filename = config.results_filename
         self.events_filename = config.events_filename
@@ -183,7 +189,11 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.answers: dict[str, str] = {}
 
     def _init_browser(self, config: AppConfig) -> None:
-        self.options = build_browser_options()
+        self.options = build_browser_options(
+            headless=config.runtime.headless,
+            user_data_dir=config.runtime.user_data_dir,
+            proxy=config.runtime.proxy,
+        )
         chromedriver_path = shutil.which("chromedriver")
         chrome_path = detect_chrome_binary()
         if chrome_path:
@@ -323,8 +333,17 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         return load_recent_applied_ids(filename)
 
     def fill_data(self) -> None:
-        self.browser.set_window_size(1, 1)
-        self.browser.set_window_position(2000, 2000)
+        try:
+            if not getattr(self.runtime, "headless", False):
+                self.browser.maximize_window()
+        except Exception:
+            pass
+
+    def _human_type(self, element, text: str) -> None:
+        """Types text with randomized human-like keystroke delays."""
+        for char in str(text):
+            element.send_keys(char)
+            time.sleep(random.uniform(0.015, 0.055))
 
     def start_apply(self, positions: list[str], locations: list[str]) -> None:
         self.fill_data()
@@ -470,7 +489,11 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             if result:
                 return True, "submitted", "*Applied: Sent Resume"
             if self.stop_requested and self.stop_reason == "daily_easy_apply_limit_reached":
-                return False, "daily_limit_reached", "*Stopped: LinkedIn Easy Apply daily limit reached"
+                return (
+                    False,
+                    "daily_limit_reached",
+                    "*Stopped: LinkedIn Easy Apply daily limit reached",
+                )
             return False, "apply_flow_failed", "*Did not apply: Failed to send Resume"
 
         if self._is_already_applied_job_page():
@@ -482,7 +505,9 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         log.info("The Easy apply button does not exist.")
         return False, "no_easy_apply_button", "* Doesn't have Easy Apply Button"
 
-    def _record_job_result(self, job_id: str, button, result: bool, reason: str, string_easy: str) -> bool:
+    def _record_job_result(
+        self, job_id: str, button, result: bool, reason: str, string_easy: str
+    ) -> bool:
         """Write job application results to repo/file and update throughput counters."""
         log.info(f"\nPosition {job_id}:\n {self.browser.title} \n {string_easy} \n")
 
@@ -752,7 +777,9 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             log.debug(f"Fill typeahead input failed for answer '{answer}': {exc}")
         return False
 
-    def load_page(self, sleep: float = MICRO_PAUSE_SECONDS, scroll_limit: int = 1500, scroll_step: int = 500):
+    def load_page(
+        self, sleep: float = MICRO_PAUSE_SECONDS, scroll_limit: int = 1500, scroll_step: int = 500
+    ):
         scroll_page = 0
         while scroll_page < scroll_limit:
             self.browser.execute_script(f"window.scrollTo(0,{scroll_page} );")

@@ -13,6 +13,29 @@ if TYPE_CHECKING:
     from easy_apply_automator.app.orchestrator import LinkedInEasyApplyOrchestrator
 
 
+COUNTRY_DIAL_CODES: dict[str, list[str]] = {
+    "IN": ["India (+91)", "+91", "India"],
+    "US": ["United States (+1)", "+1", "United States"],
+    "GB": ["United Kingdom (+44)", "+44", "United Kingdom"],
+    "CA": ["Canada (+1)", "+1", "Canada"],
+    "AU": ["Australia (+61)", "+61", "Australia"],
+    "DE": ["Germany (+49)", "+49", "Germany"],
+    "FR": ["France (+33)", "+33", "France"],
+    "CZ": ["Czechia (+420)", "+420", "Czech Republic"],
+    "SG": ["Singapore (+65)", "+65", "Singapore"],
+    "AE": ["United Arab Emirates (+971)", "+971", "UAE"],
+    "NL": ["Netherlands (+31)", "+31", "Netherlands"],
+    "IE": ["Ireland (+353)", "+353", "Ireland"],
+    "ES": ["Spain (+34)", "+34", "Spain"],
+    "IT": ["Italy (+39)", "+39", "Italy"],
+    "BR": ["Brazil (+55)", "+55", "Brazil"],
+    "JP": ["Japan (+81)", "+81", "Japan"],
+    "CH": ["Switzerland (+41)", "+41", "Switzerland"],
+    "SE": ["Sweden (+46)", "+46", "Sweden"],
+    "PL": ["Poland (+48)", "+48", "Poland"],
+}
+
+
 class FormFillerMixin:
     bot: LinkedInEasyApplyOrchestrator
 
@@ -37,7 +60,18 @@ class FormFillerMixin:
                     current = (select_el.get_attribute("value") or "").strip().lower()
                     if current in ("", "select an option"):
                         if "phone country code" in label_text:
-                            if not self.bot._select_option_by_answer(select_el, "Czechia (+420)"):
+                            country_code = (
+                                (getattr(self.bot, "location_country", "IN") or "IN")
+                                .upper()
+                                .strip()
+                            )
+                            candidates = COUNTRY_DIAL_CODES.get(country_code, [country_code])
+                            selected = False
+                            for candidate in candidates:
+                                if self.bot._select_option_by_answer(select_el, candidate):
+                                    selected = True
+                                    break
+                            if not selected:
                                 self.bot._select_non_default_option(select_el)
                         else:
                             self.bot._select_non_default_option(select_el)
@@ -144,7 +178,9 @@ class FormFillerMixin:
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
                                 except Exception as exc:
-                                    log.debug(f"Failed to click fallback label for rid '{rid}': {exc}")
+                                    log.debug(
+                                        f"Failed to click fallback label for rid '{rid}': {exc}"
+                                    )
                             if not label_clicked:
                                 self.bot._safe_click(radio)
                             selected = True
@@ -173,7 +209,9 @@ class FormFillerMixin:
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
                                 except Exception as exc:
-                                    log.debug(f"Failed to click fallback label for rid '{rid}': {exc}")
+                                    log.debug(
+                                        f"Failed to click fallback label for rid '{rid}': {exc}"
+                                    )
                             if not label_clicked:
                                 self.bot._safe_click(radio)
                             selected = True

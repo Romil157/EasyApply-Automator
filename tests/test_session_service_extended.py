@@ -1,4 +1,5 @@
 """Extended tests for SessionService logic."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +17,7 @@ def service():
     mock_bot.cookies_path = "test_cookies.json"
     mock_bot.browser = MagicMock()
     return SessionService(mock_bot)
+
 
 class TestSessionServiceLogic:
     def test_is_logged_in_various_urls(self, service):
@@ -53,7 +55,9 @@ class TestSessionServiceLogic:
         service.bot.cookies_path = str(tmp_path / "missing.json")
         assert service.restore_session_from_cookies() is False
         service.bot.log_event.assert_called_with(
-            "cookies_restore_skipped", reason="cookie_file_missing", cookies_path=service.bot.cookies_path
+            "cookies_restore_skipped",
+            reason="cookie_file_missing",
+            cookies_path=service.bot.cookies_path,
         )
 
     def test_restore_session_invalid_json(self, service, tmp_path):
@@ -68,7 +72,9 @@ class TestSessionServiceLogic:
         service.bot.cookies_path = str(cookie_file)
         assert service.restore_session_from_cookies() is False
         service.bot.log_event.assert_called_with(
-            "cookies_restore_skipped", reason="cookie_file_invalid", cookies_path=service.bot.cookies_path
+            "cookies_restore_skipped",
+            reason="cookie_file_invalid",
+            cookies_path=service.bot.cookies_path,
         )
 
     def test_restore_session_success(self, service, tmp_path):

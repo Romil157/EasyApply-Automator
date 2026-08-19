@@ -1,4 +1,5 @@
 """Automatic question answering service containing match rules and pattern lists."""
+
 import csv
 import re
 from pathlib import Path
@@ -75,9 +76,7 @@ class AutoAnswer:
                     )
                     return {}
             else:
-                self.log.warning(
-                    f"Answer config not found at {path}, using fallback behavior."
-                )
+                self.log.warning(f"Answer config not found at {path}, using fallback behavior.")
         except Exception as exc:
             self.log.warning(
                 f"Failed to load answer config at {path}: {exc}. Using fallback behavior."
@@ -133,6 +132,109 @@ class AutoAnswer:
 
         return rendered
 
+    def _normalize_skill_key(self, skill: str) -> str:
+        """Normalizes skill text into a clean key matching profile.years dictionary keys."""
+        s = skill.strip().lower()
+        aliases = {
+            "reactjs": "react",
+            "react.js": "react",
+            "nodejs": "nodejs",
+            "node.js": "nodejs",
+            "amazon web services": "aws",
+            "c++": "cpp",
+            "c#": "csharp",
+            "golang": "go",
+            "postgre": "sql",
+            "postgresql": "sql",
+            "postgres": "sql",
+            "mysql": "sql",
+            "nosql": "mongodb",
+            "mongo": "mongodb",
+            "gen ai": "llm_genai",
+            "generative ai": "llm_genai",
+            "artificial intelligence": "ai_ml",
+            "ai/ml": "ai_ml",
+            "ml": "machine_learning",
+            "software development": "overall_software",
+            "software engineering": "overall_software",
+        }
+        if s in aliases:
+            return aliases[s]
+        s_clean = re.sub(r"[^a-z0-9]+", "_", s).strip("_")
+        return aliases.get(s_clean, s_clean)
+
+    def _extract_skill_years(self, question: str) -> str | None:
+        """Dynamically identifies skill names in experience questions and looks up profile.years."""
+        profile = self.cfg.get("profile", {})
+        years = profile.get("years", {})
+        if not years:
+            return None
+
+        q = question.lower()
+        patterns = [
+            r"how many years(?: of (?:work |professional )?experience)?(?: do you have)? (?:with|in|using|of)\s+([a-zA-Z0-9#\+\.\s\-_/]+?)(?:\?|$|\bexperience\b)",
+            r"years of (?:work |professional )?experience (?:with|in|using|of)\s+([a-zA-Z0-9#\+\.\s\-_/]+?)(?:\?|$)",
+            r"experience (?:with|in|using)\s+([a-zA-Z0-9#\+\.\s\-_/]+?)(?:\?|$)",
+        ]
+        for pat in patterns:
+            match = re.search(pat, q)
+            if match:
+                raw_skill = match.group(1).strip(" .?:")
+                norm_key = self._normalize_skill_key(raw_skill)
+                if norm_key in years:
+                    return str(years[norm_key])
+                for k, v in years.items():
+                    if k in norm_key or norm_key in k:
+                        return str(v)
+
+        for k, v in years.items():
+            pattern = rf"\b{re.escape(k.replace('_', ' '))}\b"
+            if re.search(pattern, q):
+                return str(v)
+
+        return None
+
+    def _heuristic_fallback(self, question: str) -> str | None:
+        """Classifies common recruitment intent and provides smart context-aware answers."""
+        q = (question or "").lower()
+        defaults = self.cfg.get("defaults", {})
+        profile = self.cfg.get("profile", {})
+        work_auth = profile.get("work_auth", {})
+
+        if any(
+            w in q
+            for w in (
+                "notice period",
+                "how soon can you start",
+                "available start date",
+                "earliest start date",
+            )
+        ):
+            return "Immediately"
+        if any(w in q for w in ("willing to relocate", "relocation")):
+            return "Yes"
+        if any(w in q for w in ("willing to commute", "commute to", "commute daily")):
+            return "Yes"
+        if any(w in q for w in ("driver's license", "drivers license", "valid driver")):
+            return "Yes"
+        if any(w in q for w in ("drug test", "background check", "criminal background")):
+            return "Yes"
+        if any(w in q for w in ("authorized to work", "legally authorized", "legal right to work")):
+            return str(work_auth.get("legally_authorized", defaults.get(True, "Yes")))
+        if any(w in q for w in ("require sponsorship", "need visa sponsorship", "require visa")):
+            return str(work_auth.get("require_sponsorship", defaults.get(False, "No")))
+        if any(
+            w in q for w in ("highest level of education", "degree completed", "highest degree")
+        ):
+            return "Bachelor's Degree"
+        if any(w in q for w in ("gpa", "cgpa", "grade point average")):
+            return "9.0"
+        if any(w in q for w in ("english proficiency", "english level", "proficiency in english")):
+            return "Professional"
+        if any(w in q for w in ("hybrid schedule", "onsite work", "in-person attendance")):
+            return "Yes"
+        return None
+
     def ans_question(self, question: str) -> str:
         q = (question or "").strip()
         answer = None
@@ -149,6 +251,16 @@ class AutoAnswer:
                     )
             if answer is not None:
                 break
+
+        if answer is None:
+            extracted_years = self._extract_skill_years(q)
+            if extracted_years is not None:
+                answer = extracted_years
+
+        if answer is None:
+            heuristic_ans = self._heuristic_fallback(q)
+            if heuristic_ans is not None:
+                answer = heuristic_ans
 
         if answer is None:
             self.log.info("Not able to answer question automatically. Please provide answer")

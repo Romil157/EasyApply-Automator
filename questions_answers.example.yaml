@@ -35,6 +35,8 @@ profile:
     llm_genai: "0"
     data_science: "0"
     data_engineering: "0"
+    data_scraping: "0"
+    data_cleaning: "0"
     python: "0"
     sql: "0"
     backend: "0"
@@ -42,10 +44,13 @@ profile:
     html_css: "0"
     javascript: "0"
     nodejs: "0"
+    flask: "0"
     git: "0"
-    data_scraping: "0"
     cybersecurity: "0"
+    siem: "0"
     automation: "0"
+    technical_support: "0"
+    networks: "0"
     leadership: "0"
 
   work_auth:

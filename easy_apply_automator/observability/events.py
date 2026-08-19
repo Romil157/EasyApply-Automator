@@ -1,4 +1,5 @@
 """Event logger module that records application activity in a structured JSONL format."""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +12,7 @@ from .logger import log
 
 class EventLogger:
     """Manages appending run event occurrences and diagnostics metadata to a file log."""
+
     def __init__(self, events_filename: str) -> None:
         self.events_filename = str(Path(events_filename).expanduser())
         Path(self.events_filename).parent.mkdir(parents=True, exist_ok=True)

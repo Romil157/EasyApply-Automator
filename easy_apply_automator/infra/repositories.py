@@ -1,4 +1,5 @@
 """Data storage repository module for loading and appending job application results."""
+
 from __future__ import annotations
 
 import json
@@ -54,6 +55,7 @@ def load_recent_applied_ids(filename: str, days: int = 2) -> list[str] | None:
 
 class ResultsRepository:
     """Manages reading and appending job application statistics to a local JSON file."""
+
     def __init__(self, filename: str) -> None:
         self.filename = str(Path(filename).expanduser())
         Path(self.filename).parent.mkdir(parents=True, exist_ok=True)
@@ -86,3 +88,13 @@ class ResultsRepository:
                 writer = csv.DictWriter(csv_f, fieldnames=keys)
                 writer.writeheader()
                 writer.writerows(existing)
+
+        # Generate HTML report
+        try:
+            from easy_apply_automator.observability.reporter import generate_html_report
+
+            html_path = output_path.with_suffix(".html")
+            generate_html_report(html_path, existing)
+            generate_html_report("results/report_latest.html", existing)
+        except Exception as exc:
+            log.debug(f"Failed to generate HTML report: {exc}")

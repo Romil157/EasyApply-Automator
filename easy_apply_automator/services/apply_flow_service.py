@@ -11,5 +11,5 @@ class ApplyFlowService(FormFillerMixin, SubmitFlowMixin, ServiceBase):
     This service exposes the high-level apply flow logic. The mixins it inherits from
     (_form_filler and _submit_flow) are intentionally internal.
     """
-    pass
 
+    pass

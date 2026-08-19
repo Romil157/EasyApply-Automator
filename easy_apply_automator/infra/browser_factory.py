@@ -1,4 +1,5 @@
 """WebDriver and Chrome binary detection factory helper routines."""
+
 from __future__ import annotations
 
 import os
@@ -66,7 +67,12 @@ def detect_chrome_binary() -> str | None:
     return None
 
 
-def build_browser_options(ignore_cert_errors: bool | None = None) -> uc.ChromeOptions:
+def build_browser_options(
+    ignore_cert_errors: bool | None = None,
+    headless: bool = False,
+    user_data_dir: str = "",
+    proxy: str = "",
+) -> uc.ChromeOptions:
     options = uc.ChromeOptions()
     options.add_argument("--start-maximized")
 
@@ -81,15 +87,29 @@ def build_browser_options(ignore_cert_errors: bool | None = None) -> uc.ChromeOp
             "This should only be done for corporate TLS-inspecting proxy compatibility."
         )
 
+    if headless or os.getenv("EASYAPPLY_HEADLESS", "").lower() in ("true", "1", "yes"):
+        options.add_argument("--headless=new")
+        options.add_argument("--window-size=1920,1080")
+        log.info("Running browser in headless mode (--headless=new)")
+
+    effective_user_data_dir = user_data_dir or os.getenv("EASYAPPLY_CHROME_USER_DATA_DIR", "")
+    if effective_user_data_dir:
+        options.add_argument(f"--user-data-dir={effective_user_data_dir}")
+        log.info(f"Using persistent Chrome user data directory: {effective_user_data_dir}")
+
+    effective_proxy = proxy or os.getenv("EASYAPPLY_PROXY", "")
+    if effective_proxy:
+        options.add_argument(f"--proxy-server={effective_proxy}")
+        log.info(f"Using proxy server: {effective_proxy}")
+
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-extensions")
+    options.add_argument("--disable-dev-shm-usage")
     # AutomationControlled is handled by undetected-chromedriver by default
     return options
 
 
-def build_webdriver(
-    options: uc.ChromeOptions, chromedriver_path: str | None
-) -> uc.Chrome:
+def build_webdriver(options: uc.ChromeOptions, chromedriver_path: str | None) -> uc.Chrome:
     log.info("Starting undetected-chromedriver for better anti-detection...")
     version_main = detect_chrome_major_version()
     if version_main:
@@ -107,4 +127,3 @@ def build_webdriver(
     except Exception as exc:
         log.error(f"Failed to start undetected-chromedriver: {exc}")
         raise WebDriverException(f"Critical failure starting browser: {exc}")
-

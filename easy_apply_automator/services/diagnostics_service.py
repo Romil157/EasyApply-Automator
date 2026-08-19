@@ -1,4 +1,5 @@
 """Service that records HTML debugging snapshots, page source logs, and troubleshooting traces."""
+
 from __future__ import annotations
 
 import json
@@ -13,6 +14,7 @@ from .base import ServiceBase
 
 class DiagnosticsService(ServiceBase):
     """Logs browser page states, HTML screenshots, and stack traces when applying fails."""
+
     @staticmethod
     def sanitize_for_path(value: str) -> str:
         safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", value or "")
