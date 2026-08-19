@@ -6,9 +6,9 @@ import re
 import shutil
 import time
 from collections import deque
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import Sequence
 
 import pyautogui
 from bs4 import BeautifulSoup
