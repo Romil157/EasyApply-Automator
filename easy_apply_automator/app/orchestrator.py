@@ -8,6 +8,7 @@ import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
+from typing import Sequence
 
 import pyautogui
 from bs4 import BeautifulSoup
@@ -707,7 +708,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             log.debug(f"JS click failed in _safe_click: {exc}")
             return False
 
-    def _find_clickable(self, selectors: list[tuple[str, str]]):
+    def _find_clickable(self, selectors: Sequence[tuple[str, str]]):
         for by, value in selectors:
             try:
                 elements = self.browser.find_elements(by, value)

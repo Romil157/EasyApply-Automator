@@ -31,7 +31,7 @@ def generate_html_report(
         reason_counts[reason] = reason_counts.get(reason, 0) + 1
 
     # Format records for client-side JSON embedding
-    safe_records = []
+    safe_records: list[dict[str, Any]] = []
     for r in records:
         safe_records.append({
             "timestamp": str(r.get("timestamp", "")),
@@ -50,12 +50,12 @@ def generate_html_report(
     # Pre-render table rows for SEO / no-JS fallback
     rows_html: list[str] = []
     for r in reversed(safe_records):
-        ts = html.escape(r["timestamp"])
-        job_id = html.escape(r["job_id"])
-        title = html.escape(r["job_title"])
-        company = html.escape(r["company"])
-        result = r["result"]
-        reason = html.escape(r["reason"])
+        ts = html.escape(str(r["timestamp"]))
+        job_id = html.escape(str(r["job_id"]))
+        title = html.escape(str(r["job_title"]))
+        company = html.escape(str(r["company"]))
+        result = bool(r["result"])
+        reason = html.escape(str(r["reason"]))
         url = f"https://www.linkedin.com/jobs/view/{job_id}" if job_id else "#"
 
         if result:
@@ -65,7 +65,8 @@ def generate_html_report(
         else:
             badge = f'<span class="status-badge status-skipped"><span class="pulse-dot neutral"></span>Skipped ({reason})</span>'
 
-        initials = "".join([w[0] for w in company.split()[:2]]).upper() or "JB"
+        company_str = str(r["company"])
+        initials = "".join([w[0] for w in company_str.split()[:2]]).upper() or "JB"
 
         rows_html.append(
             f"""
