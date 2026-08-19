@@ -793,14 +793,19 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         return BeautifulSoup(self.browser.page_source, "lxml")
 
     def avoid_lock(self) -> None:
-        x, _ = pyautogui.position()
-        pyautogui.moveTo(x + 200, pyautogui.position().y, duration=1.0)
-        pyautogui.moveTo(x, pyautogui.position().y, duration=0.5)
-        pyautogui.keyDown("ctrl")
-        pyautogui.press("esc")
-        pyautogui.keyUp("ctrl")
-        time.sleep(MODAL_TRANSITION_PAUSE_SECONDS)
-        pyautogui.press("esc")
+        try:
+            import pyautogui
+
+            x, _ = pyautogui.position()
+            pyautogui.moveTo(x + 200, pyautogui.position().y, duration=1.0)
+            pyautogui.moveTo(x, pyautogui.position().y, duration=0.5)
+            pyautogui.keyDown("ctrl")
+            pyautogui.press("esc")
+            pyautogui.keyUp("ctrl")
+            time.sleep(MODAL_TRANSITION_PAUSE_SECONDS)
+            pyautogui.press("esc")
+        except Exception as exc:
+            log.debug(f"pyautogui avoid_lock skipped or unsupported: {exc}")
 
     def _human_sleep(self, base_seconds: float, variance: float = 0.2) -> None:
         """Sleep for a randomized duration to mimic human behavior."""
