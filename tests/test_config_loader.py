@@ -114,12 +114,16 @@ class TestLoadRunConfigValid:
         rc = load_run_config(p)
         assert rc.parameters["username"] == "yaml_user@example.com"
 
-    def test_missing_username_defaults_to_empty(self, tmp_path):
+    def test_missing_username_defaults_to_empty(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("LINKEDIN_USERNAME", raising=False)
+        monkeypatch.setattr("easy_apply_automator.config.loader.load_dotenv", lambda *a, **kw: None)
         p = _write_yaml(MINIMAL_VALID_YAML, tmp_path)
         rc = load_run_config(p)
         assert rc.parameters.get("username") == ""
 
-    def test_missing_password_defaults_to_empty(self, tmp_path):
+    def test_missing_password_defaults_to_empty(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("LINKEDIN_PASSWORD", raising=False)
+        monkeypatch.setattr("easy_apply_automator.config.loader.load_dotenv", lambda *a, **kw: None)
         p = _write_yaml(MINIMAL_VALID_YAML, tmp_path)
         rc = load_run_config(p)
         assert rc.parameters.get("password") == ""

@@ -32,22 +32,32 @@ profile:
     llm_genai: "1"
     data_science: "1"
     data_engineering: "1"
-    data_scraping: "1"
-    data_cleaning: "1"
+    data_analysis: "1"
+    data_scraping: "2"
+    data_cleaning: "2"
     python: "2"
-    sql: "1"
+    sql: "2"
     backend: "2"
+    frontend: "2"
+    fullstack: "2"
     web_development: "2"
     html_css: "2"
     javascript: "2"
     nodejs: "1"
+    react: "1"
     flask: "1"
+    fastapi: "1"
+    rest_apis: "2"
     git: "2"
     cybersecurity: "2"
     siem: "1"
     automation: "2"
+    testing_qa: "1"
     technical_support: "1"
     networks: "1"
+    excel: "2"
+    linux: "2"
+    docker: "1"
     leadership: "1"
 
   work_auth:
@@ -320,6 +330,100 @@ rules:
       - "(?i)total years"
       - "(?i)overall experience"
     answer: "{years.overall_software}"
+
+  - id: yoe_frontend
+    match_any:
+      - "(?i)how many years.*\\b(frontend|front-end|react|reactjs|vue|angular|ui development)\\b"
+      - "(?i)years of experience.*\\b(frontend|front-end|react|reactjs|vue|angular|ui development)\\b"
+      - "(?i)experience.*\\b(react|frontend|front-end)\\b"
+    answer: "{years.frontend}"
+
+  - id: yoe_fullstack
+    match_any:
+      - "(?i)how many years.*\\b(full stack|fullstack|full-stack)\\b"
+      - "(?i)years of experience.*\\b(full stack|fullstack|full-stack)\\b"
+      - "(?i)experience.*\\b(full stack|fullstack|full-stack)\\b"
+    answer: "{years.fullstack}"
+
+  - id: yoe_rest_apis
+    match_any:
+      - "(?i)how many years.*\\b(rest api|restful|api development|fastapi|flask|express)\\b"
+      - "(?i)years of experience.*\\b(rest api|restful|api development|fastapi|flask|express)\\b"
+      - "(?i)experience.*\\b(rest api|fastapi|flask)\\b"
+    answer: "{years.rest_apis}"
+
+  - id: yoe_data_analysis
+    match_any:
+      - "(?i)how many years.*\\b(data analysis|data analytics|pandas|numpy|eda|business intelligence)\\b"
+      - "(?i)years of experience.*\\b(data analysis|data analytics|pandas|numpy|eda|business intelligence)\\b"
+      - "(?i)experience.*\\b(pandas|data analysis)\\b"
+    answer: "{years.data_analysis}"
+
+  - id: yoe_scraping
+    match_any:
+      - "(?i)how many years.*\\b(scraping|web scraping|beautifulsoup|bs4|scrapy|crawling)\\b"
+      - "(?i)years of experience.*\\b(scraping|web scraping|beautifulsoup|bs4|scrapy|crawling)\\b"
+      - "(?i)experience.*\\b(web scraping|scraping|beautifulsoup)\\b"
+    answer: "{years.data_scraping}"
+
+  - id: yoe_llm_genai
+    match_any:
+      - "(?i)how many years.*\\b(genai|generative ai|llm|llms|prompt engineering|langchain|rag)\\b"
+      - "(?i)years of experience.*\\b(genai|generative ai|llm|llms|prompt engineering|langchain|rag)\\b"
+      - "(?i)experience.*\\b(llm|generative ai|prompt engineering)\\b"
+    answer: "{years.llm_genai}"
+
+  - id: yoe_qa_testing
+    match_any:
+      - "(?i)how many years.*\\b(qa|testing|test automation|pytest|selenium|quality assurance|unit testing)\\b"
+      - "(?i)years of experience.*\\b(qa|testing|test automation|pytest|selenium|quality assurance|unit testing)\\b"
+      - "(?i)experience.*\\b(testing|test automation|qa|pytest)\\b"
+    answer: "{years.testing_qa}"
+
+  - id: yoe_excel
+    match_any:
+      - "(?i)how many years.*\\b(excel|advanced excel|spreadsheets)\\b"
+      - "(?i)years of experience.*\\b(excel|advanced excel|spreadsheets)\\b"
+      - "(?i)experience.*\\b(excel|spreadsheets)\\b"
+    answer: "{years.excel}"
+
+  - id: yoe_linux
+    match_any:
+      - "(?i)how many years.*\\b(linux|unix|bash|shell)\\b"
+      - "(?i)years of experience.*\\b(linux|unix|bash|shell)\\b"
+      - "(?i)experience.*\\b(linux|bash)\\b"
+    answer: "{years.linux}"
+
+  - id: yoe_docker
+    match_any:
+      - "(?i)how many years.*\\b(docker|containers|containerization|aws|cloud)\\b"
+      - "(?i)years of experience.*\\b(docker|containers|containerization|aws|cloud)\\b"
+      - "(?i)experience.*\\b(docker|cloud)\\b"
+    answer: "{years.docker}"
+
+  - id: primary_programming_language
+    match_any:
+      - "(?i)primary programming language"
+      - "(?i)preferred programming language"
+      - "(?i)strongest programming language"
+      - "(?i)main programming language"
+    answer: "Python"
+
+  - id: current_student
+    match_any:
+      - "(?i)are you currently enrolled"
+      - "(?i)current student"
+      - "(?i)currently pursuing.*degree"
+      - "(?i)are you a student"
+    answer: "{yes}"
+
+  - id: internship_availability
+    match_any:
+      - "(?i)available for.*internship"
+      - "(?i)available for.*full-time"
+      - "(?i)available for.*full time"
+      - "(?i)seeking.*internship"
+    answer: "{yes}"
 
   - id: generic_how_many_years
     match_any:

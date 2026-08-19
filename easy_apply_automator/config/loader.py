@@ -38,7 +38,7 @@ ENV_TO_CONFIG_KEY = {
 
 
 def load_run_config(config_path: str | Path = "config.yaml") -> RunConfig:
-    load_dotenv(override=True)
+    load_dotenv()
 
     path = Path(config_path)
     with path.open("r", encoding="utf-8") as stream:

@@ -4,13 +4,46 @@ username: ""
 password: ""
 
 positions:
+  # Software & Web Engineering
   - Software Engineer
-  - Python Developer
-  - Backend Developer
-  - Web Developer
-  - Data Analyst
-  - Machine Learning Intern
+  - Software Developer
   - Software Engineering Intern
+  - Junior Software Engineer
+  - Associate Software Engineer
+  - Python Developer
+  - Python Engineer
+  - Backend Developer
+  - Backend Engineer
+  - Full Stack Developer
+  - Full Stack Engineer
+  - Frontend Developer
+  - Web Developer
+  - Web Development Intern
+  - Graduate Software Engineer
+  # Data, Analytics & Scraping
+  - Data Analyst
+  - Data Analyst Intern
+  - Junior Data Analyst
+  - Data Engineer
+  - Data Engineering Intern
+  - Data Science Intern
+  - Web Scraping Specialist
+  # AI, ML & NLP
+  - AI Engineer
+  - AI Intern
+  - Machine Learning Engineer
+  - Machine Learning Intern
+  - AI / ML Engineer
+  - Generative AI Engineer
+  - NLP Engineer
+  # Automation, Security & IT
+  - Automation Engineer
+  - QA Automation Intern
+  - QA Engineer
+  - Cybersecurity Intern
+  - Security Analyst Intern
+  - Information Security Analyst
+  - Technical Support Intern
 
 locations:
   - Remote
