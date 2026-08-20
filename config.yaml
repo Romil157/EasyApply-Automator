@@ -50,6 +50,13 @@ positions:
   - Technical Support Intern
   - IT Support Intern
   - IT Intern
+  # Finance, FinTech & Analytics
+  - Financial Analyst
+  - Financial Analyst Intern
+  - Finance Intern
+  - Investment Banking Intern
+  - Quantitative Analyst Intern
+  - FinTech Intern
 
 locations:
   - Remote
@@ -188,13 +195,9 @@ blacklist_titles:
   - "staffing"
   - "payroll"
 
-  # Finance, Accounting, Audit & Legal
+  # Accounting, Audit, Tax & Legal (Unrelated)
   - "accountant"
   - "chartered accountant"
-  - "finance intern"
-  - "financial analyst"
-  - "investment banking"
-  - "equity research"
   - "taxation"
   - "audit intern"
   - "bookkeeper"

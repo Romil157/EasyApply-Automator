@@ -90,6 +90,9 @@ class TestJobClassification:
             "Data Analyst Intern | Analytics Co | LinkedIn",
             "AI / ML Engineer Intern | AI Corp | LinkedIn",
             "Cybersecurity Intern | Security Inc | LinkedIn",
+            "Finance Intern | Goldman Sachs | LinkedIn",
+            "Financial Analyst Intern | Morgan Stanley | LinkedIn",
+            "Investment Banking Analyst | J.P. Morgan | LinkedIn",
         ]
         for title in relevant_titles:
             classifier.browser.title = title
