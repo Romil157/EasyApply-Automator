@@ -75,5 +75,8 @@ def load_run_config(config_path: str | Path = "config.yaml") -> RunConfig:
             "uploads in config.yaml must be a dict, not a list. Remove '-' before key/value entries."
         )
 
-    results_filename = f"results/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+    now = datetime.now()
+    date_folder = now.strftime("%Y-%m-%d")
+    timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+    results_filename = f"results/{date_folder}/{timestamp}.json"
     return RunConfig(parameters=parameters, results_filename=results_filename)

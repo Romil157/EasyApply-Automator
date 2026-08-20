@@ -57,6 +57,10 @@ positions:
   - Investment Banking Intern
   - Quantitative Analyst Intern
   - FinTech Intern
+  # SEO, SEM & Growth Analytics
+  - SEO Intern
+  - SEO Specialist
+  - SEM Specialist
 
 locations:
   - Remote
@@ -146,7 +150,7 @@ blacklist_titles:
   - "revenue operations"
   - "revops"
 
-  # Marketing, Growth, Content & Social Media
+  # Marketing, Content & Social Media (Unrelated)
   - "brand face"
   - "growth intern"
   - "growth marketing"
@@ -157,9 +161,6 @@ blacklist_titles:
   - "content writer"
   - "copywriter"
   - "copy writing"
-  - "seo intern"
-  - "seo specialist"
-  - "sem"
   - "influencer"
   - "public relations"
   - "pr intern"

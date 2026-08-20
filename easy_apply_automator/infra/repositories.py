@@ -11,46 +11,68 @@ from easy_apply_automator.observability.logger import log
 
 
 def load_recent_applied_ids(filename: str, days: int = 2) -> list[str] | None:
-    """Loads job IDs from a JSON file that were applied within the specified number of days."""
+    """Loads job IDs from JSON file(s) that were applied within the specified number of days."""
+    files_to_check: list[Path] = []
     file_path = Path(filename)
-    if not file_path.exists():
-        return None
-    try:
-        with open(file_path, encoding="utf-8") as f:
-            payload = json.load(f)
-        if not isinstance(payload, list):
-            return None
+    if file_path.exists():
+        files_to_check.append(file_path)
 
-        threshold = datetime.now() - timedelta(days=days)
-        job_ids: list[str] = []
-        for record in payload:
-            if not isinstance(record, dict):
-                continue
-            job_id = record.get("job_id")
-            if not job_id:
-                continue
-            ts = record.get("timestamp")
-            if not ts:
-                continue
-            parsed_ts = None
-            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
-                try:
-                    parsed_ts = datetime.strptime(str(ts), fmt)
-                    break
-                except Exception:
-                    continue
-            if parsed_ts is None:
-                try:
-                    parsed_ts = datetime.strptime(str(ts), "%Y-%m-%d %H:%M:%S")
-                except Exception:
-                    continue
-            if parsed_ts > threshold:
-                job_ids.append(str(job_id))
-        log.info(f"{len(job_ids)} jobIDs found")
-        return job_ids
-    except Exception as exc:
-        log.info(f"{exc}   jobIDs could not be loaded from JSON {filename}")
+    results_dir = Path("results")
+    if results_dir.exists():
+        for candidate in results_dir.glob("**/*.json"):
+            if candidate not in files_to_check:
+                files_to_check.append(candidate)
+
+    if not files_to_check:
         return None
+
+    threshold = datetime.now() - timedelta(days=days)
+    job_ids: list[str] = []
+    seen_ids: set[str] = set()
+
+    for target_file in files_to_check:
+        try:
+            with open(target_file, encoding="utf-8") as f:
+                payload = json.load(f)
+            if not isinstance(payload, list):
+                continue
+            for record in payload:
+                if not isinstance(record, dict):
+                    continue
+                job_id = record.get("job_id")
+                if not job_id:
+                    continue
+                job_id_str = str(job_id)
+                if job_id_str in seen_ids:
+                    continue
+                ts = record.get("timestamp")
+                if not ts:
+                    continue
+                parsed_ts = None
+                for fmt in (
+                    "%Y-%m-%d %H:%M:%S",
+                    "%Y-%m-%d %H:%M:%S.%f",
+                    "%Y-%m-%dT%H:%M:%S",
+                    "%Y-%m-%dT%H:%M:%S.%f",
+                ):
+                    try:
+                        parsed_ts = datetime.strptime(str(ts), fmt)
+                        break
+                    except Exception:
+                        continue
+                if parsed_ts is None:
+                    try:
+                        parsed_ts = datetime.fromisoformat(str(ts))
+                    except Exception:
+                        continue
+                if parsed_ts and parsed_ts > threshold:
+                    seen_ids.add(job_id_str)
+                    job_ids.append(job_id_str)
+        except Exception as exc:
+            log.debug(f"Error reading applied IDs from {target_file}: {exc}")
+
+    log.info(f"{len(job_ids)} recent applied jobIDs loaded")
+    return job_ids
 
 
 class ResultsRepository:
@@ -62,6 +84,7 @@ class ResultsRepository:
 
     def append(self, record: dict[str, Any]) -> None:
         output_path = Path(self.filename)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         existing: list[Any] = []
         if output_path.exists():
@@ -89,12 +112,16 @@ class ResultsRepository:
                 writer.writeheader()
                 writer.writerows(existing)
 
-        # Generate HTML report
+        # Generate HTML report in both the dated directory and root results directory
         try:
             from easy_apply_automator.observability.reporter import generate_html_report
 
             html_path = output_path.with_suffix(".html")
             generate_html_report(html_path, existing)
+
+            date_latest_path = output_path.parent / "report_latest.html"
+            generate_html_report(date_latest_path, existing)
+
             generate_html_report("results/report_latest.html", existing)
         except Exception as exc:
             log.debug(f"Failed to generate HTML report: {exc}")
