@@ -125,6 +125,14 @@ class TestAppConfigFromDict:
         )
         assert "Manager" in cfg.blacklist_titles
 
+    def test_blacklist_titles_reads_from_blacklist_titles_snake_case(self):
+        cfg = AppConfig.from_dict(
+            self._params(blacklist_titles=["Founder's Office", "Business Development"]),
+            "results/out.json",
+        )
+        assert "Founder's Office" in cfg.blacklist_titles
+        assert "Business Development" in cfg.blacklist_titles
+
     def test_results_filename_stored(self):
         cfg = AppConfig.from_dict(self._params(), "results/2024-01-01_12-00-00.json")
         assert "2024-01-01" in cfg.results_filename

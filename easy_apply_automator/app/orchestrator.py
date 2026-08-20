@@ -436,13 +436,26 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         result, reason, string_easy = self._classify_job(job_id, button)
         return self._record_job_result(job_id, button, result, reason, string_easy)
 
+    @staticmethod
+    def _normalize_title_text(text: str) -> str:
+        cleaned = (text or "").lower()
+        for char in ("’", "‘", "`"):
+            cleaned = cleaned.replace(char, "'")
+        for char in ("—", "–", "_"):
+            cleaned = cleaned.replace(char, "-")
+        return f" {cleaned} "
+
     def _classify_job(self, job_id: str, button) -> tuple[bool, str, str]:
         """Check blacklist, medical, database keywords, and click easy apply button if all match."""
         if button is not False:
-            normalized_title = f" {self.browser.title.lower()} "
+            normalized_title = self._normalize_title_text(self.browser.title)
             matched_medical_keyword = self._medical_keyword_match()
             matched_blacklist_title = next(
-                (word for word in self.blacklist_titles if word.lower() in normalized_title),
+                (
+                    word
+                    for word in self.blacklist_titles
+                    if self._normalize_title_text(word).strip() in normalized_title
+                ),
                 None,
             )
             matched_database_title = next(
@@ -467,9 +480,15 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 return False, "medical_related_title", "* Medical-related role skipped"
             if matched_blacklist_title:
                 log.info(
-                    "skipping this application, a blacklisted keyword was found in the job position"
+                    f"Skipping this application, blacklisted keyword found in title: '{matched_blacklist_title}' (title: '{self.browser.title}')."
                 )
-                return False, "title_blacklisted", "* Contains blacklisted keyword"
+                self.log_event(
+                    "job_skipped_title_blacklisted",
+                    job_id=str(job_id),
+                    title=self.browser.title,
+                    matched_keyword=matched_blacklist_title,
+                )
+                return False, "title_blacklisted", f"* Contains blacklisted keyword: {matched_blacklist_title}"
             if matched_database_title:
                 log.info("Skipping this application, database-related keyword found in title.")
                 self.log_event(

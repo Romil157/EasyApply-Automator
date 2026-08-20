@@ -133,8 +133,17 @@ class AppConfig:
             last_name=str(parameters.get("last_name", "")),
             form_email=str(parameters.get("form_email", "")),
             github_url=str(parameters.get("github_url", "")),
-            blacklist=[str(v) for v in parameters.get("blacklist", [])],
-            blacklist_titles=[str(v) for v in parameters.get("blackListTitles", [])],
+            blacklist=[str(v) for v in parameters.get("blacklist", []) if v],
+            blacklist_titles=[
+                str(v)
+                for v in (
+                    parameters.get("blacklist_titles")
+                    or parameters.get("blackListTitles")
+                    or parameters.get("blacklistTitles")
+                    or []
+                )
+                if v
+            ],
             filters=parameters.get("filters", {}),
             locators=parameters.get("locators", {}),
             experience_level=experience_level,

@@ -1,5 +1,5 @@
 # ─── LinkedIn Easy Apply Bot – Configuration ───
-# Credentials (you can also load them from environment variables)
+# Credentials (you can also load them from environment variables / .env)
 username: ""
 password: ""
 
@@ -20,7 +20,7 @@ positions:
   - Web Developer
   - Web Development Intern
   - Graduate Software Engineer
-  # Data, Analytics & Scraping
+  # Data, Analytics, Scraping & ETL
   - Data Analyst
   - Data Analyst Intern
   - Junior Data Analyst
@@ -28,6 +28,8 @@ positions:
   - Data Engineering Intern
   - Data Science Intern
   - Web Scraping Specialist
+  - Data Scraping Intern
+  - ETL Developer
   # AI, ML & NLP
   - AI Engineer
   - AI Intern
@@ -36,6 +38,7 @@ positions:
   - AI / ML Engineer
   - Generative AI Engineer
   - NLP Engineer
+  - LLM Engineer
   # Automation, Security & IT
   - Automation Engineer
   - QA Automation Intern
@@ -43,7 +46,10 @@ positions:
   - Cybersecurity Intern
   - Security Analyst Intern
   - Information Security Analyst
+  - SOC Analyst Intern
   - Technical Support Intern
+  - IT Support Intern
+  - IT Intern
 
 locations:
   - Remote
@@ -93,30 +99,142 @@ short_break_every_min_minutes: 30
 short_break_every_max_minutes: 60
 shuffle_search_combos: false
 
+# ─── Title Blacklist ───
+# If any of these words or phrases appear in the job title, the bot will automatically skip the job.
+# This prevents applying to non-technical, sales, operations, founder's office, marketing, or unrelated roles.
+blacklist_titles:
+  # Executive, Founder's Office & Strategy
+  - "founder's office"
+  - "founders office"
+  - "founder office"
+  - "founding intern"
+  - "chief of staff"
+  - "strategy intern"
+  - "strategic intern"
+  - "operations & strategy"
+  - "operations and strategy"
+  - "business operations"
+  - "bizops"
+  - "general management"
+  - "management trainee"
+  - "executive assistant"
+
+  # Business Development, Sales & Outreach
+  - "business development"
+  - "bde"
+  - "bda"
+  - "sales intern"
+  - "inside sales"
+  - "field sales"
+  - "cold call"
+  - "cold calling"
+  - "telecaller"
+  - "telesales"
+  - "lead generation"
+  - "outreach intern"
+  - "outreach"
+  - "client acquisition"
+  - "account executive"
+  - "account management"
+  - "revenue operations"
+  - "revops"
+
+  # Marketing, Growth, Content & Social Media
+  - "brand face"
+  - "growth intern"
+  - "growth marketing"
+  - "digital marketing"
+  - "marketing intern"
+  - "marketing specialist"
+  - "social media"
+  - "content writer"
+  - "copywriter"
+  - "copy writing"
+  - "seo intern"
+  - "seo specialist"
+  - "sem"
+  - "influencer"
+  - "public relations"
+  - "pr intern"
+  - "event management"
+  - "community manager"
+  - "media buyer"
+  - "affiliate"
+  - "content creator"
+  - "video editor"
+
+  # Design & Creative (Non-Engineering)
+  - "ui/ux design"
+  - "ui/ux intern"
+  - "ux designer"
+  - "ui designer"
+  - "graphic design"
+  - "visual design"
+  - "product designer"
+  - "illustrator"
+  - "animator"
+  - "3d artist"
+  - "motion graphic"
+  - "fashion design"
+  - "interior design"
+
+  # Human Resources & Recruiting
+  - "human resources"
+  - "hr intern"
+  - "recruiter"
+  - "talent acquisition"
+  - "people ops"
+  - "human resource"
+  - "staffing"
+  - "payroll"
+
+  # Finance, Accounting, Audit & Legal
+  - "accountant"
+  - "chartered accountant"
+  - "finance intern"
+  - "financial analyst"
+  - "investment banking"
+  - "equity research"
+  - "taxation"
+  - "audit intern"
+  - "bookkeeper"
+  - "legal intern"
+  - "law intern"
+  - "paralegal"
+  - "real estate"
+
+  # Operations, Supply Chain & Logistics
+  - "operations intern"
+  - "supply chain"
+  - "logistics"
+  - "procurement"
+  - "warehouse"
+  - "inventory"
+  - "vendor management"
+  - "store manager"
+
+  # Non-Software Engineering Disciplines
+  - "mechanical engineer"
+  - "civil engineer"
+  - "chemical engineer"
+  - "structural engineer"
+  - "petroleum engineer"
+  - "site engineer"
+  - "electrical technician"
+
+  # Seniority Levels Not Suitable for Intern / Fresher
+  - "senior"
+  - "lead "
+  - "principal"
+  - "staff engineer"
+  - "engineering manager"
+  - "director"
+  - "vp "
+  - "vice president"
+  - "head of"
+
 # Job Filtering Keywords
 filters:
-  database_related:
-    - "database"
-    - "db "
-    - " db"
-    - "sql"
-    - "postgres"
-    - "postgresql"
-    - "mysql"
-    - "mariadb"
-    - "oracle"
-    - "mongodb"
-    - "redis"
-    - "snowflake"
-    - "bigquery"
-    - "databricks"
-    - "data warehouse"
-    - "etl"
-    - "data engineer"
-    - "data engineering"
-    - "dba"
-    - "data platform"
-    - "data architect"
   medical_related:
     - "medical"
     - "healthcare"
