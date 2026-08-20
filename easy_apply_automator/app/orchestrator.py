@@ -96,9 +96,9 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.blacklist = config.blacklist
         self.blacklist_titles = config.blacklist_titles
         self.experience_level = config.experience_level
-        self.max_pages_per_search = max(1, int(config.runtime.max_pages_per_search))
-        self.max_applications = int(config.runtime.max_applications)
-        self.dry_run = bool(config.runtime.dry_run)
+        self.max_pages_per_search = max(1, config.runtime.max_pages_per_search)
+        self.max_applications = config.runtime.max_applications
+        self.dry_run = config.runtime.dry_run
         self.date_posted = config.date_posted
         self.workplace_types = config.workplace_types
         self.job_types = config.job_types
@@ -138,30 +138,30 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.job_page = None
 
         self.session_duration_seconds = random.randint(
-            int(max(30 * 60, float(config.runtime.session_duration_hours_min) * 3600)),
+            int(max(30 * 60, config.runtime.session_duration_hours_min * 3600)),
             int(
                 max(
-                    max(30 * 60, float(config.runtime.session_duration_hours_min) * 3600),
-                    float(config.runtime.session_duration_hours_max) * 3600,
+                    max(30 * 60, config.runtime.session_duration_hours_min * 3600),
+                    config.runtime.session_duration_hours_max * 3600,
                 )
             ),
         )
         self.session_deadline = 0.0
-        self.max_apply_seconds = int(config.runtime.max_apply_seconds)
-        self.short_break_min_seconds = max(5, int(config.runtime.short_break_min_seconds))
+        self.max_apply_seconds = config.runtime.max_apply_seconds
+        self.short_break_min_seconds = max(5, config.runtime.short_break_min_seconds)
         self.short_break_max_seconds = max(
-            self.short_break_min_seconds, int(config.runtime.short_break_max_seconds)
+            self.short_break_min_seconds, config.runtime.short_break_max_seconds
         )
         self.short_break_every_min_minutes = max(
-            1, int(config.runtime.short_break_every_min_minutes)
+            1, config.runtime.short_break_every_min_minutes
         )
         self.short_break_every_max_minutes = max(
             self.short_break_every_min_minutes,
-            int(config.runtime.short_break_every_max_minutes),
+            config.runtime.short_break_every_max_minutes,
         )
-        self.shuffle_search_combos = bool(config.runtime.shuffle_search_combos)
+        self.shuffle_search_combos = config.runtime.shuffle_search_combos
         self.next_short_break_at = 0.0
-        self.throughput_window_seconds = max(60, int(config.runtime.throughput_window_minutes) * 60)
+        self.throughput_window_seconds = max(60, config.runtime.throughput_window_minutes * 60)
 
         self.session_started_at = 0.0
         self.session_jobs_processed = 0
@@ -212,8 +212,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.auto_answer = AutoAnswer(
             qa_file=self.qa_file,
             ans_yaml_path=Path(config.ans_yaml_path),
-            salary=str(self.salary),
-            hourly_rate=str(self.rate),
+            salary=self.salary,
+            hourly_rate=self.rate,
             answers=self.answers,
             log=log,
             linkedin_profile_url=config.linkedin_profile_url,
@@ -341,7 +341,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
 
     def _human_type(self, element, text: str) -> None:
         """Types text with randomized human-like keystroke delays."""
-        for char in str(text):
+        for char in text:
             element.send_keys(char)
             time.sleep(random.uniform(0.015, 0.055))
 
@@ -400,7 +400,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         )
 
     def apply_to_job(self, job_id: str) -> bool:
-        self._start_job_debug_trace(str(job_id))
+        self._start_job_debug_trace(job_id)
         self._dump_debug_html("job_open_start")
 
         self.get_job_page(job_id)
@@ -413,7 +413,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             )
             self.log_event(
                 "job_skipped_experience_level_mismatch",
-                job_id=str(job_id),
+                job_id=job_id,
                 title=self.browser.title,
                 selected_experience_level=self.experience_level,
             )
@@ -427,9 +427,9 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             log.warning("LinkedIn daily application limit reached. Stopping the bot session.")
             self.request_stop(
                 "daily_easy_apply_limit_reached",
-                job_id=str(job_id),
+                job_id=job_id,
             )
-            self.log_event("daily_limit_reached", job_id=str(job_id))
+            self.log_event("daily_limit_reached", job_id=job_id)
             self._finish_job_debug_trace()
             return False
 
@@ -473,7 +473,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 )
                 self.log_event(
                     "job_skipped_medical_related",
-                    job_id=str(job_id),
+                    job_id=job_id,
                     title=self.browser.title,
                     matched_keyword=matched_medical_keyword,
                 )
@@ -484,7 +484,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 )
                 self.log_event(
                     "job_skipped_title_blacklisted",
-                    job_id=str(job_id),
+                    job_id=job_id,
                     title=self.browser.title,
                     matched_keyword=matched_blacklist_title,
                 )
@@ -493,7 +493,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 log.info("Skipping this application, database-related keyword found in title.")
                 self.log_event(
                     "job_skipped_database_related_title",
-                    job_id=str(job_id),
+                    job_id=job_id,
                     title=self.browser.title,
                     matched_keyword=matched_database_title,
                 )
@@ -534,13 +534,13 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.log_event(
             "job_processed",
             attempted=bool(button),
-            result=bool(result),
+            result=result,
             reason=reason,
             easy_apply_button=bool(button),
             **metadata,
         )
         self.write_to_file(button, job_id, self.browser.title, result, metadata, reason)
-        self._update_session_throughput(reason=reason, attempted=bool(button), result=bool(result))
+        self._update_session_throughput(reason=reason, attempted=bool(button), result=result)
         if not result and reason != "daily_limit_reached":
             self._dump_failure_snapshot(
                 f"job_result_{reason}",
