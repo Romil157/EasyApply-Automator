@@ -51,6 +51,12 @@ class TestJobClassification:
             "sales intern",
             "human resources",
             "hr intern",
+            "marketing research",
+            "growth & gtm",
+            "growth & strategy",
+            "private equity",
+            "data annotator",
+            "b2b lead generation",
         ]
         medical = ["medical", "clinical", "healthcare"]
         return DummyOrchestrator(
@@ -70,6 +76,11 @@ class TestJobClassification:
             ("Outreach Intern | LockedIn. | LinkedIn", "title_blacklisted"),
             ("Sales Intern | ABC Corp | LinkedIn", "title_blacklisted"),
             ("HR Intern | Tech Services | LinkedIn", "title_blacklisted"),
+            ("Marketing Research Intern | Rablo | LinkedIn", "title_blacklisted"),
+            ("Growth & GTM Intern | EnglishBhashi | LinkedIn", "title_blacklisted"),
+            ("Private Equity Intern | Zetheta Algorithms | LinkedIn", "title_blacklisted"),
+            ("Data Annotator Intern | Zapdos Labs | LinkedIn", "title_blacklisted"),
+            ("B2B Lead Generation Internship | Tech Trek | LinkedIn", "title_blacklisted"),
             ("Clinical Research Assistant | HealthCorp | LinkedIn", "medical_related_title"),
         ],
     )

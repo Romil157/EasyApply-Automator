@@ -434,26 +434,41 @@ class QuestionService(ServiceBase):
                     )
                     continue
 
-                text_input = field.find_element(By.CLASS_NAME, "artdeco-text-input--input")
-                text_input_id = text_input.get_attribute("id") or ""
-                normalized_answer = self.normalize_text_answer(question, answer, text_input_id)
-                normalized_answer = self.humanize_free_text_answer(
-                    question, normalized_answer, "text"
-                )
-                is_typeahead = text_input.get_attribute(
-                    "role"
-                ) == "combobox" or text_input.get_attribute("aria-autocomplete") in ("list", "both")
-                if is_typeahead:
-                    self.bot._fill_typeahead_input(text_input, normalized_answer)
-                else:
-                    text_input.clear()
-                    text_input.send_keys(normalized_answer)
-                self.bot.log_event(
-                    "question_answered",
-                    kind="typeahead" if is_typeahead else "text",
-                    question=question,
-                    answer=normalized_answer,
-                )
+                text_input = None
+                for selector in [
+                    ".artdeco-text-input--input",
+                    "input[type='text']",
+                    "input[type='number']",
+                    "input:not([type='radio']):not([type='checkbox']):not([type='file']):not([type='submit'])",
+                ]:
+                    try:
+                        candidate = field.find_element(By.CSS_SELECTOR, selector)
+                        if candidate.is_displayed() and candidate.is_enabled():
+                            text_input = candidate
+                            break
+                    except Exception:
+                        continue
+
+                if text_input is not None:
+                    text_input_id = text_input.get_attribute("id") or ""
+                    normalized_answer = self.normalize_text_answer(question, answer, text_input_id)
+                    normalized_answer = self.humanize_free_text_answer(
+                        question, normalized_answer, "text"
+                    )
+                    is_typeahead = text_input.get_attribute(
+                        "role"
+                    ) == "combobox" or text_input.get_attribute("aria-autocomplete") in ("list", "both")
+                    if is_typeahead:
+                        self.bot._fill_typeahead_input(text_input, normalized_answer)
+                    else:
+                        text_input.clear()
+                        text_input.send_keys(normalized_answer)
+                    self.bot.log_event(
+                        "question_answered",
+                        kind="typeahead" if is_typeahead else "text",
+                        question=question,
+                        answer=normalized_answer,
+                    )
             except Exception as exc:
                 log.debug(f"Unable to answer question '{question}': {exc}")
 

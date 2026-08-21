@@ -258,6 +258,17 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.diagnostics.start_job_debug_trace(job_id)
 
     def _finish_job_debug_trace(self) -> None:
+        try:
+            if hasattr(self, "browser") and self.browser is not None:
+                handles = self.browser.window_handles
+                while len(handles) > 1:
+                    self.browser.switch_to.window(handles[-1])
+                    self.browser.close()
+                    handles = self.browser.window_handles
+                    self.browser.switch_to.window(handles[0])
+        except Exception as exc:
+            log.debug(f"Error cleaning up window handles: {exc}")
+
         self.diagnostics.finish_job_debug_trace()
 
     def _dump_debug_html(
@@ -564,13 +575,35 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
 
         timestamp = datetime.now().isoformat(timespec="seconds")
         attempted = button is not False
-        title_parts = (
-            browser_title.split(" | ") if browser_title else ["Unknown Role", "Unknown Company"]
-        )
-        job_text = title_parts[0] if len(title_parts) > 0 else "Unknown Role"
-        company_text = title_parts[1] if len(title_parts) > 1 else "Unknown Company"
-        job = re_extract(job_text, r"\(?\d?\)?\s?(\w.*)") or job_text
-        company = re_extract(company_text, r"(\w.*)") or company_text
+
+        job = None
+        company = None
+        if metadata:
+            meta_title = metadata.get("job_title")
+            meta_company = metadata.get("company")
+            if meta_title and meta_title != "LinkedIn" and meta_title != "Unknown Role":
+                job = meta_title
+            if meta_company and meta_company != "Unknown Company":
+                company = meta_company
+
+        if not job or not company:
+            title_parts = [p.strip() for p in browser_title.split(" | ")] if browser_title else []
+            if title_parts and title_parts[-1].lower() == "linkedin":
+                title_parts = title_parts[:-1]
+            if len(title_parts) >= 2:
+                company_text = title_parts[-1]
+                job_text = " | ".join(title_parts[:-1])
+            elif len(title_parts) == 1:
+                job_text = title_parts[0]
+                company_text = "Unknown Company"
+            else:
+                job_text = "Unknown Role"
+                company_text = "Unknown Company"
+
+            if not job:
+                job = re_extract(job_text, r"\(?\d?\)?\s?(\w.*)") or job_text
+            if not company:
+                company = re_extract(company_text, r"(\w.*)") or company_text
 
         record = {
             "timestamp": timestamp,
@@ -680,15 +713,35 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         return False
 
     def _click_easy_apply(self, element) -> None:
-        self.browser.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
+        try:
+            self.browser.execute_script(
+                "arguments[0].scrollIntoView({block:'center', inline:'center'});", element
+            )
+        except Exception:
+            pass
         time.sleep(CLICK_PAUSE_SECONDS)
+        try:
+            from selenium.webdriver.common.action_chains import ActionChains
+
+            ActionChains(self.browser).move_to_element(element).pause(0.1).click().perform()
+            return
+        except Exception as exc:
+            log.debug(f"ActionChains click failed: {exc}")
         try:
             element.click()
             return
         except Exception as exc:
             log.debug(f"Direct click failed on element: {exc}")
         try:
-            self.browser.execute_script("arguments[0].click();", element)
+            self.browser.execute_script(
+                """
+                var elem = arguments[0];
+                elem.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
+                elem.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
+                elem.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+            """,
+                element,
+            )
             return
         except Exception as exc:
             raise WebDriverException(f"Failed to click Easy Apply control: {exc}")
@@ -779,6 +832,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
     def _fill_typeahead_input(self, input_el, answer: str) -> bool:
         """Type into a combobox/typeahead field and click the first dropdown suggestion."""
         try:
+            from selenium.webdriver.common.keys import Keys
+
             input_el.clear()
             input_el.send_keys(answer)
             time.sleep(TYPEAHEAD_PAUSE_SECONDS)
@@ -786,12 +841,18 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 "div[role='option'].basic-typeahead__selectable",
                 "[role='listbox'] [role='option']",
                 "li[role='option']",
+                "div.type-ahead-results__result",
+                "div.artdeco-typeahead__result",
             ]:
                 opts = self.browser.find_elements(By.CSS_SELECTOR, selector)
                 visible = [o for o in opts if o.is_displayed()]
                 if visible:
                     self.browser.execute_script("arguments[0].click();", visible[0])
                     return True
+            input_el.send_keys(Keys.DOWN)
+            time.sleep(0.2)
+            input_el.send_keys(Keys.ENTER)
+            return True
         except Exception as exc:
             log.debug(f"Fill typeahead input failed for answer '{answer}': {exc}")
         return False

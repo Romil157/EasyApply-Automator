@@ -142,6 +142,8 @@ blacklist_titles:
   - "telecaller"
   - "telesales"
   - "lead generation"
+  - "b2b lead generation"
+  - "lead gen"
   - "outreach intern"
   - "outreach"
   - "client acquisition"
@@ -149,6 +151,13 @@ blacklist_titles:
   - "account management"
   - "revenue operations"
   - "revops"
+  - "gtm"
+  - "go to market"
+  - "growth & gtm"
+  - "growth and gtm"
+  - "growth & strategy"
+  - "growth and strategy"
+  - "market intelligence"
 
   # Marketing, Content & Social Media (Unrelated)
   - "brand face"
@@ -157,6 +166,10 @@ blacklist_titles:
   - "digital marketing"
   - "marketing intern"
   - "marketing specialist"
+  - "marketing research"
+  - "market research"
+  - "brand marketing"
+  - "product marketing"
   - "social media"
   - "content writer"
   - "copywriter"
@@ -196,7 +209,7 @@ blacklist_titles:
   - "staffing"
   - "payroll"
 
-  # Accounting, Audit, Tax & Legal (Unrelated)
+  # Accounting, Audit, Tax, Legal & Private Equity (Unrelated)
   - "accountant"
   - "chartered accountant"
   - "taxation"
@@ -206,6 +219,15 @@ blacklist_titles:
   - "law intern"
   - "paralegal"
   - "real estate"
+  - "private equity"
+
+  # Manual Data Entry & Annotation (Non-Engineering)
+  - "data annotator"
+  - "data annotation"
+  - "data labeler"
+  - "data labeling"
+  - "data collection"
+  - "transcription"
 
   # Operations, Supply Chain & Logistics
   - "operations intern"

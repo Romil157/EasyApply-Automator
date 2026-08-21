@@ -176,19 +176,30 @@ class DiagnosticsService(ServiceBase):
                 ("css", "h1"),
                 ("css", ".top-card-layout__title"),
                 ("css", ".jobs-unified-top-card__job-title"),
+                ("css", ".job-details-jobs-unified-top-card__job-title"),
+                ("css", "h1.t-24"),
+                ("css", "a[data-view-name='job-title']"),
             ]
         )
+        if title_from_page and title_from_page.strip().lower() in ("linkedin", "jobs", "feed"):
+            title_from_page = None
+
         company_from_page = first_text(
             [
                 ("css", ".topcard__org-name-link"),
                 ("css", ".jobs-unified-top-card__company-name"),
+                ("css", ".job-details-jobs-unified-top-card__company-name"),
                 ("css", "a[data-tracking-control-name='public_jobs_topcard-org-name']"),
+                ("css", ".jobs-unified-top-card__primary-description a"),
+                ("css", "a[href*='/company/']"),
             ]
         )
         location_from_page = first_text(
             [
                 ("css", ".topcard__flavor--bullet"),
                 ("css", ".jobs-unified-top-card__bullet"),
+                ("css", ".jobs-unified-top-card__workplace-type"),
+                ("css", ".job-details-jobs-unified-top-card__bullet"),
             ]
         )
 
@@ -200,73 +211,64 @@ class DiagnosticsService(ServiceBase):
         def extract_salary_from_text(text: str, require_context: bool = True) -> str | None:
             if not text:
                 return None
-
-            normalized = " ".join(text.split())
-            lowered = normalized.lower()
-            has_context = any(
-                key in lowered
-                for key in (
-                    "salary",
-                    "compensation",
-                    "pay range",
-                    "base pay",
-                    "base salary",
-                    "hourly",
-                    "per year",
-                    "per hour",
-                    "/year",
-                    "/yr",
-                    "/hour",
-                    "/hr",
-                )
-            )
-            if require_context and not has_context:
-                return None
-
-            range_match = re.search(
-                r"(\$[\d,]+(?:\.\d+)?\s*[kKmM]?\s*(?:-|to)\s*\$?[\d,]+(?:\.\d+)?\s*[kKmM]?(?:\s*(?:/|per)\s*(?:year|yr|month|mo|hour|hr))?)",
-                normalized,
-                flags=re.IGNORECASE,
-            )
-            if range_match:
-                return normalize_salary(range_match.group(1))
-
-            unit_match = re.search(
-                r"(\$[\d,]+(?:\.\d+)?\s*[kKmM]?\s*(?:/|per)\s*(?:year|yr|month|mo|hour|hr))",
-                normalized,
-                flags=re.IGNORECASE,
-            )
-            if unit_match:
-                return normalize_salary(unit_match.group(1))
-
-            simple_match = re.search(
-                r"(\$[\d,]+(?:\.\d+)?\s*[kKmM])", normalized, flags=re.IGNORECASE
-            )
-            if simple_match:
-                return normalize_salary(simple_match.group(1))
+            cleaned = re.sub(r"\s+", " ", text).strip()
+            patterns = [
+                r"(\$\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?(?:\s?-\s?\$\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)",
+                r"(₹\s?\d{1,3}(?:,\d{2,3})*(?:\.\d+)?(?:\s?[kKlLcC]r?)?(?:\s?-\s?₹\s?\d{1,3}(?:,\d{2,3})*(?:\.\d+)?(?:\s?[kKlLcC]r?)?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week|pm|pa)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)",
+                r"(£\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?(?:\s?-\s?£\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)",
+                r"(€\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?(?:\s?-\s?€\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)",
+            ]
+            for pat in patterns:
+                m = re.search(pat, cleaned, flags=re.IGNORECASE)
+                if not m:
+                    continue
+                match_text = m.group(1).strip()
+                if require_context:
+                    has_symbol = any(sym in match_text for sym in ("$", "₹", "£", "€"))
+                    has_period = bool(
+                        re.search(
+                            r"/\s*(?:yr|year|hr|hour|mo|month|wk|week|pm|pa)|per\s+|a\s+(?:year|month|hour)",
+                            match_text,
+                            flags=re.IGNORECASE,
+                        )
+                    )
+                    has_k = bool(re.search(r"\d+\s?[kKlLcC]r?", match_text))
+                    if has_symbol and (has_period or has_k or "-" in match_text):
+                        return normalize_salary(match_text)
+                else:
+                    return normalize_salary(match_text)
             return None
 
         try:
-            for node in soup.select("script[type='application/ld+json']"):
-                raw = node.get_text(strip=True)
-                if not raw:
+            scripts = soup.find_all("script", type=re.compile(r"ld\+json", re.I))
+            for s in scripts:
+                payload = s.string or s.text or ""
+                if not payload:
                     continue
-                payload = json.loads(raw)
-                entries = payload if isinstance(payload, list) else [payload]
-                for entry in entries:
-                    if not isinstance(entry, dict) or entry.get("@type") != "JobPosting":
+                data = json.loads(payload)
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    if not isinstance(item, dict):
                         continue
-                    base_salary = entry.get("baseSalary")
-                    if isinstance(base_salary, dict):
-                        currency = base_salary.get("currency")
-                        value_block = base_salary.get("value", {})
-                        if isinstance(value_block, dict):
-                            min_value = value_block.get("minValue")
-                            max_value = value_block.get("maxValue")
-                            unit_text = value_block.get("unitText")
-                            value = value_block.get("value")
-                            currency_symbol = {"USD": "$", "EUR": "€", "GBP": "£"}.get(
-                                str(currency), str(currency or "")
+                    bs = item.get("baseSalary")
+                    if isinstance(bs, dict):
+                        currency = bs.get("currency") or ""
+                        val_obj = bs.get("value")
+                        if isinstance(val_obj, dict):
+                            min_value = val_obj.get("minValue")
+                            max_value = val_obj.get("maxValue")
+                            value = val_obj.get("value")
+                            unit_text = val_obj.get("unitText")
+                            currency_symbol = (
+                                "$"
+                                if currency == "USD"
+                                else "₹"
+                                if currency == "INR"
+                                else "£"
+                                if currency == "GBP"
+                                else "€"
+                                if currency == "EUR"
+                                else currency
                             )
                             unit_map = {
                                 "YEAR": "/year",
@@ -322,15 +324,25 @@ class DiagnosticsService(ServiceBase):
             if id_match:
                 derived_job_id = id_match.group(1)
 
-        title_parts = page_title.split(" | ") if page_title else []
-        fallback_title = title_parts[0] if title_parts else None
-        fallback_company = title_parts[1] if len(title_parts) > 1 else None
+        title_parts = [p.strip() for p in page_title.split(" | ")] if page_title else []
+        if title_parts and title_parts[-1].lower() == "linkedin":
+            title_parts = title_parts[:-1]
+
+        if len(title_parts) >= 2:
+            fallback_company = title_parts[-1]
+            fallback_title = " | ".join(title_parts[:-1])
+        elif len(title_parts) == 1:
+            fallback_title = title_parts[0]
+            fallback_company = None
+        else:
+            fallback_title = None
+            fallback_company = None
 
         return {
             "job_id": derived_job_id,
             "job_link": current_url,
-            "job_title": title_from_page or fallback_title,
-            "company": company_from_page or fallback_company,
+            "job_title": title_from_page or fallback_title or "Unknown Role",
+            "company": company_from_page or fallback_company or "Unknown Company",
             "location": location_from_page,
             "salary": salary_snippet,
             "page_title": page_title,

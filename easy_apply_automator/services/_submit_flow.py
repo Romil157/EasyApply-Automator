@@ -181,16 +181,50 @@ class SubmitFlowMixin:
         return False
 
     def find_easy_apply_modal(self):
-        try:
-            modals = self.bot.browser.find_elements(
-                By.CSS_SELECTOR, "div.jobs-easy-apply-modal, div[data-test-modal]"
-            )
-            for modal in modals:
-                if modal.is_displayed():
-                    return modal
-        except Exception as exc:
-            log.debug(f"Failed to find modal dialogs elements: {exc}")
-            return None
+        if len(self.bot.browser.window_handles) > 1:
+            try:
+                self.bot.browser.switch_to.window(self.bot.browser.window_handles[-1])
+            except Exception:
+                pass
+
+        selectors = [
+            "div.jobs-easy-apply-modal",
+            "div[data-test-modal]",
+            "div.artdeco-modal",
+            "div[role='dialog'][aria-labelledby*='easy-apply']",
+            "div[role='dialog'][aria-label*='Easy Apply']",
+            "div[role='dialog'][aria-label*='Apply']",
+            "div[data-sdui-screen*='apply']",
+            "div.jobs-easy-apply-content",
+            "div[role='dialog']",
+        ]
+        for sel in selectors:
+            try:
+                modals = self.bot.browser.find_elements(By.CSS_SELECTOR, sel)
+                for modal in modals:
+                    if modal.is_displayed():
+                        if sel == "div[role='dialog']":
+                            html = (modal.get_attribute("innerHTML") or "").lower()
+                            if any(
+                                k in html
+                                for k in (
+                                    "easy apply",
+                                    "submit application",
+                                    "review your application",
+                                    "continue to next step",
+                                    "contact info",
+                                    "resume",
+                                    "questions",
+                                    "home address",
+                                    "work experience",
+                                )
+                            ):
+                                return modal
+                        else:
+                            return modal
+            except Exception as exc:
+                log.debug(f"Failed to find modal with {sel}: {exc}")
+                continue
         return None
 
     def _get_action_selectors(self, action_name: str) -> list[tuple[str, str]]:
@@ -199,30 +233,46 @@ class SubmitFlowMixin:
             "submit": [
                 (By.CSS_SELECTOR, "button[data-live-test-easy-apply-submit-button]"),
                 (By.CSS_SELECTOR, "button[aria-label*='Submit application']"),
-                (By.XPATH, "//button[contains(@aria-label, 'Submit application')]"),
+                (By.CSS_SELECTOR, "button[aria-label*='Submit']"),
                 (
                     By.XPATH,
-                    "//button[.//span[contains(normalize-space(), 'Submit application')]]",
+                    "//button[contains(@aria-label, 'Submit application') or contains(@aria-label, 'Submit')]",
                 ),
+                (
+                    By.XPATH,
+                    "//button[.//span[contains(normalize-space(), 'Submit application') or normalize-space()='Submit']]",
+                ),
+                (By.CSS_SELECTOR, "button[data-control-name='submit_unify']"),
             ],
             "review": [
                 (By.CSS_SELECTOR, "button[data-live-test-easy-apply-review-button]"),
                 (By.CSS_SELECTOR, "button[aria-label*='Review your application']"),
-                (By.XPATH, "//button[contains(@aria-label, 'Review your application')]"),
+                (By.CSS_SELECTOR, "button[aria-label*='Review']"),
                 (
                     By.XPATH,
-                    "//button[.//span[contains(normalize-space(), 'Review your application')]]",
+                    "//button[contains(@aria-label, 'Review your application') or contains(@aria-label, 'Review')]",
                 ),
+                (
+                    By.XPATH,
+                    "//button[.//span[contains(normalize-space(), 'Review your application') or normalize-space()='Review']]",
+                ),
+                (By.CSS_SELECTOR, "button[data-control-name='review_unify']"),
             ],
             "next": [
                 (By.CSS_SELECTOR, "button[data-live-test-easy-apply-next-button]"),
                 (By.CSS_SELECTOR, "button[data-easy-apply-next-button]"),
                 (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']"),
-                (By.XPATH, "//button[contains(@aria-label, 'Continue to next step')]"),
+                (By.CSS_SELECTOR, "button[aria-label*='Next step']"),
+                (By.CSS_SELECTOR, "button[aria-label*='Continue']"),
                 (
                     By.XPATH,
-                    "//button[.//span[contains(normalize-space(), 'Continue to next step')]]",
+                    "//button[contains(@aria-label, 'Continue to next step') or contains(@aria-label, 'Next')]",
                 ),
+                (
+                    By.XPATH,
+                    "//button[.//span[contains(normalize-space(), 'Continue to next step') or normalize-space()='Next' or contains(normalize-space(), 'Next')]]",
+                ),
+                (By.CSS_SELECTOR, "button[data-control-name='continue_unify']"),
             ],
         }
         res: list[tuple[str, str]] = []
@@ -236,6 +286,12 @@ class SubmitFlowMixin:
         return res
 
     def has_apply_controls(self) -> bool:
+        if len(self.bot.browser.window_handles) > 1:
+            try:
+                self.bot.browser.switch_to.window(self.bot.browser.window_handles[-1])
+            except Exception:
+                pass
+
         selectors = (
             self._get_action_selectors("next")
             + self._get_action_selectors("review")
@@ -245,11 +301,20 @@ class SubmitFlowMixin:
                     By.CSS_SELECTOR,
                     "progress.artdeco-completeness-meter-linear__progress-element",
                 ),
+                (
+                    By.CSS_SELECTOR,
+                    "div[role='region'][aria-label*='progress']",
+                ),
+                (
+                    By.CSS_SELECTOR,
+                    "div.jobs-easy-apply-form-section__grouping",
+                ),
             ]
         )
         for by, value in selectors:
             try:
-                if self.bot.browser.find_elements(by, value):
+                elements = self.bot.browser.find_elements(by, value)
+                if any(e.is_displayed() for e in elements):
                     return True
             except Exception as exc:
                 log.debug(f"Locator check for '{value}' failed: {exc}")
@@ -257,7 +322,7 @@ class SubmitFlowMixin:
         current_url = (self.bot.browser.current_url or "").lower()
         return "/apply/" in current_url and "linkedin.com/jobs" in current_url
 
-    def wait_for_apply_flow_ready(self, timeout_seconds: float = 8.0) -> tuple[bool, str]:
+    def wait_for_apply_flow_ready(self, timeout_seconds: float = 10.0) -> tuple[bool, str]:
         end = time.time() + timeout_seconds
         while time.time() < end:
             limit_reached, _ = self.detect_daily_easy_apply_limit()
