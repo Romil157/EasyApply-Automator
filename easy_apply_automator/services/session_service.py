@@ -15,6 +15,7 @@ from selenium.common.exceptions import (
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from easy_apply_automator.config.timing import (
     MODAL_TRANSITION_PAUSE_SECONDS,
@@ -33,49 +34,110 @@ class SessionService(ServiceBase):
         self.bot.browser.get(
             "https://www.linkedin.com/login?trk=guest_homepage-basic_nav-header-signin"
         )
+        time.sleep(PAGE_LOAD_PAUSE_SECONDS)
+
         try:
+            if self.is_logged_in():
+                log.info("Already logged in to LinkedIn.")
+                self.bot.log_event("login_success", method="existing_session")
+                return
+
+            email_filled = False
             if username:
                 log.info(f"Filling LinkedIn email ID: {username}")
+                email_selector = (
+                    "input#username, input#session_key, input[name='session_key'], "
+                    "input[type='email'], input[autocomplete='username']"
+                )
                 user_field = None
-                selectors = [
-                    (By.ID, "username"),
-                    (By.ID, "session_key"),
-                    (By.NAME, "session_key"),
-                    (By.CSS_SELECTOR, "input[type='email']"),
-                    (By.CSS_SELECTOR, "input[autocomplete='username']"),
-                ]
+                elements = self.bot.browser.find_elements(By.CSS_SELECTOR, email_selector)
+                for el in elements:
+                    if el.is_displayed() and el.is_enabled():
+                        user_field = el
+                        break
 
-                # Check each selector waiting up to 3 seconds for it to be clickable
-                for selector in selectors:
+                if not user_field:
                     try:
-                        el = self.bot.wait.until(EC.element_to_be_clickable(selector))
-                        if el:
-                            user_field = el
-                            break
+                        user_field = WebDriverWait(self.bot.browser, 3).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, email_selector))
+                        )
                     except Exception:
-                        continue
+                        user_field = None
 
                 if user_field:
                     user_field.clear()
                     user_field.send_keys(username)
                     user_field.send_keys(Keys.TAB)
+                    email_filled = True
                     time.sleep(MODAL_TRANSITION_PAUSE_SECONDS)
                 else:
                     log.warning(
                         "Could not find the email input field on the page. Please enter it manually."
                     )
 
+            pwd_filled = False
+            if password:
+                log.info("Filling LinkedIn password...")
+                pwd_selector = (
+                    "input#password, input#session_password, input[name='session_password'], "
+                    "input[type='password'], input[autocomplete='current-password']"
+                )
+                pwd_field = None
+                elements = self.bot.browser.find_elements(By.CSS_SELECTOR, pwd_selector)
+                for el in elements:
+                    if el.is_displayed() and el.is_enabled():
+                        pwd_field = el
+                        break
+
+                if not pwd_field:
+                    try:
+                        pwd_field = WebDriverWait(self.bot.browser, 3).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, pwd_selector))
+                        )
+                    except Exception:
+                        pwd_field = None
+
+                if pwd_field:
+                    pwd_field.clear()
+                    pwd_field.send_keys(password)
+                    pwd_filled = True
+                    time.sleep(MODAL_TRANSITION_PAUSE_SECONDS)
+
+            if email_filled and pwd_filled:
+                submit_selector = (
+                    "button[type='submit'], button[data-litms-control-urn*='login-submit'], "
+                    "button.btn__primary--large, button[aria-label='Sign in']"
+                )
+                submit_elements = self.bot.browser.find_elements(By.CSS_SELECTOR, submit_selector)
+                for btn in submit_elements:
+                    if btn.is_displayed() and btn.is_enabled():
+                        try:
+                            btn.click()
+                            log.info("Submitted login credentials. Waiting for authentication...")
+                            break
+                        except Exception:
+                            pass
+
             log.info("=" * 50)
-            log.info("Please enter your email and password in the browser and click 'Sign in'")
+            log.info("Please enter your credentials / complete verification in the browser and sign in.")
             log.info("=" * 50)
 
-            # Wait up to 120 seconds for the user to log in manually
-            for _ in range(60):
-                time.sleep(PAGE_LOAD_PAUSE_SECONDS)
+            # Wait up to 120 seconds for the user to log in manually or verification to finish
+            max_wait_seconds = 120
+            poll_interval = PAGE_LOAD_PAUSE_SECONDS
+            max_checks = int(max_wait_seconds / max(1, poll_interval))
+
+            for i in range(max_checks):
+                time.sleep(poll_interval)
                 if self.is_logged_in():
                     log.info("Login successful!")
                     self.bot.log_event("login_success", method="manual")
                     return
+
+                if (i + 1) % 5 == 0:
+                    remaining = max_wait_seconds - int((i + 1) * poll_interval)
+                    if remaining > 0:
+                        log.info(f"Waiting for LinkedIn login ({remaining}s remaining)...")
 
             log.warning("Login timed out. Please restart the bot and try again.")
             self.bot.log_event(

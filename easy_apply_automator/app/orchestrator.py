@@ -235,7 +235,10 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         restored = self.restore_session_from_cookies()
         if not restored:
             self.start_linkedin(config.username, config.password)
-            self.save_session_cookies()
+            if self.is_logged_in():
+                self.save_session_cookies()
+            else:
+                log.warning("LinkedIn login was not confirmed; skipping session cookies save.")
 
         self.log_event(
             "bot_initialized",
@@ -329,6 +332,9 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
 
     def start_linkedin(self, username: str, password: str) -> None:
         self.session.start_linkedin(username, password)
+
+    def is_logged_in(self) -> bool:
+        return self.session.is_logged_in()
 
     def _is_logged_in(self) -> bool:
         return self.session.is_logged_in()

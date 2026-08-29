@@ -113,3 +113,31 @@ class TestSessionServiceLogic:
         service.bot.log_event.assert_called_with(
             "cookies_save_error", cookies_path=service.bot.cookies_path, error=ANY
         )
+
+    def test_start_linkedin_already_logged_in(self, service):
+        with patch.object(SessionService, "is_logged_in", return_value=True):
+            service.start_linkedin("user@example.com", "secret")
+            service.bot.log_event.assert_called_with("login_success", method="existing_session")
+
+    def test_start_linkedin_with_credentials_and_elements(self, service):
+        mock_user = MagicMock()
+        mock_pwd = MagicMock()
+        mock_btn = MagicMock()
+
+        def mock_find_elements(by, selector):
+            if "username" in selector:
+                return [mock_user]
+            if "password" in selector:
+                return [mock_pwd]
+            if "submit" in selector:
+                return [mock_btn]
+            return []
+
+        service.bot.browser.find_elements.side_effect = mock_find_elements
+        # is_logged_in returns False on first check, then True after filling
+        with patch.object(SessionService, "is_logged_in", side_effect=[False, True]):
+            service.start_linkedin("user@example.com", "secret")
+            mock_user.send_keys.assert_called()
+            mock_pwd.send_keys.assert_called()
+            mock_btn.click.assert_called_once()
+            service.bot.log_event.assert_called_with("login_success", method="manual")
