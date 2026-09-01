@@ -41,10 +41,11 @@ class FormFillerMixin:
 
     def fill_easy_apply_required_fields(self) -> None:
         self.fill_required_radios_from_context()
+        self.fill_required_checkboxes_from_context()
 
         try:
             selects = self.bot.browser.find_elements(
-                By.CSS_SELECTOR, "select[required], select[aria-required='true']"
+                By.CSS_SELECTOR, "select[required], select[aria-required='true'], select"
             )
             for select_el in selects:
                 try:
@@ -58,7 +59,7 @@ class FormFillerMixin:
                             label_text = (labels[0].text or "").strip().lower()
 
                     current = (select_el.get_attribute("value") or "").strip().lower()
-                    if current in ("", "select an option"):
+                    if current in ("", "select an option", "none", "0"):
                         if "phone country code" in label_text:
                             country_code = (
                                 (getattr(self.bot, "location_country", "IN") or "IN")
@@ -465,6 +466,122 @@ class FormFillerMixin:
         except Exception as exc:
             log.debug(f"Failed to process inline validation recovery: {exc}")
             return recovered
+        return recovered
+
+    def fill_required_checkboxes_from_context(self) -> None:
+        try:
+            checkboxes = self.bot.browser.find_elements(
+                By.CSS_SELECTOR,
+                "input[type='checkbox'][required], input[type='checkbox'][aria-required='true']",
+            )
+            for cb in checkboxes:
+                try:
+                    if not cb.is_displayed() or cb.is_selected():
+                        continue
+                    cb_id = cb.get_attribute("id") or ""
+                    if "follow-company" in cb_id:
+                        continue
+                    label_clicked = False
+                    if cb_id:
+                        labels = self.bot.browser.find_elements(
+                            By.CSS_SELECTOR, f"label[for='{cb_id}']"
+                        )
+                        if labels:
+                            self.bot._safe_click(labels[0])
+                            label_clicked = True
+                    if not label_clicked:
+                        self.bot._safe_click(cb)
+                    self.bot.log_event("question_answered", kind="required_checkbox", id=cb_id)
+                except Exception as exc:
+                    log.debug(f"Failed to check required checkbox: {exc}")
+                    continue
+        except Exception as exc:
+            log.debug(f"Checkbox lookup failed in fill_required_checkboxes_from_context: {exc}")
+
+    def recover_required_checkboxes(self) -> int:
+        recovered = 0
+        try:
+            checkboxes = self.bot.browser.find_elements(
+                By.CSS_SELECTOR,
+                "input[type='checkbox'][required], input[type='checkbox'][aria-required='true']",
+            )
+            for cb in checkboxes:
+                try:
+                    if not cb.is_displayed() or cb.is_selected():
+                        continue
+                    cb_id = cb.get_attribute("id") or ""
+                    if "follow-company" in cb_id:
+                        continue
+                    label_clicked = False
+                    if cb_id:
+                        labels = self.bot.browser.find_elements(
+                            By.CSS_SELECTOR, f"label[for='{cb_id}']"
+                        )
+                        if labels:
+                            self.bot._safe_click(labels[0])
+                            label_clicked = True
+                    if not label_clicked:
+                        self.bot._safe_click(cb)
+                    recovered += 1
+                    self.bot.log_event(
+                        "question_answered", kind="required_checkbox_recovery", id=cb_id
+                    )
+                except Exception as exc:
+                    log.debug(f"Failed to check required checkbox during recovery: {exc}")
+                    continue
+        except Exception as exc:
+            log.debug(f"Checkbox lookup failed in recover_required_checkboxes: {exc}")
+        return recovered
+
+    def recover_unselected_comboboxes(self) -> int:
+        recovered = 0
+        try:
+            comboboxes = self.bot.browser.find_elements(
+                By.CSS_SELECTOR,
+                "input[role='combobox'], div[role='combobox'], button[aria-haspopup='listbox']",
+            )
+            for box in comboboxes:
+                try:
+                    if not box.is_displayed():
+                        continue
+                    tag = (box.tag_name or "").lower()
+                    if tag == "input":
+                        val = (box.get_attribute("value") or "").strip()
+                        if val:
+                            continue
+                        box_id = box.get_attribute("id") or ""
+                        question = ""
+                        if box_id:
+                            labels = self.bot.browser.find_elements(
+                                By.CSS_SELECTOR, f"label[for='{box_id}']"
+                            )
+                            if labels:
+                                question = self.bot._clean_question_text(labels[0].text or "")
+                        if not question:
+                            question = self.bot._clean_question_text(
+                                (box.get_attribute("aria-label") or "").strip()
+                            )
+                        if question:
+                            direct = self.bot._derive_direct_answer(question, box_id)
+                            answer = (
+                                direct
+                                if direct is not None
+                                else self.bot.ans_question(question.lower())
+                            )
+                            normalized = self.bot._normalize_text_answer(question, answer, box_id)
+                            if self.bot._fill_typeahead_input(box, normalized):
+                                recovered += 1
+                                self.bot.log_event(
+                                    "question_answered",
+                                    kind="combobox_recovery",
+                                    question=question,
+                                    answer=normalized,
+                                )
+                except Exception as exc:
+                    log.debug(f"Failed to process combobox in recovery: {exc}")
+                    continue
+        except Exception as exc:
+            log.debug(f"Combobox lookup failed in recover_unselected_comboboxes: {exc}")
         return recovered
 
     def uncheck_follow_company(self) -> None:

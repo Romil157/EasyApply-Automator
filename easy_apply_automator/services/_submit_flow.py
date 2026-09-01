@@ -35,6 +35,12 @@ class SubmitFlowMixin:
     def recover_empty_required_text_fields(self) -> int:
         return 0
 
+    def recover_required_checkboxes(self) -> int:
+        return 0
+
+    def recover_unselected_comboboxes(self) -> int:
+        return 0
+
     def uncheck_follow_company(self) -> None:
         pass
 
@@ -97,6 +103,8 @@ class SubmitFlowMixin:
         recovered += self.recover_inline_validation_errors()
         recovered += self.recover_unanswered_radio_groups()
         recovered += self.recover_empty_required_text_fields()
+        recovered += self.recover_required_checkboxes()
+        recovered += self.recover_unselected_comboboxes()
         return recovered
 
     def get_easy_apply_progress(self) -> int | None:
@@ -195,7 +203,11 @@ class SubmitFlowMixin:
             "div[role='dialog'][aria-label*='Easy Apply']",
             "div[role='dialog'][aria-label*='Apply']",
             "div[data-sdui-screen*='apply']",
+            "section[aria-label*='Easy Apply']",
+            "section[aria-label*='Apply']",
             "div.jobs-easy-apply-content",
+            "div[data-test-modal-container]",
+            "div[data-live-test-easy-apply-modal]",
             "div[role='dialog']",
         ]
         for sel in selectors:
@@ -377,6 +389,19 @@ class SubmitFlowMixin:
                         return True, f"retry_href_{mode}"
         except Exception as exc:
             log.debug(f"Failed to redirect or view apply href links in retry: {exc}")
+
+        # Direct /apply/ endpoint navigation fallback
+        if job_id:
+            try:
+                apply_url = f"https://www.linkedin.com/jobs/view/{job_id}/apply/"
+                if current_url.rstrip("/") != apply_url.rstrip("/"):
+                    self.bot.browser.get(apply_url)
+                    time.sleep(MICRO_PAUSE_SECONDS)
+                    ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=6.0)
+                    if ok:
+                        return True, f"retry_direct_apply_url_{mode}"
+            except Exception as exc:
+                log.debug(f"Direct apply URL fallback failed: {exc}")
 
         return False, "retry_failed"
 

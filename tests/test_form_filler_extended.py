@@ -68,3 +68,37 @@ class TestDryRunSubmitSimulation:
         assert submitted is True
         assert clicked is True
         svc.dismiss_easy_apply_modal.assert_called_once()
+
+
+class TestRequiredCheckboxesAndComboboxRecovery:
+    def test_recover_required_checkboxes_checks_unselected(self):
+        svc = _make_mock_apply_flow()
+        cb = MagicMock()
+        cb.is_displayed.return_value = True
+        cb.is_selected.return_value = False
+        cb.get_attribute.return_value = "terms-agree-checkbox"
+
+        svc.bot.browser.find_elements.return_value = [cb]
+        svc.bot._safe_click.return_value = True
+
+        recovered = svc.recover_required_checkboxes()
+        assert recovered == 1
+        svc.bot._safe_click.assert_called()
+
+    def test_recover_unselected_comboboxes_fills_empty_input(self):
+        svc = _make_mock_apply_flow()
+        box = MagicMock()
+        box.is_displayed.return_value = True
+        box.tag_name = "input"
+        box.get_attribute.side_effect = lambda attr: "" if attr == "value" else "city-input"
+
+        svc.bot.browser.find_elements.return_value = [box]
+        svc.bot._clean_question_text.return_value = "City"
+        svc.bot._derive_direct_answer.return_value = "Mumbai"
+        svc.bot._normalize_text_answer.return_value = "Mumbai"
+        svc.bot._fill_typeahead_input.return_value = True
+
+        recovered = svc.recover_unselected_comboboxes()
+        assert recovered == 1
+        svc.bot._fill_typeahead_input.assert_called_with(box, "Mumbai")
+

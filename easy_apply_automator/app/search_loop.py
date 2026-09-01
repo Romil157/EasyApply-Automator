@@ -288,13 +288,22 @@ class SearchLoopMixin:
             ".job-details-jobs-unified-top-card__job-insight",
             "span.jobs-unified-top-card__bullet-item",
             ".jobs-unified-top-card__bullet-item",
+            "div.job-details-jobs-unified-top-card__primary-description",
+            "section[aria-label='Primary content'] a",
+            "section[aria-label='Primary content'] span",
+            "div[data-sdui-screen*='JobDetails'] a",
+            "div[data-sdui-screen*='JobDetails'] span",
+            "div[data-sdui-screen*='JobDetails'] p",
+            ".jobs-unified-top-card",
         ]
         for selector in selectors:
             try:
                 elements = self.browser.find_elements(By.CSS_SELECTOR, selector)
                 for el in elements:
-                    if el.is_displayed() and el.text:
-                        insights_text += " " + el.text.lower()
+                    if el.is_displayed():
+                        text = (el.text or "").strip()
+                        if text and len(text) < 100:  # capture concise badge/pill texts
+                            insights_text += " " + text.lower()
             except Exception:
                 pass
 

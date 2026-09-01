@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import urllib.parse
+from unittest.mock import MagicMock
 
 from easy_apply_automator.app.search_loop import SearchLoopMixin
 
@@ -51,3 +52,38 @@ class TestBuildSearchUrl:
         assert qs["f_JT"] == ["F"]
         assert qs["f_E"] == ["1"]
         assert qs["start"] == ["25"]
+
+
+class TestMatchesSelectedExperienceLevel:
+    def test_matches_internship_via_title(self):
+        bot = DummySearchBot()
+        bot.experience_level = [1]
+        bot.browser = MagicMock()
+        bot.browser.title = "Software Engineer Intern | Company | LinkedIn"
+        bot.browser.find_elements.return_value = []
+
+        assert bot._matches_selected_experience_level() is True
+
+    def test_matches_internship_via_sdui_badge(self):
+        bot = DummySearchBot()
+        bot.experience_level = [1]
+        bot.browser = MagicMock()
+        bot.browser.title = "ERP Specialist | Company | LinkedIn"
+
+        badge_mock = MagicMock()
+        badge_mock.is_displayed.return_value = True
+        badge_mock.text = "Internship"
+
+        bot.browser.find_elements.return_value = [badge_mock]
+
+        assert bot._matches_selected_experience_level() is True
+
+    def test_rejects_non_internship_when_level_is_1(self):
+        bot = DummySearchBot()
+        bot.experience_level = [1]
+        bot.browser = MagicMock()
+        bot.browser.title = "Senior Architect | Company | LinkedIn"
+        bot.browser.find_elements.return_value = []
+
+        assert bot._matches_selected_experience_level() is False
+

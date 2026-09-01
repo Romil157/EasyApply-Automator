@@ -135,3 +135,48 @@ class TestHandleSubmitAction:
         submitted, clicked = svc._handle_submit_action(submit_clicked=False)
         assert submitted is True
         assert clicked is True
+
+
+class TestFindEasyApplyModalSDUI:
+    def test_find_easy_apply_modal_detects_sdui_dialog(self):
+        bot = MagicMock()
+        browser = MagicMock()
+        browser.window_handles = ["handle1"]
+        modal_mock = MagicMock()
+        modal_mock.is_displayed.return_value = True
+
+        def find_elements_side_effect(by, selector):
+            if "data-sdui-screen" in selector:
+                return [modal_mock]
+            return []
+
+        browser.find_elements.side_effect = find_elements_side_effect
+        bot.browser = browser
+
+        svc = ApplyFlowService.__new__(ApplyFlowService)
+        svc.bot = bot
+
+        found = svc.find_easy_apply_modal()
+        assert found is modal_mock
+
+
+class TestRetryOpenApplyFlowDirectFallback:
+    def test_retry_navigates_to_direct_apply_url_when_available(self):
+        bot = MagicMock()
+        browser = MagicMock()
+        browser.current_url = "https://www.linkedin.com/jobs/view/4454749634/"
+        browser.find_elements.return_value = []
+        bot.browser = browser
+        bot.current_job_id = "4454749634"
+        bot.get_easy_apply_button.return_value = False
+
+        svc = ApplyFlowService.__new__(ApplyFlowService)
+        svc.bot = bot
+        # First check False, on navigation becomes True
+        svc.wait_for_apply_flow_ready = MagicMock(return_value=(True, "modal"))
+
+        ok, mode = svc.retry_open_apply_flow()
+        assert ok is True
+        assert "retry_direct_apply_url" in mode
+        browser.get.assert_called_with("https://www.linkedin.com/jobs/view/4454749634/apply/")
+
