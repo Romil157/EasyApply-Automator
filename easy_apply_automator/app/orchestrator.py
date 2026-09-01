@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 from bs4 import BeautifulSoup
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -29,6 +29,12 @@ from easy_apply_automator.infra.browser_factory import (
     build_browser_options,
     build_webdriver,
     detect_chrome_binary,
+)
+from easy_apply_automator.infra.human_simulation import (
+    AdaptiveCircuitBreaker,
+    human_type_with_jitter,
+    reading_pause,
+    smooth_scroll_to,
 )
 from easy_apply_automator.infra.repositories import (
     ResultsRepository,
@@ -167,6 +173,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.session_jobs_processed = 0
         self.session_jobs_submitted = 0
         self.session_jobs_attempted = 0
+        self.circuit_breaker = AdaptiveCircuitBreaker(failure_threshold=5, cooldown_seconds=60.0)
         self.session_jobs_failed_attempts = 0
         self.session_jobs_failed_medical = 0
         self.submitted_timestamps: deque[float] = deque(maxlen=1000)
@@ -357,10 +364,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             pass
 
     def _human_type(self, element, text: str) -> None:
-        """Types text with randomized human-like keystroke delays."""
-        for char in text:
-            element.send_keys(char)
-            time.sleep(random.uniform(0.015, 0.055))
+        """Types text with randomized human-like keystroke delays and natural micro-pauses."""
+        human_type_with_jitter(element, text)
 
     def start_apply(self, positions: list[str], locations: list[str]) -> None:
         self.fill_data()
@@ -422,6 +427,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
 
         self.get_job_page(job_id)
         self._dump_debug_html("job_page_loaded")
+        reading_pause(min_seconds=0.8, max_seconds=1.8)
         self._human_sleep(MICRO_PAUSE_SECONDS)
 
         if not self._matches_selected_experience_level():
@@ -558,6 +564,20 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         )
         self.write_to_file(button, job_id, self.browser.title, result, metadata, reason)
         self._update_session_throughput(reason=reason, attempted=bool(button), result=result)
+
+        if result:
+            if hasattr(self, "circuit_breaker"):
+                self.circuit_breaker.record_success()
+        elif bool(button) and reason not in ("medical_related_title", "blacklisted_title", "blacklisted_company"):
+            if hasattr(self, "circuit_breaker") and self.circuit_breaker.record_failure():
+                cooldown = self.circuit_breaker.cooldown_seconds
+                log.warning(
+                    f"Adaptive circuit breaker triggered after consecutive stalls. "
+                    f"Taking an anti-detection cooldown of {cooldown}s..."
+                )
+                self.log_event("circuit_breaker_cooldown", duration_seconds=cooldown)
+                time.sleep(cooldown)
+
         if not result and reason != "daily_limit_reached":
             self._dump_failure_snapshot(
                 f"job_result_{reason}",
@@ -726,31 +746,47 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         except Exception:
             pass
         time.sleep(CLICK_PAUSE_SECONDS)
-        try:
-            from selenium.webdriver.common.action_chains import ActionChains
 
-            ActionChains(self.browser).move_to_element(element).pause(0.1).click().perform()
-            return
-        except Exception as exc:
-            log.debug(f"ActionChains click failed: {exc}")
-        try:
-            element.click()
-            return
-        except Exception as exc:
-            log.debug(f"Direct click failed on element: {exc}")
+        # 1. Try JavaScript synthetic Pointer + Mouse event dispatch chain (best for React 18 & SDUI)
         try:
             self.browser.execute_script(
                 """
                 var elem = arguments[0];
-                elem.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
-                elem.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
-                elem.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+                var opts = {bubbles: true, cancelable: true, view: window, pointerId: 1, pointerType: 'mouse', isPrimary: true};
+                elem.dispatchEvent(new PointerEvent('pointerdown', opts));
+                elem.dispatchEvent(new MouseEvent('mousedown', opts));
+                elem.dispatchEvent(new PointerEvent('pointerup', opts));
+                elem.dispatchEvent(new MouseEvent('mouseup', opts));
+                elem.dispatchEvent(new MouseEvent('click', opts));
+                if (typeof elem.click === 'function') {
+                    elem.click();
+                }
             """,
                 element,
             )
-            return
         except Exception as exc:
-            raise WebDriverException(f"Failed to click Easy Apply control: {exc}")
+            log.debug(f"JS synthetic click failed: {exc}")
+
+        # 2. Try native ActionChains click
+        try:
+            from selenium.webdriver.common.action_chains import ActionChains
+
+            ActionChains(self.browser).move_to_element(element).pause(0.1).click().perform()
+        except Exception as exc:
+            log.debug(f"ActionChains click failed: {exc}")
+
+        # 3. Direct Selenium click fallback
+        try:
+            element.click()
+        except Exception as exc:
+            log.debug(f"Direct element.click() failed: {exc}")
+
+        # Check if click opened a new window / tab
+        try:
+            if len(self.browser.window_handles) > 1:
+                self.browser.switch_to.window(self.browser.window_handles[-1])
+        except Exception as exc:
+            log.debug(f"Window handle switch failed after click: {exc}")
 
     def fill_out_fields(self):
         fields = self.browser.find_elements(By.CLASS_NAME, "jobs-easy-apply-form-section__grouping")
@@ -864,17 +900,11 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         return False
 
     def load_page(
-        self, sleep: float = MICRO_PAUSE_SECONDS, scroll_limit: int = 1500, scroll_step: int = 500
+        self, sleep: float = MICRO_PAUSE_SECONDS, scroll_limit: int = 1500, scroll_step: int = 400
     ):
-        scroll_page = 0
-        while scroll_page < scroll_limit:
-            self.browser.execute_script(f"window.scrollTo(0,{scroll_page} );")
-            scroll_page += scroll_step
-            time.sleep(sleep)
-
         if scroll_limit > 0:
-            self.browser.execute_script("window.scrollTo(0,0);")
-            time.sleep(sleep)
+            smooth_scroll_to(self.browser, scroll_limit, step_size=scroll_step, pause_sec=sleep)
+            smooth_scroll_to(self.browser, 0, step_size=scroll_step, pause_sec=sleep)
 
         return BeautifulSoup(self.browser.page_source, "lxml")
 
