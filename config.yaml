@@ -4,12 +4,13 @@ username: ""
 password: ""
 
 positions:
-  # Software & Web Engineering
+  # Software & Web Engineering (Resume-Matched: Python, Flask, Node.js, JS, HTML/CSS)
   - Software Engineer
   - Software Developer
   - Software Engineering Intern
   - Junior Software Engineer
   - Associate Software Engineer
+  - Graduate Software Engineer
   - Python Developer
   - Python Engineer
   - Backend Developer
@@ -19,8 +20,8 @@ positions:
   - Frontend Developer
   - Web Developer
   - Web Development Intern
-  - Graduate Software Engineer
-  # Data, Analytics, Scraping & ETL
+
+  # Data, Analytics, Scraping & ETL (Resume-Matched: Data Scraping, SQL, Data Cleaning)
   - Data Analyst
   - Data Analyst Intern
   - Junior Data Analyst
@@ -30,7 +31,9 @@ positions:
   - Web Scraping Specialist
   - Data Scraping Intern
   - ETL Developer
-  # AI, ML & NLP
+  - Research Intern
+
+  # AI, Machine Learning & NLP (Resume-Matched: ML/NLP Pipeline, AI Support Agents)
   - AI Engineer
   - AI Intern
   - Machine Learning Engineer
@@ -39,34 +42,28 @@ positions:
   - Generative AI Engineer
   - NLP Engineer
   - LLM Engineer
-  # Automation, Security & IT
-  - Automation Engineer
-  - QA Automation Intern
-  - QA Engineer
+
+  # Cybersecurity, Automation & IT (Resume-Matched: SIEM, Phishing Detection, IT Support)
   - Cybersecurity Intern
   - Security Analyst Intern
   - Information Security Analyst
   - SOC Analyst Intern
-  - Technical Support Intern
-  - IT Support Intern
+  - Automation Engineer
+  - QA Automation Intern
+  - QA Engineer
   - IT Intern
-  # Finance, FinTech & Analytics
-  - Financial Analyst
-  - Financial Analyst Intern
-  - Finance Intern
-  - Investment Banking Intern
-  - Quantitative Analyst Intern
-  - FinTech Intern
-  # SEO, SEM & Growth Analytics
-  - SEO Intern
-  - SEO Specialist
-  - SEM Specialist
+  - IT Support Intern
+  - Technical Support Intern
 
 locations:
   - Remote
   - Mumbai
   - India
   - Bengaluru
+  - Pune
+  - Hyderabad
+  - Gurugram
+  - Noida
 
 # Search Filters
 # date_posted: past_24h | past_week | past_month | all
@@ -112,7 +109,7 @@ shuffle_search_combos: false
 
 # ─── Title Blacklist ───
 # If any of these words or phrases appear in the job title, the bot will automatically skip the job.
-# This prevents applying to non-technical, sales, operations, founder's office, marketing, or unrelated roles.
+# This prevents applying to non-technical, sales, operations, marketing, or senior-level roles.
 blacklist_titles:
   # Executive, Founder's Office & Strategy
   - "founder's office"
@@ -183,6 +180,9 @@ blacklist_titles:
   - "affiliate"
   - "content creator"
   - "video editor"
+  - "seo intern"
+  - "seo specialist"
+  - "sem specialist"
 
   # Design & Creative (Non-Engineering)
   - "ui/ux design"
@@ -209,7 +209,11 @@ blacklist_titles:
   - "staffing"
   - "payroll"
 
-  # Accounting, Audit, Tax, Legal & Private Equity (Unrelated)
+  # Accounting, Finance, Audit, Tax & Legal (Unrelated)
+  - "financial analyst"
+  - "finance intern"
+  - "investment banking"
+  - "investment analyst"
   - "accountant"
   - "chartered accountant"
   - "taxation"
@@ -258,6 +262,8 @@ blacklist_titles:
   - "vp "
   - "vice president"
   - "head of"
+  - "team lead"
+  - "architect"
 
 # Job Filtering Keywords
 filters:
@@ -293,3 +299,4 @@ experience_level:
   - 1  # Entry level
   - 2  # Associate
   - 6  # Internship
+
