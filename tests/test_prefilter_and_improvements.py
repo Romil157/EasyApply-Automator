@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from easy_apply_automator.app.orchestrator import LinkedInEasyApplyOrchestrator
-from easy_apply_automator.domain.models import AppConfig
 from easy_apply_automator.qa.auto_answer import AutoAnswer
 from easy_apply_automator.qa.llm_client import LLMClient
 from easy_apply_automator.services._submit_flow import SubmitFlowMixin

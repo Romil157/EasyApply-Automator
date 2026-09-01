@@ -33,7 +33,6 @@ class QuestionService(ServiceBase):
         return any(marker in q for marker in numeric_markers) or "numeric" in i
 
     def coerce_numeric_answer(self, question: str, answer: str) -> str:
-        q = (question or "").lower()
         raw = re.sub(r"[,$€£]", "", (answer or "").strip())
         match = re.search(r"-?\d+(?:\.\d+)?", raw)
         if match:
