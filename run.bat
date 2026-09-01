@@ -1,8 +1,8 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableDelayedExpansion
 title EasyApply Automator
 
-:: Change to the directory where this bat file is located
+rem Change to directory of this script
 cd /d "%~dp0"
 
 echo ============================================
@@ -10,93 +10,82 @@ echo    EasyApply Automator - Control Center
 echo ============================================
 echo.
 
-:: Detect Python executable (python, py, or existing venv)
-set "PYTHON_CMD="
-if exist "venv\Scripts\python.exe" (
-    set "PYTHON_CMD=venv\Scripts\python.exe"
-) else (
-    where py >nul 2>&1
-    if !errorlevel! equ 0 (
-        set "PYTHON_CMD=py"
-    ) else (
-        where python >nul 2>&1
-        if !errorlevel! equ 0 (
-            set "PYTHON_CMD=python"
-        )
-    )
+rem Check if venv exists
+if exist "venv\Scripts\python.exe" goto VENV_READY
+
+rem Find system Python
+set "SYS_PYTHON="
+where py >nul 2>&1
+if not errorlevel 1 set "SYS_PYTHON=py"
+if "%SYS_PYTHON%"=="" (
+    where python >nul 2>&1
+    if not errorlevel 1 set "SYS_PYTHON=python"
 )
 
-if "%PYTHON_CMD%"=="" (
-    echo [ERROR] Python is not installed or not found in PATH.
-    echo Download Python 3.12+ from https://www.python.org/downloads/
+if "%SYS_PYTHON%"=="" (
+    echo [ERROR] Python was not found in your PATH.
+    echo Please install Python 3.12+ from https://www.python.org/downloads/
     pause
     exit /b 1
 )
 
-:: Create virtual environment if it doesn't exist
+echo [1/3] Creating virtual environment (venv)
+%SYS_PYTHON% -m venv venv
 if not exist "venv\Scripts\python.exe" (
-    echo [1/3] Creating virtual environment (venv)...
-    %PYTHON_CMD% -m venv venv
-    if !errorlevel! neq 0 (
-        echo [ERROR] Failed to create virtual environment.
-        pause
-        exit /b 1
-    )
-    echo       Done.
-    set "PYTHON_CMD=venv\Scripts\python.exe"
-) else (
-    set "PYTHON_CMD=venv\Scripts\python.exe"
-    echo [1/3] Virtual environment verified.
+    echo [ERROR] Failed to create virtual environment.
+    pause
+    exit /b 1
 )
+echo       Virtual environment created successfully.
 
-:: Verify/Install dependencies
-echo [2/3] Installing/verifying dependencies...
-"%PYTHON_CMD%" -m pip install -q --upgrade pip
-"%PYTHON_CMD%" -m pip install -q -e .
-if %errorlevel% neq 0 (
-    echo [WARNING] Retrying install with standard pip...
-    "%PYTHON_CMD%" -m pip install -e .
+:VENV_READY
+echo [1/3] Virtual environment ready.
+set "VENV_PYTHON=venv\Scripts\python.exe"
+
+echo [2/3] Checking dependencies
+"%VENV_PYTHON%" -m pip install -q --upgrade pip
+"%VENV_PYTHON%" -m pip install -q -e .
+if errorlevel 1 (
+    echo [INFO] Installing dependencies
+    "%VENV_PYTHON%" -m pip install -e .
 )
-echo       Done.
+echo       Dependencies verified.
 echo.
 
-:: Check for command line argument or show interactive menu
 set "ACTION=%~1"
-if "%ACTION%"=="" (
-    echo Choose an action to run:
-    echo  [1] Start EasyApply Bot
-    echo  [2] Start Live Web Dashboard
-    echo  [3] Run Test Suite (pytest)
-    echo.
-    set /p "CHOICE=Enter choice [1, 2, or 3] (default 1): "
-    if "!CHOICE!"=="2" (
-        set "ACTION=dashboard"
-    ) else if "!CHOICE!"=="3" (
-        set "ACTION=test"
-    ) else (
-        set "ACTION=bot"
-    )
-)
+if not "%ACTION%"=="" goto RUN_ACTION
 
+echo Choose an option to run:
+echo   [1] Start EasyApply Bot
+echo   [2] Start Live Web Dashboard
+echo   [3] Run Pytest Suite
+echo.
+set "CHOICE=1"
+set /p "CHOICE=Enter choice 1, 2, or 3 (default 1): "
+
+if "%CHOICE%"=="2" set "ACTION=dashboard"
+if "%CHOICE%"=="3" set "ACTION=test"
+if "%ACTION%"=="" set "ACTION=bot"
+
+:RUN_ACTION
 echo.
 echo ============================================
 if /i "%ACTION%"=="dashboard" (
-    echo [3/3] Launching Live Web Dashboard...
+    echo [3/3] Launching Live Web Dashboard
     echo ============================================
-    "%PYTHON_CMD%" "dashboard.py"
+    "%VENV_PYTHON%" dashboard.py
 ) else if /i "%ACTION%"=="test" (
-    echo [3/3] Running Pytest Suite...
+    echo [3/3] Running Pytest Suite
     echo ============================================
-    "%PYTHON_CMD%" -m pytest
+    "%VENV_PYTHON%" -m pytest
 ) else (
-    echo [3/3] Starting EasyApply Bot...
+    echo [3/3] Starting EasyApply Bot
     echo ============================================
-    "%PYTHON_CMD%" "easy_apply_bot.py"
+    "%VENV_PYTHON%" easy_apply_bot.py
 )
 
 echo.
 echo ============================================
-echo    Execution finished.
+echo    Process finished.
 echo ============================================
 pause
-
