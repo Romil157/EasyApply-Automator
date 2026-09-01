@@ -20,6 +20,7 @@ classifiers = [
 ]
 dependencies = [
   "beautifulsoup4>=4.12.3",
+  "flask>=3.0.0",
   "lxml>=5.2.2",
   "packaging>=24.1",
   "pandas>=2.2.2",

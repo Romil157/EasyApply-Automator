@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasyApply Automator – Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #080c14;
+      --card-bg: rgba(17, 24, 39, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(30, 41, 59, 0.85);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.35);
+      --accent: #06b6d4;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius-lg: 16px;
+      --radius-md: 10px;
+      --radius-sm: 6px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.1) 0%, transparent 40%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(11, 15, 25, 0.8);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: white;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .brand-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-title span {
+      background: linear-gradient(135deg, #818cf8, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-size: 13px;
+      font-weight: 600;
+      color: #34d399;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 12px 32px;
+      background: rgba(15, 23, 42, 0.6);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .nav-tab {
+      padding: 10px 20px;
+      border-radius: var(--radius-md);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-tab.active {
+      color: white;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.15));
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      box-shadow: 0 0 16px rgba(99, 102, 241, 0.2);
+    }
+
+    main {
+      padding: 32px;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .kpi-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .kpi-trend {
+      margin-top: 8px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #34d399;
+    }
+
+    /* Section Cards */
+    .section-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Table Styles */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    th {
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge-info {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    /* Forms and Inputs */
+    .input-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    input, select, textarea {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      color: white;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: white;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px var(--primary-glow);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.35);
+    }
+
+    /* Sandbox Response Box */
+    .sandbox-result {
+      margin-top: 16px;
+      padding: 18px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--card-border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      display: none;
+    }
+
+    .sandbox-result.active {
+      display: block;
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 24px;
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid var(--primary);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border-radius: var(--radius-md);
+      color: white;
+      font-size: 14px;
+      display: none;
+      z-index: 1000;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="logo-badge">EA</div>
+      <div class="brand-title">EasyApply <span>Automator</span></div>
+    </div>
+    <div class="header-actions">
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        <span>System Live</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('overview')">📊 Overview</button>
+    <button class="nav-tab" onclick="switchTab('jobs')">💼 Applied Jobs</button>
+    <button class="nav-tab" onclick="switchTab('qa')">⚡ QA Rules & Sandbox</button>
+    <button class="nav-tab" onclick="switchTab('profile')">👤 Profile & Skills</button>
+    <button class="nav-tab" onclick="switchTab('events')">📜 Live Event Log</button>
+  </nav>
+
+  <main>
+    <!-- TAB 1: OVERVIEW -->
+    <div id="tab-overview" class="tab-content active">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Jobs Processed</div>
+          <div class="kpi-value" id="kpi-processed">0</div>
+          <div class="kpi-trend">Total scans conducted</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Applications Submitted</div>
+          <div class="kpi-value" id="kpi-submitted" style="color: #34d399;">0</div>
+          <div class="kpi-trend">Successful EasyApplies</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Success Rate</div>
+          <div class="kpi-value" id="kpi-rate">0.0%</div>
+          <div class="kpi-trend">Submission throughput</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Result Files</div>
+          <div class="kpi-value" id="kpi-files">0</div>
+          <div class="kpi-trend">Historical session logs</div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">⚡ Quick QA Sandbox</div>
+        </div>
+        <p style="color: var(--text-muted); margin-bottom: 16px; font-size: 14px;">
+          Test any application question to preview how the bot will answer it using your YAML rules, Skill Years, or AI engine:
+        </p>
+        <div class="input-group">
+          <input type="text" id="quick-test-input" placeholder="e.g. How many years of Python experience do you have?" style="flex: 1;">
+          <button class="btn btn-primary" onclick="testQuestion('quick-test-input', 'quick-test-result')">Simulate Answer</button>
+        </div>
+        <div id="quick-test-result" class="sandbox-result"></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: APPLIED JOBS -->
+    <div id="tab-jobs" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">💼 Processed Job Applications</div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <input type="text" id="job-search-input" placeholder="Search by role, company, or ID..." oninput="fetchJobs()">
+            <select id="job-status-filter" onchange="fetchJobs()">
+              <option value="">All Statuses</option>
+              <option value="submitted">Submitted Only</option>
+              <option value="skipped">Skipped / Failed</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Job Title</th>
+                <th>Company</th>
+                <th>Status</th>
+                <th>Reason / Notes</th>
+                <th>Timestamp</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-tbody">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading job records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: QA RULES & SANDBOX -->
+    <div id="tab-qa" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">⚡ Question Answering Studio</div>
+        </div>
+        <div class="input-group">
+          <input type="text" id="studio-test-input" placeholder="Enter any question to test (e.g. Are you legally authorized to work in the US?)" style="flex: 1;">
+          <button class="btn btn-primary" onclick="testQuestion('studio-test-input', 'studio-test-result')">Simulate Answer</button>
+        </div>
+        <div id="studio-test-result" class="sandbox-result"></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📝 Add New Custom QA Rule</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr auto; gap: 12px; align-items: end;">
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Rule ID</label>
+            <input type="text" id="new-rule-id" placeholder="e.g. notice_period" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Regex Patterns (comma separated)</label>
+            <input type="text" id="new-rule-patterns" placeholder="(?i)notice period, (?i)joining time" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Answer</label>
+            <input type="text" id="new-rule-answer" placeholder="e.g. Immediate / 15 days" style="width: 100%;">
+          </div>
+          <button class="btn btn-primary" onclick="addRule()">+ Save Rule</button>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📋 Active QA Rules in YAML</div>
+          <input type="text" id="rule-search-input" placeholder="Search rules..." oninput="filterRules()">
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Rule ID</th>
+                <th>Regex Matching Patterns</th>
+                <th>Target Answer</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rules-tbody">
+              <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Loading QA rules...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: PROFILE & SKILLS -->
+    <div id="tab-profile" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">👤 Skill Experience Years</div>
+          <button class="btn btn-primary" onclick="saveSkills()">Save Changes</button>
+        </div>
+        <div id="skills-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: LIVE EVENT LOG -->
+    <div id="tab-events" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📜 Real-Time Bot Event Stream</div>
+          <button class="btn btn-secondary" onclick="fetchEvents()">🔄 Refresh</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Event Type</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="events-tbody">
+              <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Loading events...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    let allRules = [];
+    let currentSkills = {};
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+
+      if (tabId === 'jobs') fetchJobs();
+      if (tabId === 'qa') fetchQA();
+      if (tabId === 'profile') fetchQA();
+      if (tabId === 'events') fetchEvents();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        document.getElementById('kpi-processed').innerText = data.total_processed || 0;
+        document.getElementById('kpi-submitted').innerText = data.total_submitted || 0;
+        document.getElementById('kpi-rate').innerText = (data.success_rate_pct || 0) + '%';
+        document.getElementById('kpi-files').innerText = data.result_files_count || 0;
+      } catch (err) {
+        console.error('Failed to fetch status:', err);
+      }
+    }
+
+    async function fetchJobs() {
+      const q = document.getElementById('job-search-input').value;
+      const status = document.getElementById('job-status-filter').value;
+      try {
+        const res = await fetch(`/api/results?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`);
+        const data = await res.json();
+        const tbody = document.getElementById('jobs-tbody');
+        if (!data.jobs || data.jobs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No job records found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.jobs.map(j => `
+          <tr>
+            <td style="font-weight: 600;">${j.title || 'Unknown Role'}</td>
+            <td>${j.company || 'Unknown Company'}</td>
+            <td><span class="badge ${j.result ? 'badge-success' : 'badge-danger'}">${j.result ? '✓ Submitted' : '✕ Skipped'}</span></td>
+            <td style="color: var(--text-muted); font-size: 13px;">${j.reason || 'N/A'}</td>
+            <td style="font-size: 12px; color: var(--text-muted);">${j.timestamp ? j.timestamp.split('T')[0] : 'N/A'}</td>
+            <td><a href="https://www.linkedin.com/jobs/view/${j.job_id}/" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 600;">View ↗</a></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to fetch jobs:', err);
+      }
+    }
+
+    async function fetchQA() {
+      try {
+        const res = await fetch('/api/qa');
+        const data = await res.json();
+        allRules = data.rules || [];
+        renderRules(allRules);
+
+        currentSkills = (data.profile && data.profile.years) || {};
+        renderSkills(currentSkills);
+      } catch (err) {
+        console.error('Failed to fetch QA:', err);
+      }
+    }
+
+    function renderRules(rules) {
+      const tbody = document.getElementById('rules-tbody');
+      if (!rules || rules.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No rules defined.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rules.map(r => `
+        <tr>
+          <td style="font-weight: 600; font-family: monospace; color: #818cf8;">${r.id}</td>
+          <td style="font-family: monospace; font-size: 12px; color: #cbd5e1;">${(r.match_any || []).join('<br>')}</td>
+          <td style="font-weight: 600; color: #34d399;">${r.answer}</td>
+          <td>
+            <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="deleteRule('${r.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function filterRules() {
+      const q = document.getElementById('rule-search-input').value.toLowerCase();
+      const filtered = allRules.filter(r => 
+        (r.id || '').toLowerCase().includes(q) ||
+        (r.answer || '').toLowerCase().includes(q) ||
+        (r.match_any || []).some(p => p.toLowerCase().includes(q))
+      );
+      renderRules(filtered);
+    }
+
+    async function addRule() {
+      const id = document.getElementById('new-rule-id').value.trim();
+      const patternsStr = document.getElementById('new-rule-patterns').value.trim();
+      const answer = document.getElementById('new-rule-answer').value.trim();
+
+      if (!id || !patternsStr || !answer) {
+        showToast('Please fill in Rule ID, Patterns, and Answer.');
+        return;
+      }
+
+      const patterns = patternsStr.split(',').map(p => p.trim()).filter(Boolean);
+      try {
+        const res = await fetch('/api/qa/rule', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ id, match_any: patterns, answer })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Rule '${id}' saved!`);
+          document.getElementById('new-rule-id').value = '';
+          document.getElementById('new-rule-patterns').value = '';
+          document.getElementById('new-rule-answer').value = '';
+          fetchQA();
+        }
+      } catch (err) {
+        showToast('Error saving rule: ' + err);
+      }
+    }
+
+    async function deleteRule(id) {
+      if (!confirm(`Are you sure you want to delete rule '${id}'?`)) return;
+      try {
+        const res = await fetch(`/api/qa/rule/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Rule '${id}' deleted.`);
+          fetchQA();
+        }
+      } catch (err) {
+        showToast('Error deleting rule: ' + err);
+      }
+    }
+
+    function renderSkills(skills) {
+      const grid = document.getElementById('skills-grid');
+      grid.innerHTML = Object.entries(skills).map(([k, v]) => `
+        <div style="background: rgba(255,255,255,0.03); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--card-border);">
+          <label style="font-size: 13px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 6px; text-transform: capitalize;">${k.replace(/_/g, ' ')}</label>
+          <input type="number" id="skill-${k}" value="${v}" min="0" max="40" style="width: 100%;">
+        </div>
+      `).join('');
+    }
+
+    async function saveSkills() {
+      const updated = {};
+      Object.keys(currentSkills).forEach(k => {
+        const el = document.getElementById('skill-' + k);
+        if (el) updated[k] = el.value;
+      });
+      try {
+        const res = await fetch('/api/qa/profile', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ years: updated })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Skill experience years updated!');
+          fetchQA();
+        }
+      } catch (err) {
+        showToast('Failed to save skills: ' + err);
+      }
+    }
+
+    async function testQuestion(inputId, resultId) {
+      const q = document.getElementById(inputId).value.trim();
+      const resBox = document.getElementById(resultId);
+      if (!q) return;
+
+      resBox.className = 'sandbox-result active';
+      resBox.innerHTML = '⚡ Simulating decision engine...';
+
+      try {
+        const res = await fetch('/api/qa/test', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ question: q })
+        });
+        const data = await res.json();
+        resBox.innerHTML = `
+          <div style="color: var(--text-muted); margin-bottom: 4px;">Question: <strong style="color: white;">"${data.question}"</strong></div>
+          <div style="color: #34d399; font-size: 16px; font-weight: 700; margin-top: 6px;">👉 Answer: "${data.answer}"</div>
+        `;
+      } catch (err) {
+        resBox.innerHTML = `<span style="color: var(--danger);">Error testing question: ${err}</span>`;
+      }
+    }
+
+    async function fetchEvents() {
+      try {
+        const res = await fetch('/api/events');
+        const data = await res.json();
+        const tbody = document.getElementById('events-tbody');
+        if (!data.events || data.events.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No log events found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.events.map(e => `
+          <tr>
+            <td style="font-size: 12px; color: var(--text-muted); font-family: monospace;">${e.timestamp ? e.timestamp.replace('T', ' ').split('.')[0] : 'N/A'}</td>
+            <td><span class="badge badge-info">${e.event_name || 'event'}</span></td>
+            <td style="font-family: monospace; font-size: 12px; color: #cbd5e1;">${JSON.stringify(e, (k, v) => (k === 'timestamp' || k === 'event_name') ? undefined : v)}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to fetch events:', err);
+      }
+    }
+
+    // Initial load & periodic poll
+    fetchStatus();
+    setInterval(fetchStatus, 5000);
+  </script>
+</body>
+</html>
