@@ -1007,7 +1007,7 @@ def generate_html_report(
         }}
 
         function copySessionSummary() {{
-            const summary = `🚀 EasyApply Automator Session Summary\\n` +
+            const summary = `EasyApply Automator Session Summary\\n` +
                 `• Jobs Scanned: {total_scanned}\\n` +
                 `• Applied & Sent: {applied_count}\\n` +
                 `• Attempted: {attempted_count}\\n` +

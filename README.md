@@ -60,16 +60,16 @@
 │   Application Layer      │     Services Layer       │   Infrastructure Layer     │
 │  ┌────────────────────┐  │  ┌────────────────────┐  │  ┌──────────────────────┐  │
 │  │ Orchestrator /     │  │  │ Apply Flow State   │  │  │ Undetected Browser   │  │
-│  │ Search Loop        │─►│  │ Machine            │─►│  │ Factory (Chrome)     │  │
+│  │ Search Loop        │─│  │ Machine            │─│  │ Factory (Chrome)     │  │
 │  └────────────────────┘  │  └────────────────────┘  │  └──────────────────────┘  │
 │            │             │            │             │            │               │
-│            ▼             │            ▼             │            ▼               │
+│                         │                         │                           │
 │  ┌────────────────────┐  │  ┌────────────────────┐  │  ┌──────────────────────┐  │
 │  │ Live Control       │  │  │ Form Filler /      │  │  │ Human Simulation:    │  │
 │  │ Dashboard Server   │  │  │ SDUI Recovery      │  │  │ Bezier & Jitter      │  │
 │  └────────────────────┘  │  └────────────────────┘  │  └──────────────────────┘  │
 └────────────┬──────────────────────────┬──────────────────────────┬───────────────┘
-             ▼                          ▼                          ▼
+                                                                 
    ┌───────────────────┐      ┌───────────────────┐      ┌───────────────────┐
    │ questions_answers │      │ Groq / Gemini /   │      │ JSONL Telemetry & │
    │ Local YAML Rules  │      │ Claude LLM Engine │      │ Cookie Repository │
