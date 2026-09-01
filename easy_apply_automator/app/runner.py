@@ -121,12 +121,6 @@ def run_from_config(
 
     if choice == "1":
         app_config.experience_level = [1]
-        app_config.positions = [
-            f"{pos} Intern"
-            if not pos.lower().endswith("intern") and not pos.lower().endswith("internship")
-            else pos
-            for pos in app_config.positions
-        ]
     elif choice == "2":
         app_config.experience_level = [2, 3]
     else:

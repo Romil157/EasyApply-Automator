@@ -244,14 +244,16 @@ rules:
 
   - id: yoe_ml
     match_any:
-      - "(?i)how many years.*\\b(machine learning|ML)\\b"
-      - "(?i)years of experience.*\\b(machine learning|ML)\\b"
+      - "(?i)how many years.*(in|with|using|of)\\s+\\b(machine learning|ML)\\b"
+      - "(?i)years of experience.*(in|with|using|of)\\s+\\b(machine learning|ML)\\b"
+      - "(?i)experience.*(in|with|using)\\s+\\b(machine learning|ML)\\b"
     answer: "{years.machine_learning}"
 
   - id: yoe_ai
     match_any:
-      - "(?i)how many years.*\\b(AI|artificial intelligence)\\b"
-      - "(?i)years of experience.*\\b(AI|artificial intelligence)\\b"
+      - "(?i)how many years.*(in|with|using|of)\\s+\\b(AI|artificial intelligence)\\b"
+      - "(?i)years of experience.*(in|with|using|of)\\s+\\b(AI|artificial intelligence)\\b"
+      - "(?i)experience.*(in|with|using)\\s+\\b(AI|artificial intelligence)\\b"
     answer: "{years.ai_ml}"
 
   - id: yoe_python
@@ -319,10 +321,10 @@ rules:
 
   - id: yoe_overall
     match_any:
-      - "(?i)how many years.*\\b(experience|professional experience|industry experience|software)\\b"
-      - "(?i)years of experience\\b(?!.*(python|sql|javascript|ml|ai))"
-      - "(?i)total years"
-      - "(?i)overall experience"
+      - "(?i)\\b(total|overall) (years of )?(work |professional |industry |software )?experience\\b"
+      - "(?i)how many years of (total|overall) experience"
+      - "(?i)how many years of software (engineering|development) experience"
+      - "(?i)total years of (work |professional |industry )?experience"
     answer: "{years.overall_software}"
 
   - id: yoe_frontend
@@ -418,13 +420,6 @@ rules:
       - "(?i)available for.*full time"
       - "(?i)seeking.*internship"
     answer: "{yes}"
-
-  - id: generic_how_many_years
-    match_any:
-      - "(?i)how many years"
-      - "(?i)years of experience"
-      - "(?i)years experience"
-    answer: "{unknown_years}"
 
   # --- Other Common Questions ---
 
