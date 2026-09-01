@@ -2,13 +2,17 @@
 
 import csv
 import re
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 
+from easy_apply_automator.qa.llm_client import LLMClient
+
 
 class AutoAnswer:
-    """Uses loaded YAML config rules and regular expressions to resolve form question answers."""
+    """Uses loaded YAML config rules, regular expressions, and AI/LLM fallback to resolve form answers."""
 
     def __init__(
         self,
@@ -27,8 +31,10 @@ class AutoAnswer:
         phone_number: str = "",
         github_url: str = "",
         location_city: str = "",
+        llm_client: LLMClient | None = None,
     ):
         self.qa_file = qa_file
+        self.ans_yaml_path = Path(ans_yaml_path) if ans_yaml_path else None
         self.salary = salary
         self.hourly_rate = hourly_rate
         self.answers = answers
@@ -45,7 +51,8 @@ class AutoAnswer:
         self.phone_number = (phone_number or "").strip()
         self.github_url = (github_url or "").strip()
         self.location_city = (location_city or "").strip()
-        self.cfg = self._load_yaml(ans_yaml_path)
+        self.cfg = self._load_yaml(self.ans_yaml_path) if self.ans_yaml_path else {}
+        self.llm_client = llm_client or LLMClient.from_env_or_config(self.cfg, log=self.log)
 
     def _load_yaml(self, path: Path) -> dict:
         try:
@@ -183,14 +190,14 @@ class AutoAnswer:
                 norm_key = self._normalize_skill_key(raw_skill)
                 if norm_key in years:
                     return str(years[norm_key])
-                for k, v in years.items():
-                    if k in norm_key or norm_key in k:
-                        return str(v)
-
-        for k, v in years.items():
-            pattern = rf"\b{re.escape(k.replace('_', ' '))}\b"
-            if re.search(pattern, q):
-                return str(v)
+        if any(
+            w in q
+            for w in ("year", "years", "experience", "how long", "rate", "scale", "level")
+        ):
+            for k, v in years.items():
+                pattern = rf"\b{re.escape(k.replace('_', ' '))}\b"
+                if re.search(pattern, q):
+                    return str(v)
 
         return None
 
@@ -235,6 +242,65 @@ class AutoAnswer:
             return "Yes"
         return None
 
+    def _build_profile_context(self) -> dict[str, Any]:
+        """Assembles structured candidate background data and resume text to inform LLM zero-shot answers."""
+        profile = self.cfg.get("profile", {})
+        context: dict[str, Any] = {
+            "candidate_name": self.full_name or f"{self.first_name} {self.last_name}".strip(),
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "email": self.form_email,
+            "phone": self.phone_number,
+            "city": self.location_city,
+            "linkedin_url": self.linkedin_profile_url,
+            "github_url": self.github_url,
+            "expected_salary": self.salary,
+            "hourly_rate": self.hourly_rate,
+            "skill_experience_years": profile.get("years", {}),
+            "work_authorization": profile.get("work_auth", {}),
+            "demographics": profile.get("demographics", {}),
+            "defaults": self.cfg.get("defaults", {}),
+        }
+        resume_file = Path("resume.md")
+        if resume_file.exists():
+            try:
+                context["resume_markdown"] = resume_file.read_text(encoding="utf-8")
+            except Exception:
+                pass
+        return context
+
+    def _persist_learned_rule(self, question: str, answer: str) -> None:
+        """Appends an AI-resolved answer into local questions_answers.yaml for zero-cost reuse."""
+        try:
+            q_clean = question.strip()
+            safe_id = "ai_" + re.sub(r"[^a-zA-Z0-9_]+", "_", q_clean).strip("_")[:35].lower()
+            escaped_pattern = f"(?i){re.escape(q_clean)}"
+            new_rule = {
+                "id": safe_id,
+                "match_any": [escaped_pattern],
+                "answer": answer,
+            }
+            if "rules" not in self.cfg or not isinstance(self.cfg["rules"], list):
+                self.cfg["rules"] = []
+            self.cfg["rules"].append(new_rule)
+
+            if self.ans_yaml_path and Path(self.ans_yaml_path).exists():
+                pattern_dump = yaml.dump(escaped_pattern, default_style="'").strip()
+                answer_dump = yaml.dump(answer, default_style='"').strip()
+                with open(self.ans_yaml_path, "a", encoding="utf-8") as f:
+                    f.write(
+                        f"\n  # Auto-learned by AI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    )
+                    f.write(f"  - id: {safe_id}\n")
+                    f.write("    match_any:\n")
+                    f.write(f"      - {pattern_dump}\n")
+                    f.write(f"    answer: {answer_dump}\n")
+                self.log.info(
+                    f"Persisted AI-learned question '{q_clean}' -> '{answer}' to {self.ans_yaml_path}"
+                )
+        except Exception as exc:
+            self.log.warning(f"Failed to persist learned AI rule: {exc}")
+
     def ans_question(self, question: str) -> str:
         q = (question or "").strip()
         answer = None
@@ -261,6 +327,16 @@ class AutoAnswer:
             heuristic_ans = self._heuristic_fallback(q)
             if heuristic_ans is not None:
                 answer = heuristic_ans
+
+        # Zero-shot AI/LLM fallback when available
+        if answer is None and hasattr(self, "llm_client") and self.llm_client.is_available():
+            self.log.info(f"Querying AI/LLM for unknown question: '{q}'")
+            ai_answer = self.llm_client.answer_question(q, self._build_profile_context())
+            if ai_answer:
+                answer = ai_answer
+                self.log.info(f"AI resolved question '{q}' with answer: '{answer}'")
+                if getattr(self.llm_client, "auto_learn", True):
+                    self._persist_learned_rule(q, answer)
 
         if answer is None:
             self.log.info("Not able to answer question automatically. Please provide answer")
