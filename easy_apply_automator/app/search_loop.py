@@ -151,7 +151,50 @@ class SearchLoopMixin:
                 )
                 time.sleep(PAGE_LOAD_PAUSE_SECONDS)
 
+    def _extract_card_titles(self) -> dict[str, str]:
+        """Extract mapping of job_id -> title from visible search result cards."""
+        titles: dict[str, str] = {}
+        try:
+            cards = self.browser.find_elements(
+                By.CSS_SELECTOR,
+                "li.jobs-search-results__list-item, div.job-card-container, div[data-job-id]",
+            )
+            for card in cards:
+                try:
+                    job_id = card.get_attribute("data-job-id") or ""
+                    if not job_id:
+                        try:
+                            link = card.find_element(By.CSS_SELECTOR, "a[data-job-id]")
+                            job_id = link.get_attribute("data-job-id") or ""
+                        except Exception:
+                            continue
+                    if not job_id:
+                        continue
+
+                    for sel in (
+                        ".job-card-list__title strong",
+                        ".job-card-list__title",
+                        ".artdeco-entity-lockup__title",
+                        "a.job-card-container__link strong",
+                        "a strong",
+                    ):
+                        try:
+                            el = card.find_element(By.CSS_SELECTOR, sel)
+                            text = (el.text or "").strip()
+                            if text and len(text) > 2:
+                                titles[str(job_id)] = text
+                                break
+                        except Exception:
+                            continue
+                except Exception:
+                    continue
+        except Exception as exc:
+            log.debug(f"Failed to extract card titles from search page: {exc}")
+        return titles
+
     def apply_loop(self, job_ids: dict[str, str]) -> None:
+        card_titles = self._extract_card_titles()
+
         for job_id in job_ids:
             if self.stop_requested or time.time() >= self.session_deadline:
                 break
@@ -173,6 +216,43 @@ class SearchLoopMixin:
                     )
                     job_ids[job_id] = "Skipped"
                     continue
+
+                card_title = card_titles.get(str(job_id), "")
+                if card_title:
+                    # Pre-check blacklist before loading the full job page
+                    if hasattr(self, "is_title_blacklisted"):
+                        is_blocked, keyword = self.is_title_blacklisted(card_title)
+                        if is_blocked:
+                            log.info(
+                                f"Pre-filter skipping job {job_id} ('{card_title}'): "
+                                f"matched blacklist keyword '{keyword}'."
+                            )
+                            self.log_event(
+                                "job_skipped_prefilter",
+                                job_id=str(job_id),
+                                title=card_title,
+                                matched_keyword=keyword,
+                            )
+                            job_ids[job_id] = "Skipped"
+                            continue
+
+                    # Pre-check relevance score before loading page
+                    if hasattr(self, "relevance_scorer") and self.relevance_scorer is not None:
+                        if not self.relevance_scorer.is_relevant(card_title):
+                            score = self.relevance_scorer.score(card_title)
+                            log.info(
+                                f"Pre-filter skipping job {job_id} ('{card_title}'): "
+                                f"low relevance score ({score:.2f})."
+                            )
+                            self.log_event(
+                                "job_skipped_not_relevant",
+                                job_id=str(job_id),
+                                title=card_title,
+                                relevance_score=score,
+                            )
+                            job_ids[job_id] = "Skipped"
+                            continue
+
                 applied = self.apply_to_job(job_id)
                 if applied:
                     log.info(f"Applied to {job_id}")
@@ -281,40 +361,25 @@ class SearchLoopMixin:
             return True
 
         title = (self.browser.title or "").lower()
-
-        insights_text = ""
-        selectors = [
-            ".jobs-unified-top-card__job-insight",
-            ".job-details-jobs-unified-top-card__job-insight",
-            "span.jobs-unified-top-card__bullet-item",
-            ".jobs-unified-top-card__bullet-item",
-            "div.job-details-jobs-unified-top-card__primary-description",
-            "section[aria-label='Primary content'] a",
-            "section[aria-label='Primary content'] span",
-            "div[data-sdui-screen*='JobDetails'] a",
-            "div[data-sdui-screen*='JobDetails'] span",
-            "div[data-sdui-screen*='JobDetails'] p",
-            ".jobs-unified-top-card",
-        ]
-        for selector in selectors:
-            try:
-                elements = self.browser.find_elements(By.CSS_SELECTOR, selector)
-                for el in elements:
-                    if el.is_displayed():
-                        text = (el.text or "").strip()
-                        if text and len(text) < 100:  # capture concise badge/pill texts
-                            insights_text += " " + text.lower()
-            except Exception:
-                pass
-
-        is_internship = bool(re.search(r"\bintern\b|\binternship\b", title)) or bool(
-            re.search(r"\bintern\b|\binternship\b", insights_text)
+        senior_markers = (
+            "senior ",
+            "sr. ",
+            "sr ",
+            "lead ",
+            "principal ",
+            "staff ",
+            "director ",
+            "vp ",
+            "vice president",
+            "head of ",
+            "manager ",
+            "chief ",
+            "team lead",
         )
 
-        if self.experience_level == [1]:
-            return is_internship
-
-        if 1 not in self.experience_level:
-            return not is_internship
+        # If applying strictly to internships or entry level, block explicit senior titles
+        if set(self.experience_level).issubset({1, 2}):
+            if any(marker in title for marker in senior_markers):
+                return False
 
         return True

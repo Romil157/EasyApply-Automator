@@ -334,9 +334,41 @@ class SubmitFlowMixin:
         current_url = (self.bot.browser.current_url or "").lower()
         return "/apply/" in current_url and "linkedin.com/jobs" in current_url
 
-    def wait_for_apply_flow_ready(self, timeout_seconds: float = 10.0) -> tuple[bool, str]:
+    EXTERNAL_ATS_DOMAINS: tuple[str, ...] = (
+        "workday.com",
+        "myworkday",
+        "greenhouse.io",
+        "boards.greenhouse.io",
+        "lever.co",
+        "jobs.lever.co",
+        "smartrecruiters.com",
+        "icims.com",
+        "taleo.",
+        "apply.workable.com",
+        "bamboohr.com",
+        "jobs.ashbyhq.com",
+        "recruitee.com",
+        "jazz.co",
+        "jobvite.com",
+        "ultipro.com",
+        "successfactors.",
+        "breezy.hr",
+        "rippling.com",
+    )
+
+    def _is_external_redirect(self) -> bool:
+        """Check if browser has navigated away to an external ATS or career portal."""
+        try:
+            url = (self.bot.browser.current_url or "").lower()
+            return any(domain in url for domain in self.EXTERNAL_ATS_DOMAINS)
+        except Exception:
+            return False
+
+    def wait_for_apply_flow_ready(self, timeout_seconds: float = 8.0) -> tuple[bool, str]:
         end = time.time() + timeout_seconds
         while time.time() < end:
+            if self._is_external_redirect():
+                return False, "external_redirect"
             limit_reached, _ = self.detect_daily_easy_apply_limit()
             if limit_reached:
                 return False, "daily_limit"
@@ -345,6 +377,8 @@ class SubmitFlowMixin:
             if self.has_apply_controls():
                 return True, "controls"
             time.sleep(POLL_INTERVAL_SECONDS)
+        if self._is_external_redirect():
+            return False, "external_redirect"
         limit_reached, _ = self.detect_daily_easy_apply_limit()
         if limit_reached:
             return False, "daily_limit"
@@ -355,12 +389,15 @@ class SubmitFlowMixin:
         return False, "none"
 
     def retry_open_apply_flow(self) -> tuple[bool, str]:
+        if self._is_external_redirect():
+            return False, "external_redirect_no_retry"
+
         current_url = self.bot.browser.current_url or ""
         job_id = self.bot.current_job_id
         if "/jobs/collections/" in current_url and job_id:
             self.bot.browser.get(f"https://www.linkedin.com/jobs/view/{job_id}")
             time.sleep(MICRO_PAUSE_SECONDS)
-            ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=6.0)
+            ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=3.0)
             if ok:
                 return True, f"retry_collection_redirect_{mode}"
 
@@ -369,7 +406,7 @@ class SubmitFlowMixin:
             if btn is not False:
                 self.bot._click_easy_apply(btn)
                 time.sleep(MICRO_PAUSE_SECONDS)
-                ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=6.0)
+                ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=3.0)
                 if ok:
                     return True, f"retry_click_{mode}"
         except Exception as exc:
@@ -384,7 +421,7 @@ class SubmitFlowMixin:
                 if href:
                     self.bot.browser.get(href)
                     time.sleep(MICRO_PAUSE_SECONDS)
-                    ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=6.0)
+                    ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=3.0)
                     if ok:
                         return True, f"retry_href_{mode}"
         except Exception as exc:
@@ -397,7 +434,7 @@ class SubmitFlowMixin:
                 if current_url.rstrip("/") != apply_url.rstrip("/"):
                     self.bot.browser.get(apply_url)
                     time.sleep(MICRO_PAUSE_SECONDS)
-                    ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=6.0)
+                    ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=3.0)
                     if ok:
                         return True, f"retry_direct_apply_url_{mode}"
             except Exception as exc:

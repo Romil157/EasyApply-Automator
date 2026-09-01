@@ -43,6 +43,7 @@ from easy_apply_automator.infra.repositories import (
 from easy_apply_automator.observability.events import EventLogger
 from easy_apply_automator.observability.logger import log, setup_logger
 from easy_apply_automator.qa.auto_answer import AutoAnswer
+from easy_apply_automator.qa.relevance_scorer import RelevanceScorer
 from easy_apply_automator.services.apply_flow_service import ApplyFlowService
 from easy_apply_automator.services.diagnostics_service import DiagnosticsService
 from easy_apply_automator.services.question_service import QuestionService
@@ -184,6 +185,8 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.debug_root.mkdir(parents=True, exist_ok=True)
         self.debug_failed_root = self.debug_root / "failed"
         self.debug_failed_root.mkdir(parents=True, exist_ok=True)
+        self._cleanup_old_debug_snapshots(max_keep=50)
+
         self.first_job_debug_done = False
         self.current_job_id: str | None = None
         self.current_job_debug_dir: Path | None = None
@@ -194,6 +197,26 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         # Keep QA answers in memory only; no runtime CSV file creation.
         self.qa_file: Path | None = None
         self.answers: dict[str, str] = {}
+
+    def _cleanup_old_debug_snapshots(self, max_keep: int = 50) -> None:
+        """Prune oldest debug failure snapshots to keep disk consumption bounded."""
+        try:
+            if not self.debug_failed_root.exists():
+                return
+            failed_dirs = sorted(
+                [d for d in self.debug_failed_root.iterdir() if d.is_dir()],
+                key=lambda p: p.stat().st_mtime,
+            )
+            if len(failed_dirs) > max_keep:
+                to_remove = failed_dirs[: len(failed_dirs) - max_keep]
+                for old_dir in to_remove:
+                    shutil.rmtree(old_dir, ignore_errors=True)
+                log.info(
+                    f"Cleaned up {len(to_remove)} old debug failure snapshots "
+                    f"(keeping {max_keep} most recent)."
+                )
+        except Exception as exc:
+            log.debug(f"Debug snapshot cleanup skipped: {exc}")
 
     def _init_browser(self, config: AppConfig) -> None:
         self.options = build_browser_options(
@@ -216,6 +239,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.wait = WebDriverWait(self.browser, 30)
 
     def _init_services(self, config: AppConfig) -> None:
+        self.relevance_scorer = RelevanceScorer()
         self.auto_answer = AutoAnswer(
             qa_file=self.qa_file,
             ans_yaml_path=Path(config.ans_yaml_path),
@@ -420,6 +444,29 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             "session_deadline_reached",
             stop_reason=self.stop_reason or "time_budget_exhausted",
         )
+        self._print_session_summary()
+
+    def _print_session_summary(self) -> None:
+        """Log structured performance metrics and summary statistics for the completed session."""
+        elapsed = max(1.0, time.time() - self.session_started_at)
+        rate = (
+            (self.session_jobs_submitted / self.session_jobs_attempted * 100)
+            if self.session_jobs_attempted > 0
+            else 0.0
+        )
+        log.info("")
+        log.info("============================================================")
+        log.info("                     SESSION SUMMARY                        ")
+        log.info("============================================================")
+        log.info(f"  Duration:            {elapsed / 60:.1f} minutes")
+        log.info(f"  Jobs Processed:      {self.session_jobs_processed}")
+        log.info(f"  Attempts Started:    {self.session_jobs_attempted}")
+        log.info(f"  Submitted:           {self.session_jobs_submitted}")
+        log.info(f"  Failed Attempts:     {self.session_jobs_failed_attempts}")
+        log.info(f"  Success Rate:        {rate:.1f}%")
+        log.info(f"  Termination Reason:  {self.stop_reason or 'time_budget_exhausted'}")
+        log.info("============================================================")
+        log.info("")
 
     def apply_to_job(self, job_id: str) -> bool:
         self._start_job_debug_trace(job_id)
@@ -468,8 +515,19 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             cleaned = cleaned.replace(char, "-")
         return f" {cleaned} "
 
+    def is_title_blacklisted(self, title: str) -> tuple[bool, str | None]:
+        """Check if a job title matches any configured blacklist or medical keywords."""
+        normalized = self._normalize_title_text(title)
+        for word in self.blacklist_titles:
+            if self._normalize_title_text(word).strip() in normalized:
+                return True, word
+        for word in self.medical_related_keywords:
+            if word.lower() in normalized:
+                return True, word
+        return False, None
+
     def _classify_job(self, job_id: str, button) -> tuple[bool, str, str]:
-        """Check blacklist, medical, database keywords, and click easy apply button if all match."""
+        """Check blacklist, medical, database keywords, relevance, and click easy apply button if valid."""
         if button is not False:
             normalized_title = self._normalize_title_text(self.browser.title)
             matched_medical_keyword = self._medical_keyword_match()
@@ -522,6 +580,36 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 )
                 return False, "database_related_title", "* Contains database-related keyword"
 
+            # Check job title relevance against candidate resume profile
+            if hasattr(self, "relevance_scorer") and self.relevance_scorer is not None:
+                title = self.browser.title or ""
+                if not self.relevance_scorer.is_relevant(title):
+                    score = self.relevance_scorer.score(title)
+                    log.info(
+                        f"Skipping this application, low relevance score ({score:.2f}) "
+                        f"for title: '{title}'."
+                    )
+                    self.log_event(
+                        "job_skipped_not_relevant",
+                        job_id=job_id,
+                        title=title,
+                        relevance_score=score,
+                    )
+                    return False, "not_relevant", f"* Not relevant to resume (score={score:.2f})"
+
+            # Extract job metadata and update LLM context before answering questions
+            metadata = (
+                self._extract_job_metadata(job_id=job_id)
+                if hasattr(self, "_extract_job_metadata")
+                else {}
+            )
+            if hasattr(self, "auto_answer") and self.auto_answer is not None:
+                if hasattr(self.auto_answer, "set_current_job"):
+                    self.auto_answer.set_current_job(
+                        job_title=metadata.get("job_title", ""),
+                        company=metadata.get("company", ""),
+                    )
+
             log.info("Clicking the EASY apply button")
             self._click_easy_apply(button)
             self._dump_debug_html("easy_apply_clicked")
@@ -536,6 +624,16 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                     "daily_limit_reached",
                     "*Stopped: LinkedIn Easy Apply daily limit reached",
                 )
+
+            # If failed and browser navigated away to an external portal, navigate back to LinkedIn
+            try:
+                curr_url = (self.browser.current_url or "").lower()
+                if "linkedin.com" not in curr_url:
+                    self.browser.back()
+                    time.sleep(MICRO_PAUSE_SECONDS)
+            except Exception:
+                pass
+
             return False, "apply_flow_failed", "*Did not apply: Failed to send Resume"
 
         if self._is_already_applied_job_page():
@@ -745,41 +843,28 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             )
         except Exception:
             pass
-        time.sleep(CLICK_PAUSE_SECONDS)
+        time.sleep(CLICK_PAUSE_SECONDS * random.uniform(1.0, 1.8))
 
-        # 1. Try JavaScript synthetic Pointer + Mouse event dispatch chain (best for React 18 & SDUI)
-        try:
-            self.browser.execute_script(
-                """
-                var elem = arguments[0];
-                var opts = {bubbles: true, cancelable: true, view: window, pointerId: 1, pointerType: 'mouse', isPrimary: true};
-                elem.dispatchEvent(new PointerEvent('pointerdown', opts));
-                elem.dispatchEvent(new MouseEvent('mousedown', opts));
-                elem.dispatchEvent(new PointerEvent('pointerup', opts));
-                elem.dispatchEvent(new MouseEvent('mouseup', opts));
-                elem.dispatchEvent(new MouseEvent('click', opts));
-                if (typeof elem.click === 'function') {
-                    elem.click();
-                }
-            """,
-                element,
-            )
-        except Exception as exc:
-            log.debug(f"JS synthetic click failed: {exc}")
+        # Single randomized click to avoid rapid multi-activation anti-bot fingerprints
+        strategies = ["action", "direct", "js"]
+        random.shuffle(strategies)
 
-        # 2. Try native ActionChains click
-        try:
-            from selenium.webdriver.common.action_chains import ActionChains
+        for strategy in strategies:
+            try:
+                if strategy == "action":
+                    from selenium.webdriver.common.action_chains import ActionChains
 
-            ActionChains(self.browser).move_to_element(element).pause(0.1).click().perform()
-        except Exception as exc:
-            log.debug(f"ActionChains click failed: {exc}")
-
-        # 3. Direct Selenium click fallback
-        try:
-            element.click()
-        except Exception as exc:
-            log.debug(f"Direct element.click() failed: {exc}")
+                    ActionChains(self.browser).move_to_element(element).pause(
+                        random.uniform(0.06, 0.16)
+                    ).click().perform()
+                elif strategy == "direct":
+                    element.click()
+                else:
+                    self.browser.execute_script("arguments[0].click();", element)
+                break
+            except Exception as exc:
+                log.debug(f"Click strategy '{strategy}' failed: {exc}")
+                continue
 
         # Check if click opened a new window / tab
         try:
@@ -789,12 +874,40 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             log.debug(f"Window handle switch failed after click: {exc}")
 
     def fill_out_fields(self):
-        fields = self.browser.find_elements(By.CLASS_NAME, "jobs-easy-apply-form-section__grouping")
-        for field in fields:
-            if "Mobile phone number" in field.text:
-                field_input = field.find_element(By.TAG_NAME, "input")
-                field_input.clear()
-                field_input.send_keys(self.phone_number)
+        """Fill contact information fields on the first Easy Apply form page."""
+        field_map = {
+            "Mobile phone number": self.phone_number,
+            "Email address": getattr(self.auto_answer, "form_email", ""),
+            "First name": getattr(self.auto_answer, "first_name", ""),
+            "Last name": getattr(self.auto_answer, "last_name", ""),
+            "City": self.location_city,
+            "LinkedIn Profile": getattr(self.auto_answer, "linkedin_profile_url", ""),
+            "GitHub": getattr(self.auto_answer, "github_url", ""),
+        }
+        try:
+            fields = self.browser.find_elements(
+                By.CLASS_NAME, "jobs-easy-apply-form-section__grouping"
+            )
+            for field in fields:
+                field_text = field.text or ""
+                for label, value in field_map.items():
+                    if label in field_text and value:
+                        try:
+                            input_el = field.find_element(By.TAG_NAME, "input")
+                            current = (input_el.get_attribute("value") or "").strip()
+                            if not current:
+                                input_el.clear()
+                                input_el.send_keys(str(value))
+                                self.log_event(
+                                    "contact_field_filled",
+                                    field=label,
+                                    value=str(value)[:20],
+                                )
+                        except Exception as exc:
+                            log.debug(f"Failed to fill '{label}' field: {exc}")
+                        break
+        except Exception as exc:
+            log.debug(f"Error inspecting form groupings in fill_out_fields: {exc}")
 
     def get_elements(self, element_type) -> list:
         elements = []

@@ -39,11 +39,9 @@ class TestCoerceNumericAnswer:
 
     def test_keyword_fallbacks(self):
         svc = _make_service()
-        # Crypto fallback
-        assert svc.coerce_numeric_answer("blockchain experience", "") == "8"
-        # Software engineering fallback
-        assert svc.coerce_numeric_answer("software engineering years", "") == "12"
-        # Default fallback
+        # Default fallback for unknown numeric questions
+        assert svc.coerce_numeric_answer("blockchain experience", "") == "1"
+        assert svc.coerce_numeric_answer("software engineering years", "") == "1"
         assert svc.coerce_numeric_answer("unrelated prompt", "") == "1"
 
 

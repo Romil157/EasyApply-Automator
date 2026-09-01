@@ -52,30 +52,6 @@ class QuestionService(ServiceBase):
                 if isinstance(extracted, str):
                     return extracted
 
-        if any(
-            token in q
-            for token in (
-                "crypto",
-                "web3",
-                "blockchain",
-                "smart contract",
-                "solidity",
-                "defi",
-            )
-        ):
-            return "8"
-        if any(
-            token in q
-            for token in (
-                "software engineering",
-                "software engineer",
-                "python",
-                "sql",
-                "machine tools",
-            )
-        ):
-            return "12"
-
         if hasattr(self.bot, "auto_answer") and self.bot.auto_answer is not None:
             cfg = getattr(self.bot.auto_answer, "cfg", None)
             if isinstance(cfg, dict):

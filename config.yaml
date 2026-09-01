@@ -4,70 +4,55 @@ username: ""
 password: ""
 
 positions:
-  # Software & Web Engineering (Resume-Matched: Python, Flask, Node.js, JS, HTML/CSS)
-  - Software Engineer
-  - Software Developer
-  - Software Engineering Intern
-  - Junior Software Engineer
-  - Associate Software Engineer
-  - Graduate Software Engineer
-  - Python Developer
-  - Python Engineer
-  - Backend Developer
-  - Backend Engineer
-  - Full Stack Developer
-  - Full Stack Engineer
-  - Frontend Developer
-  - Web Developer
-  - Web Development Intern
+  # --- Software & Web Development (Resume: Python, Flask, Node.js, JS, HTML/CSS, Web Dev Internship) ---
+  - "Software Engineer"
+  - "Software Developer"
+  - "Python Developer"
+  - "Backend Developer"
+  - "Web Developer"
+  - "Full Stack Developer"
+  - "Frontend Developer"
+  - "Node.js Developer"
+  - "Application Developer"
+  - "Junior Developer"
 
-  # Data, Analytics, Scraping & ETL (Resume-Matched: Data Scraping, SQL, Data Cleaning)
-  - Data Analyst
-  - Data Analyst Intern
-  - Junior Data Analyst
-  - Data Engineer
-  - Data Engineering Intern
-  - Data Science Intern
-  - Web Scraping Specialist
-  - Data Scraping Intern
-  - ETL Developer
-  - Research Intern
+  # --- Data Scraping, Engineering & Analytics (Resume: Data Scraping Internship, SQL, Cleaning, Excel) ---
+  - "Data Analyst"
+  - "Data Engineer"
+  - "Data Scraping"
+  - "Web Scraping"
+  - "ETL Developer"
+  - "Business Analyst"
+  - "Research Analyst"
+  - "BI Analyst"
 
-  # AI, Machine Learning & NLP (Resume-Matched: ML/NLP Pipeline, AI Support Agents)
-  - AI Engineer
-  - AI Intern
-  - Machine Learning Engineer
-  - Machine Learning Intern
-  - AI / ML Engineer
-  - Generative AI Engineer
-  - NLP Engineer
-  - LLM Engineer
+  # --- IT Support & Systems (Resume: 2 IT Internships, SIEM, Ticket Management, Network Monitoring) ---
+  - "IT Support"
+  - "Technical Support"
+  - "IT Analyst"
 
-  # Cybersecurity, Automation & IT (Resume-Matched: SIEM, Phishing Detection, IT Support)
-  - Cybersecurity Intern
-  - Security Analyst Intern
-  - Information Security Analyst
-  - SOC Analyst Intern
-  - Automation Engineer
-  - QA Automation Intern
-  - QA Engineer
-  - IT Intern
-  - IT Support Intern
-  - Technical Support Intern
+  # --- AI, Machine Learning & NLP (Resume: Sentinel Verify ML Pipeline, Hackathon RAG Agent) ---
+  - "AI Engineer"
+  - "Machine Learning"
+  - "NLP Engineer"
+  - "AI Intern"
+  - "Generative AI"
 
-  # Finance, FinTech & Investment Analytics
-  - Financial Analyst
-  - Financial Analyst Intern
-  - Finance Intern
-  - Investment Banking Intern
-  - Investment Analyst
-  - Quantitative Analyst Intern
-  - FinTech Intern
+  # --- Cybersecurity & Information Security (Resume: SIEM Tools, Trustos Phishing Extension) ---
+  - "Cybersecurity Analyst"
+  - "Security Analyst"
+  - "SOC Analyst"
+  - "Information Security"
 
-  # SEO, SEM & Growth Analytics
-  - SEO Intern
-  - SEO Specialist
-  - SEM Specialist
+  # --- Automation, QA & DevOps (Resume: Test Automation, Git, Startup Deployment) ---
+  - "Automation Engineer"
+  - "QA Engineer"
+  - "DevOps Engineer"
+
+  # --- Finance & Growth Analytics (User-Requested Domain Focus) ---
+  - "Financial Analyst"
+  - "SEO Intern"
+  - "SEM Specialist"
 
 locations:
   - Remote
@@ -87,6 +72,7 @@ date_posted: "past_week"
 workplace_types:
   - remote
   - hybrid
+  - onsite
 
 # job_types: full_time | contract | part_time | internship
 job_types:
@@ -110,7 +96,7 @@ headless: false
 user_data_dir: ""
 proxy: ""
 
-max_pages_per_search: 3
+max_pages_per_search: 5
 
 # Session pacing (how long the bot runs and takes breaks)
 session_duration_hours_min: 2
@@ -119,7 +105,7 @@ short_break_min_seconds: 15
 short_break_max_seconds: 45
 short_break_every_min_minutes: 30
 short_break_every_max_minutes: 60
-shuffle_search_combos: false
+shuffle_search_combos: true
 
 # ─── Title Blacklist ───
 # If any of these words or phrases appear in the job title, the bot will automatically skip the job.
@@ -302,7 +288,6 @@ filters:
     - "diagnostics"
 
 experience_level:
-  - 1  # Entry level
-  - 2  # Associate
-  - 6  # Internship
+  - 1  # Internship
+  - 2  # Entry level
 

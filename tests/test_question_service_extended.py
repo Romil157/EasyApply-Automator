@@ -36,15 +36,10 @@ class TestQuestionServiceLogic:
         assert service.coerce_numeric_answer("Years?", "0") == "1"
         assert service.coerce_numeric_answer("Years?", "-5") == "1"
 
-        # Crypto fallback
-        assert service.coerce_numeric_answer("How many years of Solidity?", "none") == "8"
-        assert service.coerce_numeric_answer("Web3 experience?", "0") == "8"
-
-        # Software fallback
-        assert service.coerce_numeric_answer("How many years of Python?", "none") == "12"
-        assert service.coerce_numeric_answer("Software engineering exp?", "0") == "12"
-
-        # Default fallback
+        # Fallback values for unknown skills
+        assert service.coerce_numeric_answer("How many years of Solidity?", "none") == "1"
+        assert service.coerce_numeric_answer("Web3 experience?", "0") == "1"
+        assert service.coerce_numeric_answer("How many years of UnknownTool?", "none") == "1"
         assert service.coerce_numeric_answer("Something else?", "none") == "1"
 
     def test_normalize_text_answer(self, service):

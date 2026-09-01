@@ -51,8 +51,15 @@ class AutoAnswer:
         self.phone_number = (phone_number or "").strip()
         self.github_url = (github_url or "").strip()
         self.location_city = (location_city or "").strip()
+        self.current_job_title = ""
+        self.current_job_company = ""
         self.cfg = self._load_yaml(self.ans_yaml_path) if self.ans_yaml_path else {}
         self.llm_client = llm_client or LLMClient.from_env_or_config(self.cfg, log=self.log)
+
+    def set_current_job(self, job_title: str = "", company: str = "") -> None:
+        """Set the active job title and company context to tailor LLM responses."""
+        self.current_job_title = (job_title or "").strip()
+        self.current_job_company = (company or "").strip()
 
     def _load_yaml(self, path: Path) -> dict:
         try:
@@ -260,6 +267,8 @@ class AutoAnswer:
             "work_authorization": profile.get("work_auth", {}),
             "demographics": profile.get("demographics", {}),
             "defaults": self.cfg.get("defaults", {}),
+            "current_job_title": getattr(self, "current_job_title", ""),
+            "current_job_company": getattr(self, "current_job_company", ""),
         }
         resume_file = Path("resume.md")
         if resume_file.exists():

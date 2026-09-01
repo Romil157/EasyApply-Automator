@@ -134,9 +134,17 @@ class LLMClient:
 
     def build_prompt(self, question: str, profile_context: dict[str, Any]) -> str:
         profile_json = json.dumps(profile_context, indent=2, ensure_ascii=False)
+        job_target = ""
+        if profile_context.get("current_job_title"):
+            job_target = f"\nTarget Position: {profile_context['current_job_title']}"
+            if profile_context.get("current_job_company"):
+                job_target += f" at {profile_context['current_job_company']}"
+            job_target += "\nTailor open-ended answers directly to this role and company when relevant.\n"
+
         return (
             "You are an expert AI job application assistant answering a single question on a job application form on behalf of the candidate.\n\n"
-            f"Candidate Profile & Data:\n{profile_json}\n\n"
+            f"Candidate Profile & Data:\n{profile_json}\n"
+            f"{job_target}\n"
             f"Question on Job Form:\n\"{question}\"\n\n"
             "Rules for answering:\n"
             "1. If the question asks for years of experience or a numeric quantity (e.g. 'How many years of Python experience?'), respond with ONLY the integer or decimal number (e.g. '2' or '0'). Do not write extra words or units.\n"
