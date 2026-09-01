@@ -55,6 +55,20 @@ positions:
   - IT Support Intern
   - Technical Support Intern
 
+  # Finance, FinTech & Investment Analytics
+  - Financial Analyst
+  - Financial Analyst Intern
+  - Finance Intern
+  - Investment Banking Intern
+  - Investment Analyst
+  - Quantitative Analyst Intern
+  - FinTech Intern
+
+  # SEO, SEM & Growth Analytics
+  - SEO Intern
+  - SEO Specialist
+  - SEM Specialist
+
 locations:
   - Remote
   - Mumbai
@@ -180,9 +194,6 @@ blacklist_titles:
   - "affiliate"
   - "content creator"
   - "video editor"
-  - "seo intern"
-  - "seo specialist"
-  - "sem specialist"
 
   # Design & Creative (Non-Engineering)
   - "ui/ux design"
@@ -209,11 +220,7 @@ blacklist_titles:
   - "staffing"
   - "payroll"
 
-  # Accounting, Finance, Audit, Tax & Legal (Unrelated)
-  - "financial analyst"
-  - "finance intern"
-  - "investment banking"
-  - "investment analyst"
+  # Accounting, Audit, Tax & Legal (Unrelated)
   - "accountant"
   - "chartered accountant"
   - "taxation"
@@ -223,7 +230,6 @@ blacklist_titles:
   - "law intern"
   - "paralegal"
   - "real estate"
-  - "private equity"
 
   # Manual Data Entry & Annotation (Non-Engineering)
   - "data annotator"
