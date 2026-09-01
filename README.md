@@ -11,47 +11,47 @@
 
 **Next-generation, stealth, AI-powered automation engine and real-time control center for LinkedIn Easy Apply.**
 
-[Key Features](#-key-features) • [System Architecture](#-system-architecture) • [Decision Waterfall](#-smart-qa-decision-waterfall) • [Quick Start](#-quick-start) • [Web Dashboard](#-live-web-dashboard--qa-studio) • [Configuration](#-configuration) • [Engineering Highlights](#-engineering-decisions--presentation-highlights)
+[Key Features](#key-features) • [System Architecture](#system-architecture) • [Decision Waterfall](#smart-qa-decision-waterfall) • [Quick Start](#quick-start) • [Web Dashboard](#live-web-dashboard--qa-studio) • [Configuration](#configuration) • [Engineering Highlights](#engineering-decisions--presentation-highlights)
 
 </div>
 
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 > **Educational & Research Purpose Only.**  
 > LinkedIn's User Agreement strictly prohibits unauthorized automation, scraping, or botting. Use this software responsibly and at your own risk. The developers assume no liability for account warnings, restrictions, or suspensions resulting from automated activity.
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-### 🧠 1. AI Zero-Shot Question Answering & Self-Learning Cache
+### 1. AI Zero-Shot Question Answering & Self-Learning Cache
 * **Multi-Provider AI Client**: Native REST client supporting **Groq** (`openai/gpt-oss-120b`, `llama-3.3-70b`), **Google Gemini Flash**, **OpenAI**, **Anthropic Claude**, and **local Ollama** without bulky SDK dependencies.
 * **Resume & Profile Injection**: Automatically injects candidate skills, work experience, education, authorization status, and `resume.md` into zero-shot prompts for high-context answers.
 * **Self-Learning Local Cache**: When AI resolves an unknown question, it dynamically appends the rule into your local `questions_answers.yaml` on disk. Future occurrences are resolved locally with **zero API calls and zero latency**.
 
-### 🛡️ 2. Anti-Detection & Human Simulation
-* **Cubic Bézier Mouse Trajectories**: Generates randomized cubic Bézier cursor paths with human velocity profiles and subtle overshoot corrections instead of robotic straight-line jumps.
+### 2. Anti-Detection & Human Simulation
+* **Cubic Bezier Mouse Trajectories**: Generates randomized cubic Bezier cursor paths with human velocity profiles and subtle overshoot corrections instead of robotic straight-line jumps.
 * **Typing Jitter (`human_type_with_jitter`)**: Emulates human typing cadence with variable inter-keystroke intervals (20ms–65ms) and natural punctuation pauses.
 * **Natural Smooth Scrolling & Reading Pauses**: Injects multi-step eased scrolling and realistic 1s–2s page reading pauses before interacting with application forms.
 * **Adaptive Circuit Breaker**: Real-time stall and challenge detection that triggers an automated 60-second cooldown on consecutive stalls to protect accounts from rate limiting.
 * **Stealth Chrome Flags**: Built-in `--disable-blink-features=AutomationControlled` to evade heuristic bot detection.
 
-### 📊 3. Live Web Dashboard & In-Browser QA Studio
+### 3. Live Web Dashboard & In-Browser QA Studio
 * **Glassmorphic Single-Page Application**: Real-time control center (`python dashboard.py`) featuring live KPI streaming (Applications Submitted, Failed, Jobs Evaluated, Submission Rate).
 * **Processed Jobs Explorer**: Search, filter, and inspect detailed submission statuses, company names, job titles, and failure diagnostics.
 * **Live Event Stream Monitor**: Real-time telemetry feed streaming internal bot events directly from `logs/events.jsonl`.
 * **Interactive Question Answering Studio**: In-browser sandbox allowing you to test any recruiter question to preview the exact answer the bot and AI engine will select.
 
-### ⚡ 4. React 18 & Server-Driven UI (SDUI) Resilience
+### 4. React 18 & Server-Driven UI (SDUI) Resilience
 * **Multi-Modal Synthetic Click Dispatcher**: Dispatches synthetic `PointerEvent` + `MouseEvent` event chains and tab-focus switching to trigger React 18 event listeners reliably.
 * **Direct `/apply/` Fallback**: Detects modern SDUI modal slide-sheets and falls back to direct `/jobs/view/{job_id}/apply/` URL navigation when button clicks fail.
 * **Smart Form Auto-Recovery**: Automatically resolves unselected comboboxes, typeahead dropdowns, and required legal/privacy checkboxes.
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -66,7 +66,7 @@
 │            ▼             │            ▼             │            ▼               │
 │  ┌────────────────────┐  │  ┌────────────────────┐  │  ┌──────────────────────┐  │
 │  │ Live Control       │  │  │ Form Filler /      │  │  │ Human Simulation:    │  │
-│  │ Dashboard Server   │  │  │ SDUI Recovery      │  │  │ Bézier & Jitter      │  │
+│  │ Dashboard Server   │  │  │ SDUI Recovery      │  │  │ Bezier & Jitter      │  │
 │  └────────────────────┘  │  └────────────────────┘  │  └──────────────────────┘  │
 └────────────┬──────────────────────────┬──────────────────────────┬───────────────┘
              ▼                          ▼                          ▼
@@ -78,7 +78,7 @@
 
 ---
 
-## 🔄 Smart QA Decision Waterfall
+## Smart QA Decision Waterfall
 
 When encountering form questions, the bot executes a 4-tier decision waterfall:
 
@@ -98,7 +98,7 @@ flowchart TD
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Option 1: One-Click Interactive Launcher
 * **Windows**: Double-click **`run.bat`** (or run `run.bat` in CMD).
@@ -143,7 +143,7 @@ python dashboard.py           # Launch Web Control Center on http://127.0.0.1:50
 
 ---
 
-## 📊 Live Web Dashboard & QA Studio
+## Live Web Dashboard & QA Studio
 
 Launch the dashboard at any time to monitor your applications or test QA rules:
 ```bash
@@ -165,7 +165,7 @@ python dashboard.py --port 5000
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 EasyApply Automator follows a clean **3-layer configuration architecture**:
 
@@ -270,7 +270,7 @@ rules:
 
 ---
 
-## 🛠️ CLI Flags & Options
+## CLI Flags & Options
 
 The bot supports command-line flags to customize any session on the fly:
 
@@ -293,18 +293,18 @@ python easy_apply_bot.py --max-apps 25
 
 ---
 
-## 🎓 Engineering Decisions & Presentation Highlights
+## Engineering Decisions & Presentation Highlights
 
 If showcasing this project in technical reviews or interviews, highlight these core design decisions:
 
 1. **Domain-Driven Design (DDD) & Layered Separation**:
    - `domain/`: Pure dataclasses (`AppConfig`, `RunConfig`, `JobMetadata`).
-   - `infra/`: Browser automation factory, Bézier trajectory generator, repositories.
+   - `infra/`: Browser automation factory, Bezier trajectory generator, repositories.
    - `qa/`: AutoAnswer pattern matching and universal REST LLM client.
    - `services/`: Business logic, state machines, and SDUI form handlers.
    - `dashboard/`: Flask control center and REST streaming.
 2. **Anti-Fingerprinting & Behavioral Simulation**:
-   - Uses `undetected-chromedriver` with overridden Chrome `cdc_` properties and cubic Bézier curves to emulate human cursor physics.
+   - Uses `undetected-chromedriver` with overridden Chrome `cdc_` properties and cubic Bezier curves to emulate human cursor physics.
 3. **Decoupled Page Object Model (`locators.yaml`)**:
    - HTML selectors are externalized into `locators.yaml`. UI updates on LinkedIn require **zero code changes**.
 4. **Hybrid PII Protection**:
@@ -314,7 +314,7 @@ If showcasing this project in technical reviews or interviews, highlight these c
 
 ---
 
-## 🧪 Testing & Quality Assurance
+## Testing & Quality Assurance
 
 The codebase is tested with unit and mock-based tests:
 
@@ -333,6 +333,6 @@ Continuous Integration (`.github/workflows/ci.yml`) runs tests, type checking, a
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
