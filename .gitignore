@@ -10,9 +10,12 @@ build/
 venv/
 env/
 
-# Secrets & credentials
+# Secrets, PII & Personal Profile
 .env
 .auth/
+resume.md
+resumes/
+*.pdf
 
 
 

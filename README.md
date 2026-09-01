@@ -18,17 +18,20 @@ This project is designed as a clean, production-grade automation bot that parses
 
 | Feature | Description |
 |:---|:---|
-| **Stealth Engine** | Integrated `undetected-chromedriver` with human-like keystroke pacing and anti-detection Chrome flags. |
-| **Smart Form Answering** | Regex engine + dynamic skill-to-experience extraction + heuristic fallback for unknown recruiter questions. |
+| **AI Zero-Shot QA Engine** | Integrated zero-shot answering via Google Gemini, OpenAI, Claude, or local Ollama with profile context injection & self-learning local YAML cache. |
+| **Bézier Human Simulation** | Cubic Bézier mouse movement curves, keystroke jittering, smooth multi-step scrolling, natural reading pauses, and adaptive circuit-breaker cooldowns. |
+| **Control Center Dashboard** | Live glassmorphic web dashboard (`python dashboard.py`) with real-time KPI streaming, processed jobs explorer, live log monitor, and in-browser QA test sandbox. |
+| **React 18 / SDUI Resilience** | Synthetic `PointerEvent` + `MouseEvent` click dispatch pipeline, modern SDUI modal containers, combobox/checkbox auto-recovery, and direct `/apply/` fallback. |
+| **Stealth Engine** | `undetected-chromedriver` with anti-automation flags (`--disable-blink-features=AutomationControlled`), cookie persistence, and humanized navigation. |
+| **Smart Form Answering** | Regex engine + dynamic skill-to-experience extraction + heuristic fallback for recruiter questions. |
 | **Multi-Resume Auto-Match**| Automatically selects matching resume based on job title / keywords from configured resume files. |
 | **Country Dial-Code Resolver**| Dynamically selects proper phone country dial codes for any ISO country (IN, US, GB, CA, etc.). |
 | **Granular Search Filters** | Filter jobs by posted date (`past_24h`, `past_week`, `past_month`), workplace type (Remote/Hybrid/Onsite), and job type. |
 | **Interactive & CLI Modes** | Rich CLI with `--dry-run`, `--headless`, `--level`, `--date-posted`, `--max-apps`, and `--remote-only`. |
-| **HTML Analytics Dashboard**| Automatically generates a standalone interactive HTML dashboard (`results/report_latest.html`) after every run. |
 | **Externalized Locators** | Decoupled HTML selectors into `locators.yaml`, allowing for rapid updates without changing source code. |
 | **Hybrid PII Model** | High-sensitivity personal data is sourced from environment variables, never committed to git. |
 | **Session Persistence** | Safely serializes cookies to `.auth/` (gitignored) to eliminate the need for repeated logins. |
-| **One-Click Run (Windows)** | `.bat` script handles environment setup, dependency installation, and execution. |
+| **Multi-Option Launcher** | Interactive `run.bat` / `run.sh` menu to launch the bot, open the live web dashboard, or run the test suite. |
 
 ---
 
@@ -36,6 +39,8 @@ This project is designed as a clean, production-grade automation bot that parses
 
 * **Core Language:** Python 3.12+
 * **Automation Framework:** Selenium + `undetected-chromedriver` (Anti-Detection)
+* **Web Dashboard:** Flask + Modern Glassmorphism Vanilla CSS / JS
+* **AI & LLM Providers:** Google Gemini, OpenAI, Anthropic Claude, Local Ollama (REST / standard library)
 * **HTML Parsing:** BeautifulSoup (Lxml parser)
 * **Configuration:** PyYAML + python-dotenv (YAML files + environment variable overlay)
 * **Observability:** Standard `logging` + JSONL event tracing under `logs/`
@@ -54,28 +59,37 @@ easy-apply-automator/
 │   │   ├── runner.py
 │   │   └── search_loop.py
 │   ├── config/                     # YAML parser + env overlay + RunConfig schema
+│   ├── dashboard/                  # Live Web Dashboard & REST API
+│   │   ├── server.py               # Flask application & API routes
+│   │   └── templates/index.html    # Glassmorphism control center SPA
 │   ├── domain/                     # AppConfig / RuntimeConfig / SessionMetrics dataclasses
-│   ├── infra/                      # Browser factory (undetected-chromedriver) & result repositories
+│   ├── infra/                      # Browser factory, human simulation & result repositories
+│   │   ├── browser_factory.py      # Undetected ChromeDriver builder
+│   │   ├── human_simulation.py     # Bézier curves, typing jitter & circuit breaker
+│   │   └── repositories.py         # File results repository
 │   ├── observability/              # Logger setup + JSONL EventLogger
-│   ├── qa/                         # AutoAnswer regex + template engine
-│   └── services/                   # Business logic
+│   ├── qa/                         # AutoAnswer regex + template engine + LLM client
+│   │   ├── auto_answer.py          # QA matching & self-learning rule persistence
+│   │   └── llm_client.py           # Universal Gemini/OpenAI/Ollama REST client
+│   └── services/                   # Business logic & apply flow state machine
 │       ├── base.py                 # ServiceBase
 │       ├── session_service.py      # Login, cookie save/restore
 │       ├── question_service.py     # Question parsing & matching
-│       ├── diagnostics_service.py # Job metadata extraction + debug HTML dumps
+│       ├── diagnostics_service.py  # Job metadata extraction + debug HTML dumps
 │       ├── throughput_service.py   # Submission-rate pacing & short breaks
 │       ├── apply_flow_service.py   # Public compose of form-filler + submit-flow mixins
-│       ├── _form_filler.py         # Easy Apply required-field filling
+│       ├── _form_filler.py         # Easy Apply required-field filling & recovery
 │       └── _submit_flow.py         # Apply-flow state machine + retry/stall handling
-├── tests/                          # Pytest suite (unit + mock-based)
+├── tests/                          # Pytest suite (200+ unit & mock-based tests)
 ├── config.yaml                     # Job search & filter settings (tracked)
 ├── locators.yaml                   # Decoupled HTML element selectors (tracked)
 ├── questions_answers.example.yaml  # Auto-answer rule template (tracked)
-├── questions_answers.yaml           # Your local answer profile (gitignored — see Configuration)
+├── questions_answers.yaml           # Your local answer profile (gitignored)
 ├── .env.example                    # Environment variable template (tracked)
 ├── .env                            # Your local secrets (gitignored)
-├── easy_apply_bot.py               # Main entry point
-└── run.bat / run.sh                # Startup scripts
+├── easy_apply_bot.py               # Main bot CLI entry point
+├── dashboard.py                    # Live Web Dashboard launcher
+└── run.bat / run.sh                # Startup scripts with interactive menu
 ```
 
 Runtime artifacts (all gitignored): `.auth/` (cookies), `logs/` (logs + events.jsonl), `debug/` (HTML snapshots), `results/` (per-run application output).
@@ -84,10 +98,19 @@ Runtime artifacts (all gitignored): `.auth/` (cookies), `logs/` (logs + events.j
 
 ## Quick Start
 
-### Option 1: One-Click Run (Windows)
-Simply double-click **`run.bat`**. It manages the virtual environment and dependencies automatically. You still need to set up `.env` and `questions_answers.yaml` as described below before the first run.
+### Option 1: One-Click Interactive Launcher
+* **Windows**: Double-click **`run.bat`** (or run `run.bat` in terminal).
+* **Linux / macOS**: Run **`./run.sh`**.
 
-### Option 2: Manual Installation
+The launcher provides an interactive menu:
+```text
+Choose an action to run:
+ [1] Start EasyApply Bot
+ [2] Start Live Web Dashboard
+ [3] Run Test Suite (pytest)
+```
+
+### Option 2: Manual Installation & CLI
 ```bash
 # 1. Clone and enter directory
 git clone https://github.com/Romil157/EasyApply-Automator.git
@@ -99,15 +122,16 @@ source venv/bin/activate  # macOS/Linux
 venv\Scripts\activate     # Windows
 
 # 3. Install project and dependencies
-pip install .
+pip install -e .
 pip install ".[dev]"      # Install testing tools (pytest, ruff, mypy)
 
 # 4. Create your local config files from the tracked templates
-cp .env.example .env                                # then edit .env with your real values
-cp questions_answers.example.yaml questions_answers.yaml  # then edit with your profile data
+cp .env.example .env                                # edit .env with your credentials / AI keys
+cp questions_answers.example.yaml questions_answers.yaml  # edit with your profile data
 
-# 5. Start the bot
-python easy_apply_bot.py
+# 5. Start the bot or dashboard
+python easy_apply_bot.py      # Run bot
+python dashboard.py           # Launch Control Center Web Dashboard on http://127.0.0.1:5000
 ```
 
 ---
