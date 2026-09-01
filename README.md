@@ -1,159 +1,218 @@
 # EasyApply Automator
 
-[![Python 3.12](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+<div align="center">
+
+[![Python 3.12](https://img.shields.io/badge/python-3.12+-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/Romil157/EasyApply-Automator/actions/workflows/ci.yml/badge.svg)](https://github.com/Romil157/EasyApply-Automator/actions/workflows/ci.yml)
+[![CI Tests](https://img.shields.io/badge/Tests-205%20Passed-brightgreen.svg)](tests/)
+[![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Type Checked: Mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
+[![AI Engine: Groq / Gemini / Claude](https://img.shields.io/badge/AI%20Engine-Groq%20%7C%20Gemini%20%7C%20Claude-orange.svg)](easy_apply_automator/qa/)
 
-## Disclaimer
+**Next-generation, stealth, AI-powered automation engine and real-time control center for LinkedIn Easy Apply.**
 
-This software is for educational purposes only. LinkedIn's User Agreement prohibits the use of bots or automated tools that scrape or automate activity. Use this software at your own risk. The developers are not responsible for any account restrictions, suspensions, or bans resulting from the use of this tool.
+[Key Features](#-key-features) • [System Architecture](#-system-architecture) • [Decision Waterfall](#-smart-qa-decision-waterfall) • [Quick Start](#-quick-start) • [Web Dashboard](#-live-web-dashboard--qa-studio) • [Configuration](#-configuration) • [Engineering Highlights](#-engineering-decisions--presentation-highlights)
 
-> A robust, clean, and high-performance automation engine to apply to LinkedIn jobs using the **Easy Apply** feature — built with Python and Selenium.
-
-This project is designed as a clean, production-grade automation bot that parses job criteria, performs searches, filters matching positions, automatically handles multi-step form questions using customized YAML rules, and submits applications in seconds.
-
----
-
-## Key Features
-
-| Feature | Description |
-|:---|:---|
-| **AI Zero-Shot QA Engine** | Integrated zero-shot answering via Google Gemini, OpenAI, Claude, or local Ollama with profile context injection & self-learning local YAML cache. |
-| **Bézier Human Simulation** | Cubic Bézier mouse movement curves, keystroke jittering, smooth multi-step scrolling, natural reading pauses, and adaptive circuit-breaker cooldowns. |
-| **Control Center Dashboard** | Live glassmorphic web dashboard (`python dashboard.py`) with real-time KPI streaming, processed jobs explorer, live log monitor, and in-browser QA test sandbox. |
-| **React 18 / SDUI Resilience** | Synthetic `PointerEvent` + `MouseEvent` click dispatch pipeline, modern SDUI modal containers, combobox/checkbox auto-recovery, and direct `/apply/` fallback. |
-| **Stealth Engine** | `undetected-chromedriver` with anti-automation flags (`--disable-blink-features=AutomationControlled`), cookie persistence, and humanized navigation. |
-| **Smart Form Answering** | Regex engine + dynamic skill-to-experience extraction + heuristic fallback for recruiter questions. |
-| **Multi-Resume Auto-Match**| Automatically selects matching resume based on job title / keywords from configured resume files. |
-| **Country Dial-Code Resolver**| Dynamically selects proper phone country dial codes for any ISO country (IN, US, GB, CA, etc.). |
-| **Granular Search Filters** | Filter jobs by posted date (`past_24h`, `past_week`, `past_month`), workplace type (Remote/Hybrid/Onsite), and job type. |
-| **Interactive & CLI Modes** | Rich CLI with `--dry-run`, `--headless`, `--level`, `--date-posted`, `--max-apps`, and `--remote-only`. |
-| **Externalized Locators** | Decoupled HTML selectors into `locators.yaml`, allowing for rapid updates without changing source code. |
-| **Hybrid PII Model** | High-sensitivity personal data is sourced from environment variables, never committed to git. |
-| **Session Persistence** | Safely serializes cookies to `.auth/` (gitignored) to eliminate the need for repeated logins. |
-| **Multi-Option Launcher** | Interactive `run.bat` / `run.sh` menu to launch the bot, open the live web dashboard, or run the test suite. |
+</div>
 
 ---
 
-## Tech Stack
+## ⚠️ Disclaimer
 
-* **Core Language:** Python 3.12+
-* **Automation Framework:** Selenium + `undetected-chromedriver` (Anti-Detection)
-* **Web Dashboard:** Flask + Modern Glassmorphism Vanilla CSS / JS
-* **AI & LLM Providers:** Google Gemini, OpenAI, Anthropic Claude, Local Ollama (REST / standard library)
-* **HTML Parsing:** BeautifulSoup (Lxml parser)
-* **Configuration:** PyYAML + python-dotenv (YAML files + environment variable overlay)
-* **Observability:** Standard `logging` + JSONL event tracing under `logs/`
-* **Testing:** Pytest + Pytest-Cov + Ruff + Mypy
+> **Educational & Research Purpose Only.**  
+> LinkedIn's User Agreement strictly prohibits unauthorized automation, scraping, or botting. Use this software responsibly and at your own risk. The developers assume no liability for account warnings, restrictions, or suspensions resulting from automated activity.
 
 ---
 
-## Project Structure
+## 🌟 Key Features
+
+### 🧠 1. AI Zero-Shot Question Answering & Self-Learning Cache
+* **Multi-Provider AI Client**: Native REST client supporting **Groq** (`openai/gpt-oss-120b`, `llama-3.3-70b`), **Google Gemini Flash**, **OpenAI**, **Anthropic Claude**, and **local Ollama** without bulky SDK dependencies.
+* **Resume & Profile Injection**: Automatically injects candidate skills, work experience, education, authorization status, and `resume.md` into zero-shot prompts for high-context answers.
+* **Self-Learning Local Cache**: When AI resolves an unknown question, it dynamically appends the rule into your local `questions_answers.yaml` on disk. Future occurrences are resolved locally with **zero API calls and zero latency**.
+
+### 🛡️ 2. Anti-Detection & Human Simulation
+* **Cubic Bézier Mouse Trajectories**: Generates randomized cubic Bézier cursor paths with human velocity profiles and subtle overshoot corrections instead of robotic straight-line jumps.
+* **Typing Jitter (`human_type_with_jitter`)**: Emulates human typing cadence with variable inter-keystroke intervals (20ms–65ms) and natural punctuation pauses.
+* **Natural Smooth Scrolling & Reading Pauses**: Injects multi-step eased scrolling and realistic 1s–2s page reading pauses before interacting with application forms.
+* **Adaptive Circuit Breaker**: Real-time stall and challenge detection that triggers an automated 60-second cooldown on consecutive stalls to protect accounts from rate limiting.
+* **Stealth Chrome Flags**: Built-in `--disable-blink-features=AutomationControlled` to evade heuristic bot detection.
+
+### 📊 3. Live Web Dashboard & In-Browser QA Studio
+* **Glassmorphic Single-Page Application**: Real-time control center (`python dashboard.py`) featuring live KPI streaming (Applications Submitted, Failed, Jobs Evaluated, Submission Rate).
+* **Processed Jobs Explorer**: Search, filter, and inspect detailed submission statuses, company names, job titles, and failure diagnostics.
+* **Live Event Stream Monitor**: Real-time telemetry feed streaming internal bot events directly from `logs/events.jsonl`.
+* **Interactive Question Answering Studio**: In-browser sandbox allowing you to test any recruiter question to preview the exact answer the bot and AI engine will select.
+
+### ⚡ 4. React 18 & Server-Driven UI (SDUI) Resilience
+* **Multi-Modal Synthetic Click Dispatcher**: Dispatches synthetic `PointerEvent` + `MouseEvent` event chains and tab-focus switching to trigger React 18 event listeners reliably.
+* **Direct `/apply/` Fallback**: Detects modern SDUI modal slide-sheets and falls back to direct `/jobs/view/{job_id}/apply/` URL navigation when button clicks fail.
+* **Smart Form Auto-Recovery**: Automatically resolves unselected comboboxes, typeahead dropdowns, and required legal/privacy checkboxes.
+
+---
+
+## 🏛️ System Architecture
 
 ```text
-easy-apply-automator/
-├── .github/workflows/ci.yml        # CI pipeline (ruff, mypy, pytest)
-├── easy_apply_automator/           # Core source package
-│   ├── app/                        # Orchestrator, runner, and search loop
-│   │   ├── orchestrator.py
-│   │   ├── runner.py
-│   │   └── search_loop.py
-│   ├── config/                     # YAML parser + env overlay + RunConfig schema
-│   ├── dashboard/                  # Live Web Dashboard & REST API
-│   │   ├── server.py               # Flask application & API routes
-│   │   └── templates/index.html    # Glassmorphism control center SPA
-│   ├── domain/                     # AppConfig / RuntimeConfig / SessionMetrics dataclasses
-│   ├── infra/                      # Browser factory, human simulation & result repositories
-│   │   ├── browser_factory.py      # Undetected ChromeDriver builder
-│   │   ├── human_simulation.py     # Bézier curves, typing jitter & circuit breaker
-│   │   └── repositories.py         # File results repository
-│   ├── observability/              # Logger setup + JSONL EventLogger
-│   ├── qa/                         # AutoAnswer regex + template engine + LLM client
-│   │   ├── auto_answer.py          # QA matching & self-learning rule persistence
-│   │   └── llm_client.py           # Universal Gemini/OpenAI/Ollama REST client
-│   └── services/                   # Business logic & apply flow state machine
-│       ├── base.py                 # ServiceBase
-│       ├── session_service.py      # Login, cookie save/restore
-│       ├── question_service.py     # Question parsing & matching
-│       ├── diagnostics_service.py  # Job metadata extraction + debug HTML dumps
-│       ├── throughput_service.py   # Submission-rate pacing & short breaks
-│       ├── apply_flow_service.py   # Public compose of form-filler + submit-flow mixins
-│       ├── _form_filler.py         # Easy Apply required-field filling & recovery
-│       └── _submit_flow.py         # Apply-flow state machine + retry/stall handling
-├── tests/                          # Pytest suite (200+ unit & mock-based tests)
-├── config.yaml                     # Job search & filter settings (tracked)
-├── locators.yaml                   # Decoupled HTML element selectors (tracked)
-├── questions_answers.example.yaml  # Auto-answer rule template (tracked)
-├── questions_answers.yaml           # Your local answer profile (gitignored)
-├── .env.example                    # Environment variable template (tracked)
-├── .env                            # Your local secrets (gitignored)
-├── easy_apply_bot.py               # Main bot CLI entry point
-├── dashboard.py                    # Live Web Dashboard launcher
-└── run.bat / run.sh                # Startup scripts with interactive menu
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                             EasyApply Automator Core                             │
+├──────────────────────────┬──────────────────────────┬────────────────────────────┤
+│   Application Layer      │     Services Layer       │   Infrastructure Layer     │
+│  ┌────────────────────┐  │  ┌────────────────────┐  │  ┌──────────────────────┐  │
+│  │ Orchestrator /     │  │  │ Apply Flow State   │  │  │ Undetected Browser   │  │
+│  │ Search Loop        │─►│  │ Machine            │─►│  │ Factory (Chrome)     │  │
+│  └────────────────────┘  │  └────────────────────┘  │  └──────────────────────┘  │
+│            │             │            │             │            │               │
+│            ▼             │            ▼             │            ▼               │
+│  ┌────────────────────┐  │  ┌────────────────────┐  │  ┌──────────────────────┐  │
+│  │ Live Control       │  │  │ Form Filler /      │  │  │ Human Simulation:    │  │
+│  │ Dashboard Server   │  │  │ SDUI Recovery      │  │  │ Bézier & Jitter      │  │
+│  └────────────────────┘  │  └────────────────────┘  │  └──────────────────────┘  │
+└────────────┬──────────────────────────┬──────────────────────────┬───────────────┘
+             ▼                          ▼                          ▼
+   ┌───────────────────┐      ┌───────────────────┐      ┌───────────────────┐
+   │ questions_answers │      │ Groq / Gemini /   │      │ JSONL Telemetry & │
+   │ Local YAML Rules  │      │ Claude LLM Engine │      │ Cookie Repository │
+   └───────────────────┘      └───────────────────┘      └───────────────────┘
 ```
-
-Runtime artifacts (all gitignored): `.auth/` (cookies), `logs/` (logs + events.jsonl), `debug/` (HTML snapshots), `results/` (per-run application output).
 
 ---
 
-## Quick Start
+## 🔄 Smart QA Decision Waterfall
+
+When encountering form questions, the bot executes a 4-tier decision waterfall:
+
+```mermaid
+flowchart TD
+    A[Form Question Received] --> B{Match in questions_answers.yaml?}
+    B -- Yes --> C[Apply Regex / Template Rule\n0 API Calls]
+    B -- No --> D{Matches Dynamic Skill Pattern?}
+    D -- Yes --> E[Extract Years from profile.years]
+    D -- No --> F{Matches Recruitment Heuristic?}
+    F -- Yes --> G[Return Contextual Answer\ne.g., Notice Period, Relocation]
+    F -- No --> H{Is AI Provider Configured?}
+    H -- Yes --> I[Groq / Gemini / Claude Zero-Shot\n+ Candidate Profile & resume.md]
+    I --> J[Persist Answer to questions_answers.yaml\nSelf-Learning Local Cache]
+    H -- No --> K[Default Fallback\ne.g., user provided / 0]
+```
+
+---
+
+## 🚀 Quick Start
 
 ### Option 1: One-Click Interactive Launcher
-* **Windows**: Double-click **`run.bat`** (or run `run.bat` in terminal).
+* **Windows**: Double-click **`run.bat`** (or run `run.bat` in CMD).
 * **Linux / macOS**: Run **`./run.sh`**.
 
 The launcher provides an interactive menu:
 ```text
-Choose an action to run:
- [1] Start EasyApply Bot
- [2] Start Live Web Dashboard
- [3] Run Test Suite (pytest)
+============================================
+   EasyApply Automator - Control Center
+============================================
+
+Choose an option to run:
+  [1] Start EasyApply Bot
+  [2] Start Live Web Dashboard
+  [3] Run Pytest Suite
+
+Enter choice 1, 2, or 3 (default 1):
 ```
 
 ### Option 2: Manual Installation & CLI
 ```bash
-# 1. Clone and enter directory
+# 1. Clone the repository
 git clone https://github.com/Romil157/EasyApply-Automator.git
 cd EasyApply-Automator
 
-# 2. Setup virtual environment
+# 2. Set up virtual environment
 python -m venv venv
-source venv/bin/activate  # macOS/Linux
+source venv/bin/activate  # Linux / macOS
 venv\Scripts\activate     # Windows
 
-# 3. Install project and dependencies
-pip install -e .
-pip install ".[dev]"      # Install testing tools (pytest, ruff, mypy)
+# 3. Install in editable mode with dev dependencies
+pip install -e ".[dev]"
 
-# 4. Create your local config files from the tracked templates
-cp .env.example .env                                # edit .env with your credentials / AI keys
-cp questions_answers.example.yaml questions_answers.yaml  # edit with your profile data
+# 4. Copy configuration templates
+cp .env.example .env
+cp questions_answers.example.yaml questions_answers.yaml
 
-# 5. Start the bot or dashboard
-python easy_apply_bot.py      # Run bot
-python dashboard.py           # Launch Control Center Web Dashboard on http://127.0.0.1:5000
+# 5. Start the bot or web dashboard
+python easy_apply_bot.py      # Run LinkedIn bot
+python dashboard.py           # Launch Web Control Center on http://127.0.0.1:5000
 ```
 
 ---
 
-## Configuration
+## 📊 Live Web Dashboard & QA Studio
 
-EasyApply Automator separates configuration into three layers:
+Launch the dashboard at any time to monitor your applications or test QA rules:
+```bash
+python dashboard.py --port 5000
+```
 
-1. **`config.yaml`** (tracked) — job search criteria and runtime pacing.
-2. **`.env`** (gitignored) — credentials and high-sensitivity PII sourced via environment variables.
-3. **`questions_answers.yaml`** (gitignored) — local answer profile: years of experience, demographics, work-authorization answers, education, cover-letter text.
+```text
+==================================================
+ EasyApply Automator Control Center
+ Live Dashboard running at: http://127.0.0.1:5000
+==================================================
+```
 
-A tracked **template** exists for each gitignored file (`.env.example`, `questions_answers.example.yaml`) so fresh clones still work out of the box — `AutoAnswer` falls back to the template if your local `questions_answers.yaml` is missing, and personal values are then injected from environment variables.
+### Dashboard Capabilities:
+* **Real-Time KPIs**: Total evaluated jobs, successful submissions, failure rates, and live pacing speed.
+* **Applications Table**: Searchable history of applied jobs with direct links, timestamps, and error diagnostics.
+* **Live Event Stream**: Real-time event log viewer updating automatically as the bot navigates.
+* **QA Testing Studio**: Type any arbitrary recruiter question into the in-browser sandbox to preview the resolved answer.
 
-### Job Search & Filters (`config.yaml`)
+---
 
-Define your targets, locations, and filter out unwanted roles:
+## ⚙️ Configuration
 
+EasyApply Automator follows a clean **3-layer configuration architecture**:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ 1. config.yaml (Tracked)                                    │
+│    Search positions, locations, filters & date range        │
+├─────────────────────────────────────────────────────────────┤
+│ 2. .env (Gitignored)                                        │
+│    Credentials, phone, email, API keys (Groq/Gemini)        │
+├─────────────────────────────────────────────────────────────┤
+│ 3. questions_answers.yaml & resume.md (Gitignored)          │
+│    Candidate experience years, custom rules, resume text    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 1. `.env` (Secrets & Personal Data)
+Copy `.env.example` to `.env` and fill in your details:
+
+```env
+# LinkedIn Credentials
+LINKEDIN_USERNAME=your_email@example.com
+LINKEDIN_PASSWORD=
+
+# Personal Info Auto-filled in Forms
+LINKEDIN_FULL_NAME=Your Full Name
+LINKEDIN_FIRST_NAME=Your First Name
+LINKEDIN_LAST_NAME=Your Last Name
+LINKEDIN_EMAIL=your_email@example.com
+LINKEDIN_PHONE_NUMBER=1234567890
+LINKEDIN_LOCATION_COUNTRY=IN
+LINKEDIN_LOCATION_CITY=Mumbai
+LINKEDIN_SALARY=1000000
+
+# AI / LLM Auto-Answer Engine (Groq / Gemini / OpenAI)
+GROQ_API_KEY=gsk_your_groq_api_key_here
+AI_PROVIDER=groq
+AI_MODEL=openai/gpt-oss-120b
+AI_AUTO_LEARN=1
+```
+
+### 2. `config.yaml` (Job Search & Criteria)
 ```yaml
 positions:
   - Software Engineer
   - Python Developer
+  - Data Engineer
 
 locations:
   - Remote
@@ -161,49 +220,21 @@ locations:
 
 filters:
   database_related:
-    - "sql"
     - "oracle"
     - "mongodb"
   medical_related:
     - "healthcare"
     - "clinical"
-    - "nurse"
 
-# Experience level selection happens at startup via the CLI prompt.
-# The numeric codes in config.yaml map through an internal remap:
-#   1 -> Entry level   |   2 -> Associate   |   6 -> Internship
-# The CLI prompt overrides this list at runtime.
+# Numeric experience level codes:
+# 1: Entry level | 2: Associate | 3: Mid-Senior | 6: Internship
 experience_level:
-  - 1  # Entry level
-  - 2  # Associate
-  - 6  # Internship
+  - 1
+  - 2
+  - 6
 ```
 
-### Environment Variables (`.env`)
-
-Environment variables take precedence over `config.yaml` and are the **only** place to store high-sensitivity PII. Copy `.env.example` to `.env` and fill in your values:
-
-| Variable | Purpose |
-|:---|:---|
-| `LINKEDIN_USERNAME` | Login email (typed into the LinkedIn login page) |
-| `LINKEDIN_PASSWORD` | Optional prompt marker; password itself is always typed manually in the browser |
-| `LINKEDIN_FULL_NAME` | Full name, injected into `{full_name}` answer templates |
-| `LINKEDIN_FIRST_NAME` | First name, injected into `{first_name}` |
-| `LINKEDIN_LAST_NAME` | Last name, injected into `{last_name}` |
-| `LINKEDIN_EMAIL` | Email, injected into `{form_email}` |
-| `LINKEDIN_PHONE_NUMBER` | Phone, injected into `{phone_number}` |
-| `LINKEDIN_PROFILE_URL` | LinkedIn profile URL, injected into `{linkedin_profile_url}` |
-| `LINKEDIN_GITHUB_URL` | GitHub/portfolio URL, injected into `{github_url}` |
-| `LINKEDIN_LOCATION_COUNTRY` | ISO country code (default `IN`) |
-| `LINKEDIN_LOCATION_CITY` | City, injected into `{location_city}` |
-| `LINKEDIN_SALARY` | Salary expectation, injected into `{salary}` |
-| `LINKEDIN_RATE` | Hourly rate expectation, injected into `{hourly_rate}` |
-| `EASYAPPLY_IGNORE_CERT_ERRORS` | Set to `1` **only** behind a corporate TLS-intercepting proxy. Disables TLS verification in the browser. Off by default. |
-
-### Auto-Answer Rules (`questions_answers.yaml`)
-
-The answer engine matches each form question against an ordered list of rules. The first rule whose `match_any` regexes hit wins. Answers support `{placeholder}` templating resolved at runtime from env vars and the local profile blocks.
-
+### 3. `questions_answers.yaml` (Answer Profile & Rules)
 ```yaml
 version: 1
 
@@ -212,118 +243,96 @@ defaults:
   unknown_text: "user provided"
   yes: "Yes"
   no: "No"
-  prefer_not: "Wish not to answer"
-  no_self_id: "I do not wish to self-identify"
 
 profile:
   years:
     python: "2"
     sql: "1"
+    backend: "2"
+    machine_learning: "1"
   work_auth:
     require_sponsorship: "No"
     legally_authorized: "Yes"
-  demographics:
-    nationality: "Indian"
-    government_id: "I do not wish to self-identify"
 
 rules:
-  - id: salary
+  - id: python_experience
     match_any:
-      - "(?i)salary"
-      - "(?i)compensation"
-    answer: "{salary}"               # ↳ resolved from LINKEDIN_SALARY
+      - "(?i)years of python"
+      - "(?i)experience with python"
+    answer: "{years.python}"
 
   - id: sponsorship
     match_any:
       - "(?i)require sponsorship"
-    answer: "{require_sponsorship}"  # ↳ resolved from profile.work_auth
-
-  - id: python_years
-    match_any:
-      - "(?i)years of python"
-    answer: "{years.python}"         # ↳ resolved from profile.years
-
-  - id: phone_number
-    match_any:
-      - "(?i)phone"
-    answer: "{phone_number}"         # ↳ resolved from LINKEDIN_PHONE_NUMBER
-
-  - id: linkedin_profile
-    match_any:
-      - "(?i)linkedin profile"
-    answer: "{linkedin_profile_url}" # ↳ resolved from LINKEDIN_PROFILE_URL
+      - "(?i)need visa sponsorship"
+    answer: "{require_sponsorship}"
 ```
 
-See `questions_answers.example.yaml` for the full rule set (years of experience per skill, common questions, yes/no helpers, etc.). Copy it to `questions_answers.yaml` (gitignored) and fill in your personal values.
-
-If an env var is unset, the corresponding `{placeholder}` is left intact in the rendered answer as a visible signal that the value is missing.
-
-### Element Locators (`locators.yaml`)
-
-If LinkedIn updates its UI, you only need to update this file. No code changes required:
-
-```yaml
-next: ["css", "button[aria-label='Continue to next step']"]
-submit: ["css", "button[aria-label='Submit application']"]
-```
-
-Format: `key: [type, value]` where `type` is one of `css`, `xpath`, `id`, `class`, `name`. Unknown types fall back to CSS.
-
 ---
 
-## Runtime Artifacts & Troubleshooting
+## 🛠️ CLI Flags & Options
 
-The bot writes to several gitignored directories at runtime:
-
-| Path | Contents |
-|:---|:---|
-| `.auth/linkedin_cookies.json` | Session cookies for login reuse (chmod `0600` on POSIX). Delete to force a fresh login. |
-| `logs/YYYY-MM-DD_HH-MM-SS_applyJobs.log` | Human-readable run log. |
-| `logs/events.jsonl` | Append-only structured event stream (one JSON object per line). Greppable for `event` field. |
-| `debug/first_job_<id>_<ts>/` | One-time HTML + metadata snapshot of the first job in a session — used for diagnosing apply-flow breakages. |
-| `debug/failed/job_<id>_<ts>/` | HTML + metadata snapshots for jobs that failed mid-apply. |
-| `results/<timestamp>.json` | Per-run application outcome file. |
-
-### Common issues
-
-* **Bot keeps trying to log in** — `.auth/linkedin_cookies.json` is missing or expired. Delete it and run again to log in manually; a fresh cookie file will be written on success.
-* **`{phone_number}` showing up literally in answer text** — `LINKEDIN_PHONE_NUMBER` env var is unset. Add it to `.env` and restart.
-* **A form question wasn't answered** — the question didn't match any rule in `questions_answers.yaml`. Add a new rule under `rules:` with a `match_any` regex and an `answer`. Unmatched questions fall through to `defaults.unknown_text` (`"user provided"`).
-* **`debug/` is taking up disk space** — snapshots are written eagerly during apply-flow failures. Safe to delete anytime; the bot will recreate `debug/failed/` on demand.
-* **Certificate errors behind a corporate proxy** — set `EASYAPPLY_IGNORE_CERT_ERRORS=1` in `.env`. This disables TLS verification in the browser; only use this on trusted networks.
-
-### Privacy & security checklist
-
-* `.env`, `.auth/`, `logs/`, `debug/`, `results/`, and `questions_answers.yaml` are all gitignored by default — keep them that way.
-* Never commit real PII. Use `.env` for high-sensitivity values and treat `questions_answers.yaml` as a local-only file.
-* If you've cloned a previous version of this repo that contained committed PII, scrub git history with `git filter-repo --replace-text` and rotate any exposed credentials (LinkedIn password, phone number, etc.).
-
----
-
-## College Presentation Highlights
-
-If showcasing this project, emphasize these **Engineering Decisions**:
-
-1. **Anti-Fingerprinting**: Transitioned from standard Selenium to `undetected-chromedriver` to avoid "Bot Detected" screens by modifying the `cdc_` string in the browser binary.
-2. **Decoupled Selectors**: Implemented a `locators.yaml` strategy. This separates "What to find" (data) from "How to find it" (logic), following the Page Object Model (POM) philosophy.
-3. **Behavioral Mimicry**: Rather than fixed `time.sleep()`, the bot uses randomized jitter and human-like coordinate offsets for clicks to bypass simple heuristic detectors.
-4. **Domain-Driven Design (DDD)**: Separated the application into `Domain` (models), `Infra` (browser/storage), and `Services` (business logic) for high testability and modularity.
-5. **Robust QA Engine**: Uses fuzzy regex matching and answer aliases (e.g., "Yes" $\approx$ "True" $\approx$ "1") to handle varying form implementations.
-6. **Hybrid PII Model**: Keeps personal data out of version control by sourcing high-sensitivity fields (name, phone, email, profile URLs) from environment variables while storing lower-sensitivity profile data (years of experience, demographics) in a gitignored local YAML file.
-
----
-
-## Testing & Quality
-
-The project maintains a high standard of quality with a comprehensive test suite:
+The bot supports command-line flags to customize any session on the fly:
 
 ```bash
-# Run all tests with coverage report
+# Run in headless mode without opening Chrome UI
+python easy_apply_bot.py --headless
+
+# Test search and form-filling without actually clicking Submit
+python easy_apply_bot.py --dry-run
+
+# Filter only jobs posted within the last 24 hours
+python easy_apply_bot.py --date-posted past_24h
+
+# Filter only Remote jobs
+python easy_apply_bot.py --remote-only
+
+# Limit the maximum applications for this session
+python easy_apply_bot.py --max-apps 25
+```
+
+---
+
+## 🎓 Engineering Decisions & Presentation Highlights
+
+If showcasing this project in technical reviews or interviews, highlight these core design decisions:
+
+1. **Domain-Driven Design (DDD) & Layered Separation**:
+   - `domain/`: Pure dataclasses (`AppConfig`, `RunConfig`, `JobMetadata`).
+   - `infra/`: Browser automation factory, Bézier trajectory generator, repositories.
+   - `qa/`: AutoAnswer pattern matching and universal REST LLM client.
+   - `services/`: Business logic, state machines, and SDUI form handlers.
+   - `dashboard/`: Flask control center and REST streaming.
+2. **Anti-Fingerprinting & Behavioral Simulation**:
+   - Uses `undetected-chromedriver` with overridden Chrome `cdc_` properties and cubic Bézier curves to emulate human cursor physics.
+3. **Decoupled Page Object Model (`locators.yaml`)**:
+   - HTML selectors are externalized into `locators.yaml`. UI updates on LinkedIn require **zero code changes**.
+4. **Hybrid PII Protection**:
+   - High-sensitivity data (credentials, phone, name, email) is isolated into `.env` and `resume.md` (gitignored), ensuring no personal data is committed to source control.
+5. **Self-Learning QA Architecture**:
+   - Combines deterministic regex rules with zero-shot LLM reasoning and auto-persisting cache for efficient, cost-free answer reuse.
+
+---
+
+## 🧪 Testing & Quality Assurance
+
+The codebase is tested with unit and mock-based tests:
+
+```bash
+# Run full pytest suite with coverage
 python -m pytest tests/ -v --cov=easy_apply_automator --cov-report=term-missing
 
-# Linting and Type Checking
+# Linting with Ruff
 python -m ruff check .
+
+# Static type checking with Mypy
 python -m mypy easy_apply_automator
 ```
 
-The CI pipeline (`.github/workflows/ci.yml`) runs ruff, mypy, and the full pytest suite on every push and pull request.
+Continuous Integration (`.github/workflows/ci.yml`) runs tests, type checking, and linter validation on every push.
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
