@@ -556,3 +556,94 @@ rules:
       - '(?i)how\ many\ years\ of\ proficient\ experience\ you\ have\ in\ speaking\ kannada\
   language\?'
     answer: "0"
+
+  # Auto-learned by AI on 2026-09-02 12:26:29
+  - id: ai_we_must_fill_this_position_urgently
+    match_any:
+      - '(?i)we\ must\ fill\ this\ position\ urgently\.\ can\ you\ start\ immediately\?\ required\
+  select\ an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-02 12:26:30
+  - id: ai_over_the_next_six_months_can_you_co
+    match_any:
+      - '(?i)over\ the\ next\ six\ months,\ can\ you\ commit\ that\ no\ other\ project\ or\
+  initiative\ that\ you\ take\ on\ affects\ your\ ability\ to\ perform\ at\ your\
+  best\ in\ this\ internship\?\ required\ select\ an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-02 12:34:59
+  - id: ai_current_ctc
+    match_any:
+      - '(?i)current\ ctc'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-02 12:35:05
+  - id: ai_expected_ctc
+    match_any:
+      - '(?i)expected\ ctc'
+    answer: "Open to discussion based on market standards and role responsibilities."
+
+  # Auto-learned by AI on 2026-09-02 12:43:21
+  - id: ai_this_is_an_unpaid_internship_is_thi
+    match_any:
+      - '(?i)this\ is\ an\ unpaid\ internship\ is\ this\ okay\ with\ you\?\ required\ select\
+  an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-02 12:43:22
+  - id: ai_this_is_3_month_internship_is_this_
+    match_any:
+      - '(?i)this\ is\ 3\ month\ internship\ is\ this\ okay\ with\ you\?\ required\ select\
+  an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-02 12:46:37
+  - id: ai_this_is_an_unpaid_internship_are_yo
+    match_any:
+      - '(?i)this\ is\ an\ unpaid\ internship\.\ are\ you\ okay\ with\ that\?\ required\ select\
+  an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-02 12:46:37
+  - id: ai_this_is_a_founding_role_with_full_t
+    match_any:
+      - '(?i)this\ is\ a\ founding\ role\ with\ full\ technical\ ownership,\ no\ existing\
+  codebase\ or\ senior\ guidance\.\ you''ll\ independently\ choose\ your\ tools\ and\
+  architecture\.\ comfortable\ with\ this\ level\ of\ ownership\?\ required\ select\
+  an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-02 12:46:41
+  - id: ai_we_must_fill_this_position_urgently
+    match_any:
+      - '(?i)we\ must\ fill\ this\ position\ urgently\.\ can\ you\ start\ immediately\?\ required\
+  yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-02 12:47:29
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ anthropic\ claude\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-02 12:47:31
+  - id: ai_how_many_ai_tools_have_you_personal
+    match_any:
+      - '(?i)how\ many\ ai\ tools\ have\ you\ personally\ implemented\ or\ deployed\ in\ a\
+  professional\ setting\ \(e\.g\.\ make,\ zapier,\ notion\ ai,\ claude,\ chatgpt\)\?\
+  \(not\ just\ used,\ but\ set\ up\ for\ a\ team\ or\ process\)'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-02 12:47:32
+  - id: ai_how_many_process_improvement_or_aut
+    match_any:
+      - '(?i)how\ many\ process\ improvement\ or\ automation\ projects\ have\ you\ independently\
+  led\ end\-to\-end\?'
+    answer: "3"
+
+  # Auto-learned by AI on 2026-09-02 12:47:32
+  - id: ai_what_is_your_current_or_most_recent
+    match_any:
+      - '(?i)what\ is\ your\ current\ or\ most\ recent\ annual\ ctc\ in\ lakhs\?\ \(in\ inr\)'
+    answer: "0"

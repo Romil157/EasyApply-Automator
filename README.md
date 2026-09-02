@@ -4,7 +4,7 @@
 
 [![Python 3.12](https://img.shields.io/badge/python-3.12+-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI Tests](https://img.shields.io/badge/Tests-256%20Passed-brightgreen.svg)](tests/)
+[![CI Tests](https://img.shields.io/badge/Tests-265%20Passed-brightgreen.svg)](tests/)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type Checked: Mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
 [![AI Engine: Groq / Gemini / Claude](https://img.shields.io/badge/AI%20Engine-Groq%20%7C%20Gemini%20%7C%20Claude-orange.svg)](easy_apply_automator/qa/)
@@ -26,31 +26,41 @@
 
 ## Key Features
 
-### 1. Resume Relevance Scoring & Pre-Click Search Filtering
+### 1. SDUI Navigation Flow & Full-Page Apply Support
+* **Server-Driven UI (SDUI) Flow Handling**: Fully supports LinkedIn's modern SDUI navigation-based apply flow (`<a href="...?openSDUIApplyFlow=true">` and dedicated `/apply/` URLs) alongside traditional client-side modal dialogs.
+* **Post-Navigation Page Synchronization**: Detects link-triggered page transitions, awaiting DOM readiness and scrolling new application pages before engaging form controls.
+* **Resilient Multi-Strategy Fallback**: Direct `/apply/` URL navigation and collection redirect recovery when in-page modal dialogs do not render.
+
+### 2. Resume Relevance Scoring & Pre-Click Search Filtering
 * **Search Result Card Pre-Filter**: Scrapes and checks job titles directly from LinkedIn search result cards before clicking into the job page. Blacklisted and low-relevance roles are skipped in under 0.1 seconds without loading or scrolling the full page.
 * **Resume-Aligned Relevance Scorer**: Zero-cost heuristic scoring engine (`RelevanceScorer`) matching 60+ technical skills (Software, Python, Flask, Node.js, SQL, Data Scraping, Cybersecurity, SIEM, IT Support, AI/ML, NLP, Automation, QA, Finance, SEO) and blocking 40+ irrelevant categories (non-English language roles, video/reels creation, healthcare, manual labor, sales).
+* **Empty Page Fast Exit**: Automatically detects when a search keyword or location yields no more listings after consecutive empty pages, terminating the combo early to avoid burning redundant pagination requests.
 
-### 2. External ATS Redirect & Modal Detection
+### 3. External ATS Redirect & Modal Detection
 * **External ATS Early Exit**: Automatically detects when an Easy Apply button redirects to external portals (Workday, Greenhouse, Lever, SmartRecruiters, Ashby, iCIMS, Taleo) within 1-2 seconds, exiting early and returning to LinkedIn without wasting 30+ seconds waiting for non-existent modals.
 * **Stealth Single-Click Dispatcher**: Uses randomized single-click strategies (`ActionChains`, direct interaction, or script execution) with humanized pause variance, eliminating synthetic multi-click patterns that trigger anti-bot protections.
 
-### 3. AI Zero-Shot Question Answering & Job-Targeted Context
+### 4. Smart Deduplication & Transient Failure Recovery
+* **Non-Destructive Failure Handling**: Distinguishes permanent job skips (already applied, title blacklist, medical filters, low relevance) from transient execution issues (modal timeouts, network stalls). Transient failures are recorded for the active loop but remain eligible for subsequent passes instead of being permanently locked out.
+* **Multi-Day Cache Ingestion**: Intelligently loads prior successful submissions while preserving uncompleted applications across separate runs.
+
+### 5. AI Zero-Shot Question Answering & Job-Targeted Context
 * **Universal Multi-Provider AI Client**: Native REST client supporting **Groq** (`openai/gpt-oss-120b`, `llama-3.3-70b`), **Google Gemini Flash**, **OpenAI**, **Anthropic Claude**, and **local Ollama** without heavy third-party SDK dependencies.
 * **Job-Specific Prompt Enrichment**: Injects the active job title, hiring company, candidate background profile, and `resume.md` into zero-shot prompts, generating customized answers for questions like "Why are you interested in this role?".
 * **Self-Learning Local Cache**: When AI resolves an unknown question, it dynamically appends the rule into your local `questions_answers.yaml` on disk. Future occurrences are resolved locally with zero API calls and zero latency.
 
-### 4. Anti-Detection & Human Simulation
+### 6. Anti-Detection & Human Simulation
 * **Cubic Bezier Mouse Trajectories**: Generates randomized cubic Bezier cursor paths with human velocity profiles and subtle overshoot corrections instead of robotic straight-line jumps.
-* **Typing Jitter (`human_type_with_jitter`)**: Emulates human typing cadence with variable inter-keystroke intervals (20ms-65ms) and natural punctuation pauses.
+* **Human Keystroke Jitter (`human_type_with_jitter`)**: Emulates human typing cadence with variable inter-keystroke intervals (20ms-65ms) and natural punctuation pauses across all form inputs and contact fields.
 * **Natural Smooth Scrolling & Reading Pauses**: Injects multi-step eased scrolling and realistic page reading pauses before interacting with application forms.
-* **Adaptive Circuit Breaker**: Real-time stall and challenge detection that triggers an automated cooldown on consecutive stalls to protect accounts from rate limiting.
+* **Progressive Circuit Breaker**: Monitors consecutive failure bursts and triggers escalating cooldown intervals (60s, 120s, 180s up to 300s) to protect accounts from rate limiting, gradually recovering cooldown thresholds as successful submissions resume.
 * **Stealth Chrome Flags**: Built-in `--disable-blink-features=AutomationControlled` and persistent user profile support to evade heuristic bot detection.
 
-### 5. Automated Contact Pre-Filling & SDUI Form Recovery
-* **Full Contact Field Pre-Filling**: Automatically fills Mobile Phone, Email, First Name, Last Name, City, LinkedIn Profile URL, and GitHub Portfolio on initial form pages.
+### 7. Automated Contact Pre-Filling & SDUI Form Recovery
+* **Full Contact Field Pre-Filling**: Automatically fills Mobile Phone, Email, First Name, Last Name, City, LinkedIn Profile URL, and GitHub Portfolio with natural typing jitter on initial form pages.
 * **Smart Form Auto-Recovery**: Automatically resolves unselected comboboxes, typeahead dropdowns, required legal checkboxes, and multi-option radio groups.
 
-### 6. Live Web Dashboard, Telemetry & Storage Management
+### 8. Live Web Dashboard, Telemetry & Storage Management
 * **Glassmorphic Single-Page Application**: Real-time control center (`python dashboard.py`) featuring live KPI streaming (Applications Submitted, Failed, Jobs Evaluated, Submission Rate).
 * **Session Performance Telemetry**: Outputs structured summary reports at session completion (duration, attempts, submissions, failure rates, termination reasons).
 * **Automated Storage Management**: Automatically prunes older debug HTML failure snapshots on startup to keep disk consumption capped.
