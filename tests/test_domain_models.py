@@ -149,18 +149,15 @@ class TestAppConfigFromDict:
         cfg = AppConfig.from_dict(self._params(), "results/out.json")
         assert cfg.experience_level == []
 
-    def test_experience_level_remapping_internship(self):
-        # YAML value 6 → maps to 1 (Internship)
-        cfg = AppConfig.from_dict(self._params(experience_level=[6]), "results/out.json")
+    def test_experience_level_direct_pass_through_internship(self):
+        cfg = AppConfig.from_dict(self._params(experience_level=[1]), "results/out.json")
         assert cfg.experience_level == [1]
 
-    def test_experience_level_remapping_entry(self):
-        # YAML value 1 → maps to 2 (Entry Level)
-        cfg = AppConfig.from_dict(self._params(experience_level=[1]), "results/out.json")
+    def test_experience_level_direct_pass_through_entry(self):
+        cfg = AppConfig.from_dict(self._params(experience_level=[2]), "results/out.json")
         assert cfg.experience_level == [2]
 
-    def test_experience_level_unmapped_values_pass_through(self):
-        # Value 5 (Director) is not in the remap dict, so it stays 5
+    def test_experience_level_values_pass_through(self):
         cfg = AppConfig.from_dict(self._params(experience_level=[5]), "results/out.json")
         assert 5 in cfg.experience_level
 

@@ -121,18 +121,37 @@ def reading_pause(min_seconds: float = 1.2, max_seconds: float = 2.8) -> None:
 class AdaptiveCircuitBreaker:
     """Monitors consecutive failure bursts and triggers progressive cooldowns to prevent rate limiting."""
 
-    def __init__(self, failure_threshold: int = 5, cooldown_seconds: float = 60.0):
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        cooldown_seconds: float = 60.0,
+        escalation_factor: float = 1.5,
+        max_cooldown_seconds: float = 300.0,
+    ):
         self.failure_threshold = failure_threshold
-        self.cooldown_seconds = cooldown_seconds
+        self.base_cooldown_seconds = cooldown_seconds
+        self.escalation_factor = escalation_factor
+        self.max_cooldown_seconds = max_cooldown_seconds
         self.consecutive_failures = 0
+        self.consecutive_successes = 0
         self.total_cooldowns = 0
+
+    @property
+    def cooldown_seconds(self) -> float:
+        """Returns the calculated escalating cooldown duration."""
+        factor = self.escalation_factor ** max(0, self.total_cooldowns - 1)
+        return min(self.max_cooldown_seconds, self.base_cooldown_seconds * factor)
 
     def record_success(self) -> None:
         self.consecutive_failures = 0
+        self.consecutive_successes += 1
+        if self.consecutive_successes >= 3 and self.total_cooldowns > 0:
+            self.total_cooldowns = max(0, self.total_cooldowns - 1)
 
     def record_failure(self) -> bool:
         """Records a failed attempt. Returns True if circuit tripped and cooldown is recommended."""
         self.consecutive_failures += 1
+        self.consecutive_successes = 0
         if self.consecutive_failures >= self.failure_threshold:
             self.total_cooldowns += 1
             self.consecutive_failures = 0

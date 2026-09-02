@@ -106,12 +106,10 @@ class AppConfig:
             proxy=str(parameters.get("proxy", "")).strip(),
         )
 
-        level_map = {6: 1, 1: 2, 2: 3}
         experience_level = []
         for v in parameters.get("experience_level", []):
             if v is not None:
-                val = int(v)
-                experience_level.append(level_map.get(val, val))
+                experience_level.append(int(v))
 
         workplace_types = [str(w) for w in parameters.get("workplace_types", []) if w]
         job_types = [str(j) for j in parameters.get("job_types", []) if j]

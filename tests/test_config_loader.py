@@ -211,9 +211,9 @@ class TestAppConfigFromDict:
         assert cfg.locations == ["Remote"]
         assert cfg.username == "u@example.com"
 
-    def test_experience_level_remapping(self):
-        # Config value 6 → maps to 1 (internship), 1 → maps to 2 (entry), 2 → maps to 3 (associate)
-        cfg = AppConfig.from_dict(self._base_params(experience_level=[6, 1, 2]), "results/out.json")
+    def test_experience_level_direct_pass_through(self):
+        # Direct LinkedIn API values: 1 (internship), 2 (entry), 3 (associate)
+        cfg = AppConfig.from_dict(self._base_params(experience_level=[1, 2, 3]), "results/out.json")
         assert cfg.experience_level == [1, 2, 3]
 
     def test_runtime_config_defaults(self):
