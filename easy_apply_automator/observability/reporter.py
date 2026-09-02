@@ -14,7 +14,7 @@ def generate_html_report(
     records: list[dict[str, Any]],
     session_title: str = "EasyApply Automator – Session Report",
 ) -> Path:
-    """Generates a standalone, enterprise-grade HTML dashboard report of application activity."""
+    """Generates a standalone HTML dashboard report of application activity."""
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -30,7 +30,6 @@ def generate_html_report(
         reason = r.get("reason") or ("submitted" if r.get("result") else "unknown")
         reason_counts[reason] = reason_counts.get(reason, 0) + 1
 
-    # Format records for client-side JSON embedding
     safe_records: list[dict[str, Any]] = []
     for r in records:
         safe_records.append({
@@ -47,7 +46,7 @@ def generate_html_report(
     records_json_str = json.dumps(safe_records, ensure_ascii=False)
     now_str = datetime.now().strftime("%B %d, %Y • %I:%M:%S %p")
 
-    # Pre-render table rows for SEO / no-JS fallback
+    # Pre-render table rows
     rows_html: list[str] = []
     for r in reversed(safe_records):
         ts = html.escape(str(r["timestamp"]))
@@ -112,7 +111,6 @@ def generate_html_report(
             """
         )
 
-    # Empty state message
     empty_msg = '<tr><td colspan="6" class="empty-state">No application records logged yet. Run a session to view activity.</td></tr>'
 
     html_content = f"""<!DOCTYPE html>
@@ -122,933 +120,186 @@ def generate_html_report(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{session_title}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {{
-            --bg-base: #090d16;
-            --bg-subtle: #0f172a;
-            --surface-card: rgba(22, 30, 49, 0.75);
-            --surface-card-hover: rgba(30, 41, 67, 0.85);
-            --surface-border: rgba(255, 255, 255, 0.08);
-            --surface-border-bright: rgba(255, 255, 255, 0.16);
-            --primary: #6366f1;
-            --primary-glow: rgba(99, 102, 241, 0.25);
-            --accent-cyan: #06b6d4;
-            --accent-emerald: #10b981;
-            --accent-amber: #f59e0b;
-            --accent-rose: #f43f5e;
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 18px;
-            --radius-full: 9999px;
-            --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.05) inset;
-            --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.15);
+            --bg-base: #090d16; --surface: rgba(22, 30, 49, 0.75); --border: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1; --cyan: #06b6d4; --emerald: #10b981; --amber: #f59e0b; --rose: #f43f5e;
+            --text: #f8fafc; --text-sub: #94a3b8; --text-muted: #64748b;
+            --radius-md: 12px; --radius-lg: 18px; --shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
         }}
-
-        * {{
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }}
-
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{
-            font-family: var(--font-sans);
-            background-color: var(--bg-base);
-            background-image: 
-                radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 85% 20%, rgba(6, 182, 212, 0.06) 0%, transparent 35%),
-                radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
-            background-attachment: fixed;
-            color: var(--text-primary);
-            min-height: 100vh;
-            padding: 2.5rem 1.5rem 4rem;
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-        }}
-
-        .dashboard-container {{
-            max-width: 1360px;
-            margin: 0 auto;
-        }}
-
-        /* Header Bar */
-        .top-nav {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-            margin-bottom: 2.5rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 1px solid var(--surface-border);
-        }}
-
-        .brand-group {{
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }}
-
-        .brand-logo {{
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, #6366f1, #06b6d4);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
-            color: #fff;
-        }}
-
-        .brand-info h1 {{
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            background: linear-gradient(to right, #ffffff, #cbd5e1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }}
-
-        .brand-info .live-status {{
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.82rem;
-            color: var(--text-secondary);
-            margin-top: 2px;
-        }}
-
-        .pulse-dot {{
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }}
-        .pulse-dot.green {{
-            background: var(--accent-emerald);
-            box-shadow: 0 0 10px var(--accent-emerald);
-        }}
-        .pulse-dot.red {{
-            background: var(--accent-rose);
-            box-shadow: 0 0 10px var(--accent-rose);
-        }}
-        .pulse-dot.neutral {{
-            background: var(--text-muted);
-        }}
-
-        .header-actions {{
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }}
-
-        .btn {{
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1.1rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--surface-border);
-            background: var(--surface-card);
-            color: var(--text-primary);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            backdrop-filter: blur(10px);
-            text-decoration: none;
-        }}
-
-        .btn:hover {{
-            background: var(--surface-card-hover);
-            border-color: var(--surface-border-bright);
-            transform: translateY(-1px);
-        }}
-
-        .btn-primary {{
-            background: linear-gradient(135deg, #6366f1, #4f46e5);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
-        }}
-        .btn-primary:hover {{
-            background: linear-gradient(135deg, #4f46e5, #4338ca);
-            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
-        }}
-
-        /* KPI Cards Grid */
-        .kpi-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.25rem;
-            margin-bottom: 2rem;
-        }}
-
-        .kpi-card {{
-            background: var(--surface-card);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--surface-border);
-            border-radius: var(--radius-lg);
-            padding: 1.4rem;
-            box-shadow: var(--shadow-card);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s ease, border-color 0.2s ease;
-        }}
-
-        .kpi-card:hover {{
-            transform: translateY(-2px);
-            border-color: var(--surface-border-bright);
-        }}
-
-        .kpi-card::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--surface-border-bright), transparent);
-        }}
-
-        .kpi-card.highlight::before {{
-            background: linear-gradient(90deg, var(--primary), var(--accent-cyan));
-        }}
-
-        .kpi-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-        }}
-
-        .kpi-title {{
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-secondary);
-        }}
-
-        .kpi-icon {{
-            width: 32px;
-            height: 32px;
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.04);
-            color: var(--text-secondary);
-        }}
-
-        .kpi-value {{
-            font-size: 2.2rem;
-            font-weight: 800;
-            line-height: 1.1;
-            letter-spacing: -0.03em;
-            color: var(--text-primary);
-        }}
-
-        .kpi-subtext {{
-            margin-top: 0.4rem;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }}
-
-        .val-emerald {{ color: var(--accent-emerald); }}
-        .val-cyan {{ color: var(--accent-cyan); }}
-        .val-indigo {{ color: #818cf8; }}
-        .val-amber {{ color: var(--accent-amber); }}
-        .val-rose {{ color: var(--accent-rose); }}
-
-        /* Analytics Section Layout */
-        .analytics-grid {{
-            display: grid;
-            grid-template-columns: 1fr 340px;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }}
-
-        @media (max-width: 1024px) {{
-            .analytics-grid {{
-                grid-template-columns: 1fr;
-            }}
-        }}
-
-        .content-card {{
-            background: var(--surface-card);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--surface-border);
-            border-radius: var(--radius-lg);
-            padding: 1.75rem;
-            box-shadow: var(--shadow-card);
-        }}
-
-        .card-header-flex {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }}
-
-        .card-title {{
-            font-size: 1.15rem;
-            font-weight: 700;
-            letter-spacing: -0.01em;
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }}
-
-        /* Funnel Progress Section */
-        .funnel-container {{
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-        }}
-
-        .funnel-step {{
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }}
-
-        .funnel-label {{
-            width: 140px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-        }}
-
-        .funnel-bar-wrapper {{
-            flex: 1;
-            background: rgba(255, 255, 255, 0.04);
-            border-radius: var(--radius-full);
-            height: 12px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            position: relative;
-        }}
-
-        .funnel-bar-fill {{
-            height: 100%;
-            border-radius: var(--radius-full);
-            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        }}
-
-        .funnel-count {{
-            width: 70px;
-            text-align: right;
-            font-size: 0.9rem;
-            font-weight: 700;
-            font-family: var(--font-mono);
-        }}
-
-        /* Reasons Breakdown */
-        .reason-row {{
-            margin-bottom: 1.1rem;
-        }}
-
-        .reason-row:last-child {{
-            margin-bottom: 0;
-        }}
-
-        .reason-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.85rem;
-            margin-bottom: 0.4rem;
-        }}
-
-        .reason-tag {{
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            background: rgba(255, 255, 255, 0.06);
-            padding: 0.15rem 0.5rem;
-            border-radius: 4px;
-            color: #cbd5e1;
-        }}
-
-        .reason-stats strong {{
-            color: var(--text-primary);
-        }}
-
-        .reason-pct {{
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }}
-
-        .progress-bar-bg {{
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-            height: 6px;
-            overflow: hidden;
-        }}
-
-        .progress-bar-fill {{
-            background: linear-gradient(90deg, #6366f1, #06b6d4);
-            height: 100%;
-            border-radius: 4px;
-        }}
-
-        /* Interactive Filter & Search Bar */
-        .table-controls {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }}
-
-        .filter-pills {{
-            display: flex;
-            background: rgba(255, 255, 255, 0.04);
-            padding: 4px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--surface-border);
-            gap: 4px;
-        }}
-
-        .filter-pill {{
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            font-family: var(--font-sans);
-            font-size: 0.82rem;
-            font-weight: 600;
-            padding: 0.4rem 0.9rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }}
-
-        .filter-pill:hover {{
-            color: var(--text-primary);
-        }}
-
-        .filter-pill.active {{
-            background: var(--primary);
-            color: #ffffff;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
-        }}
-
-        .search-box {{
-            position: relative;
-            min-width: 280px;
-        }}
-
-        .search-icon {{
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            pointer-events: none;
-        }}
-
-        .search-input {{
-            width: 100%;
-            padding: 0.55rem 1rem 0.55rem 2.4rem;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--surface-border);
-            border-radius: var(--radius-md);
-            color: var(--text-primary);
-            font-family: var(--font-sans);
-            font-size: 0.875rem;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }}
-
-        .search-input:focus {{
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-            background: rgba(255, 255, 255, 0.07);
-        }}
-
-        /* Data Table */
-        .table-wrapper {{
-            overflow-x: auto;
-            border: 1px solid var(--surface-border);
-            border-radius: var(--radius-md);
-            background: rgba(15, 23, 42, 0.4);
-        }}
-
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            font-size: 0.9rem;
-        }}
-
-        th {{
-            background: rgba(255, 255, 255, 0.02);
-            color: var(--text-muted);
-            font-size: 0.78rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            padding: 0.9rem 1.2rem;
-            border-bottom: 1px solid var(--surface-border);
-            white-space: nowrap;
-        }}
-
-        td {{
-            padding: 1rem 1.2rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-            color: var(--text-secondary);
-            vertical-align: middle;
-        }}
-
-        tr:last-child td {{
-            border-bottom: none;
-        }}
-
-        tbody tr:hover td {{
-            background: rgba(255, 255, 255, 0.03);
-            color: var(--text-primary);
-        }}
-
-        .col-time {{
-            font-family: var(--font-mono);
-            font-size: 0.82rem;
-            white-space: nowrap;
-            color: var(--text-muted);
-        }}
-
-        .role-cell {{
-            display: flex;
-            align-items: center;
-            gap: 0.85rem;
-        }}
-
-        .company-avatar {{
-            width: 34px;
-            height: 34px;
-            border-radius: var(--radius-sm);
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.2));
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #e2e8f0;
-            font-size: 0.78rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }}
-
-        .role-title {{
-            color: var(--text-primary);
-            font-weight: 600;
-            text-decoration: none;
-            transition: color 0.15s;
-            display: inline-block;
-        }}
-
-        .role-title:hover {{
-            color: var(--accent-cyan);
-            text-decoration: underline;
-        }}
-
-        .company-sub {{
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-top: 1px;
-        }}
-
-        .status-badge {{
-            display: inline-flex;
-            align-items: center;
-            gap: 0.45rem;
-            padding: 0.3rem 0.75rem;
-            border-radius: var(--radius-full);
-            font-size: 0.78rem;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            white-space: nowrap;
-        }}
-
-        .status-submitted {{
-            background: rgba(16, 185, 129, 0.12);
-            color: var(--accent-emerald);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }}
-
-        .status-failed {{
-            background: rgba(244, 63, 94, 0.12);
-            color: var(--accent-rose);
-            border: 1px solid rgba(244, 63, 94, 0.3);
-        }}
-
-        .status-skipped {{
-            background: rgba(148, 163, 184, 0.08);
-            color: var(--text-secondary);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-        }}
-
-        code {{
-            background: rgba(0, 0, 0, 0.4);
-            padding: 0.2rem 0.45rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-family: var(--font-mono);
-            color: #94a3b8;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }}
-
-        .btn-icon {{
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: var(--radius-sm);
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--surface-border);
-            color: var(--text-secondary);
-            transition: all 0.2s ease;
-        }}
-
-        .btn-icon:hover {{
-            color: var(--text-primary);
-            background: var(--surface-card-hover);
-            border-color: var(--surface-border-bright);
-        }}
-
-        .empty-state {{
-            text-align: center;
-            padding: 3rem 1rem !important;
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }}
-
-        /* Toast notification */
-        .toast {{
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: #1e293b;
-            color: #ffffff;
-            padding: 0.75rem 1.25rem;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--surface-border-bright);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            font-size: 0.875rem;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transform: translateY(100px);
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: 1000;
-        }}
-
-        .toast.show {{
-            transform: translateY(0);
-            opacity: 1;
-        }}
-
-        /* Footer */
-        footer {{
-            margin-top: 3rem;
-            text-align: center;
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            border-top: 1px solid var(--surface-border);
-            padding-top: 1.5rem;
-        }}
+            font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-base); color: var(--text);
+            min-height: 100vh; padding: 2.5rem 1.5rem 4rem; line-height: 1.5;
+            background-image: radial-gradient(circle at 15% 10%, rgba(99,102,241,0.08) 0%, transparent 40%),
+                              radial-gradient(circle at 85% 20%, rgba(6,182,212,0.06) 0%, transparent 35%);
+        }}
+        .dashboard-container {{ max-width: 1360px; margin: 0 auto; }}
+        .top-nav {{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }}
+        .brand-group {{ display: flex; align-items: center; gap: 1rem; }}
+        .brand-logo {{ width: 44px; height: 44px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--primary), var(--cyan)); display: flex; align-items: center; justify-content: center; }}
+        .brand-title {{ font-size: 1.35rem; font-weight: 800; }}
+        .brand-subtitle {{ font-size: 0.8rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }}
+        .badge-live {{ display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--emerald); font-size: 0.75rem; font-weight: 600; }}
+        .pulse-dot {{ width: 7px; height: 7px; border-radius: 50%; display: inline-block; }}
+        .pulse-dot.green {{ background: var(--emerald); box-shadow: 0 0 8px var(--emerald); }}
+        .pulse-dot.red {{ background: var(--rose); }}
+        .pulse-dot.neutral {{ background: var(--text-muted); }}
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }}
+        .kpi-card {{ background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); }}
+        .kpi-label {{ font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600; }}
+        .kpi-value {{ font-size: 2.2rem; font-weight: 800; }}
+        .kpi-value.green {{ color: var(--emerald); }}
+        .kpi-value.cyan {{ color: var(--cyan); }}
+        .kpi-value.amber {{ color: var(--amber); }}
+        .kpi-value.rose {{ color: var(--rose); }}
+        .analytics-section {{ display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }}
+        @media (max-width: 900px) {{ .analytics-section {{ grid-template-columns: 1fr; }} }}
+        .card-panel {{ background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); }}
+        .panel-title {{ font-size: 1.05rem; font-weight: 700; margin-bottom: 1.25rem; }}
+        .reason-row {{ margin-bottom: 1rem; }}
+        .reason-header {{ display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.35rem; }}
+        .reason-tag {{ color: var(--text-sub); font-family: 'JetBrains Mono', monospace; }}
+        .progress-bar-bg {{ height: 6px; background: rgba(255,255,255,0.06); border-radius: 9999px; overflow: hidden; }}
+        .progress-bar-fill {{ height: 100%; background: linear-gradient(90deg, var(--primary), var(--cyan)); border-radius: 9999px; }}
+        .table-toolbar {{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }}
+        .search-input {{ background: rgba(15,23,42,0.6); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.6rem 1rem; color: var(--text); width: 280px; }}
+        .filter-btn-group {{ display: flex; gap: 0.4rem; }}
+        .filter-btn {{ background: transparent; border: 1px solid var(--border); color: var(--text-sub); padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; }}
+        .filter-btn.active {{ background: var(--primary); color: #fff; border-color: var(--primary); }}
+        .table-container {{ overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }}
+        table {{ width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }}
+        th {{ background: rgba(15,23,42,0.8); padding: 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; }}
+        td {{ padding: 1rem; border-top: 1px solid var(--border); vertical-align: middle; }}
+        .role-cell {{ display: flex; align-items: center; gap: 0.75rem; }}
+        .company-avatar {{ width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--cyan); }}
+        .role-title {{ color: var(--text); text-decoration: none; font-weight: 600; }}
+        .role-title:hover {{ color: var(--primary); }}
+        .company-sub {{ font-size: 0.78rem; color: var(--text-muted); }}
+        .status-badge {{ display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }}
+        .status-submitted {{ background: rgba(16,185,129,0.12); color: var(--emerald); }}
+        .status-failed {{ background: rgba(244,63,94,0.12); color: var(--rose); }}
+        .status-skipped {{ background: rgba(148,163,184,0.12); color: var(--text-sub); }}
+        .btn-icon {{ color: var(--text-muted); text-decoration: none; }}
+        .btn-icon:hover {{ color: var(--primary); }}
+        .empty-state {{ text-align: center; color: var(--text-muted); padding: 3rem !important; }}
     </style>
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Top Navigation & Brand Header -->
         <header class="top-nav">
             <div class="brand-group">
                 <div class="brand-logo">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                    </svg>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
                 </div>
-                <div class="brand-info">
-                    <h1>EasyApply Automator</h1>
-                    <div class="live-status">
-                        <span class="pulse-dot green"></span>
-                        <span>Session completed • {now_str}</span>
-                    </div>
+                <div>
+                    <h1 class="brand-title">EasyApply Automator</h1>
+                    <div class="brand-subtitle">Session Intelligence & Analytics Report</div>
                 </div>
             </div>
-
-            <div class="header-actions">
-                <button class="btn" id="btn-copy-summary" onclick="copySessionSummary()">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    Copy Summary
-                </button>
-                <button class="btn" id="btn-export-csv" onclick="exportData('csv')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Export CSV
-                </button>
-                <button class="btn btn-primary" id="btn-export-json" onclick="exportData('json')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                    Export JSON
-                </button>
+            <div>
+                <span class="badge-live"><span class="pulse-dot green"></span> Completed: {now_str}</span>
             </div>
         </header>
 
-        <!-- Executive Metrics KPI Grid -->
-        <div class="kpi-grid">
+        <section class="kpi-grid">
             <div class="kpi-card">
-                <div class="kpi-header">
-                    <span class="kpi-title">Jobs Scanned</span>
-                    <div class="kpi-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    </div>
-                </div>
-                <div class="kpi-value val-cyan">{total_scanned}</div>
-                <div class="kpi-subtext">Discovered from LinkedIn query</div>
+                <div class="kpi-label">Total Jobs Evaluated</div>
+                <div class="kpi-value cyan">{total_scanned}</div>
             </div>
-
-            <div class="kpi-card highlight">
-                <div class="kpi-header">
-                    <span class="kpi-title">Applied & Sent</span>
-                    <div class="kpi-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                </div>
-                <div class="kpi-value val-emerald">{applied_count}</div>
-                <div class="kpi-subtext">Submissions successfully completed</div>
-            </div>
-
             <div class="kpi-card">
-                <div class="kpi-header">
-                    <span class="kpi-title">Attempted</span>
-                    <div class="kpi-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                    </div>
-                </div>
-                <div class="kpi-value val-indigo">{attempted_count}</div>
-                <div class="kpi-subtext">Opened application form modal</div>
+                <div class="kpi-label">Successfully Applied</div>
+                <div class="kpi-value green">{applied_count}</div>
             </div>
-
             <div class="kpi-card">
-                <div class="kpi-header">
-                    <span class="kpi-title">Skipped Roles</span>
-                    <div class="kpi-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </div>
-                </div>
-                <div class="kpi-value val-amber">{skipped_count}</div>
-                <div class="kpi-subtext">Filtered by criteria & blacklist</div>
+                <div class="kpi-label">Application Success Rate</div>
+                <div class="kpi-value {'green' if success_rate >= 50 else 'amber'}">{success_rate}%</div>
             </div>
-
             <div class="kpi-card">
-                <div class="kpi-header">
-                    <span class="kpi-title">Success Rate</span>
-                    <div class="kpi-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    </div>
-                </div>
-                <div class="kpi-value val-emerald">{success_rate}%</div>
-                <div class="kpi-subtext">Applied / Attempted conversions</div>
+                <div class="kpi-label">Failed Submissions</div>
+                <div class="kpi-value {'rose' if failed_count > 0 else 'green'}">{failed_count}</div>
             </div>
-        </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Pre-Filtered / Skipped</div>
+                <div class="kpi-value">{skipped_count}</div>
+            </div>
+        </section>
 
-        <!-- Funnel and Reason Analysis Grid -->
-        <div class="analytics-grid">
-            <div class="content-card">
-                <div class="card-header-flex">
-                    <h2 class="card-title">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
-                        Application Pipeline Funnel
-                    </h2>
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">Conversion breakdown</span>
+        <section class="analytics-section">
+            <div class="card-panel">
+                <h2 class="panel-title">Session Summary & Funnel</h2>
+                <div style="font-size:0.9rem; color:var(--text-sub); line-height:1.6;">
+                    Processed <strong>{total_scanned}</strong> total search postings. 
+                    <strong>{attempted_count}</strong> advanced to the Easy Apply application flow, resulting in <strong>{applied_count}</strong> successful submissions ({success_rate}% conversion rate).
                 </div>
-                <div class="funnel-container">
-                    <div class="funnel-step">
-                        <div class="funnel-label">1. Scanned Roles</div>
-                        <div class="funnel-bar-wrapper">
-                            <div class="funnel-bar-fill" style="width: 100%; background: linear-gradient(90deg, #6366f1, #818cf8);"></div>
-                        </div>
-                        <div class="funnel-count">{total_scanned}</div>
-                    </div>
-                    <div class="funnel-step">
-                        <div class="funnel-label">2. Criteria Matched</div>
-                        <div class="funnel-bar-wrapper">
-                            <div class="funnel-bar-fill" style="width: {round(attempted_count / (total_scanned or 1) * 100, 1)}%; background: linear-gradient(90deg, #06b6d4, #38bdf8);"></div>
-                        </div>
-                        <div class="funnel-count">{attempted_count}</div>
-                    </div>
-                    <div class="funnel-step">
-                        <div class="funnel-label">3. Completed & Sent</div>
-                        <div class="funnel-bar-wrapper">
-                            <div class="funnel-bar-fill" style="width: {round(applied_count / (total_scanned or 1) * 100, 1)}%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
-                        </div>
-                        <div class="funnel-count">{applied_count}</div>
-                    </div>
+            </div>
+            <div class="card-panel">
+                <h2 class="panel-title">Outcome Distribution</h2>
+                {''.join(reasons_list_html) if reasons_list_html else '<div style="color:var(--text-muted);font-size:0.85rem;">No outcomes recorded.</div>'}
+            </div>
+        </section>
+
+        <section>
+            <div class="table-toolbar">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search by role, company, or ID...">
+                <div class="filter-btn-group">
+                    <button class="filter-btn active" data-filter="all">All ({total_scanned})</button>
+                    <button class="filter-btn" data-filter="submitted">Applied ({applied_count})</button>
+                    <button class="filter-btn" data-filter="failed">Failed ({failed_count})</button>
+                    <button class="filter-btn" data-filter="skipped">Skipped ({skipped_count})</button>
                 </div>
             </div>
 
-            <div class="content-card">
-                <div class="card-header-flex">
-                    <h2 class="card-title">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                        Outcome Distribution
-                    </h2>
-                </div>
-                <div class="reasons-container">
-                    {"".join(reasons_list_html) if reasons_list_html else '<div class="empty-state">No outcome data available.</div>'}
-                </div>
-            </div>
-        </div>
-
-        <!-- Applications Activity Table Section -->
-        <div class="content-card">
-            <div class="table-controls">
-                <div class="filter-pills">
-                    <button class="filter-pill active" onclick="setFilter('all', this)">All ({total_scanned})</button>
-                    <button class="filter-pill" onclick="setFilter('submitted', this)">Applied ({applied_count})</button>
-                    <button class="filter-pill" onclick="setFilter('skipped', this)">Skipped ({skipped_count})</button>
-                    <button class="filter-pill" onclick="setFilter('failed', this)">Failed ({failed_count})</button>
-                </div>
-
-                <div class="search-box">
-                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    <input type="text" id="table-search" class="search-input" placeholder="Search roles, companies, IDs..." oninput="handleSearch(this.value)">
-                </div>
-            </div>
-
-            <div class="table-wrapper">
-                <table id="applications-table">
+            <div class="table-container">
+                <table id="jobsTable">
                     <thead>
                         <tr>
-                            <th>Time</th>
-                            <th>Role & Organization</th>
+                            <th>Timestamp</th>
+                            <th>Role & Company</th>
                             <th>Company</th>
                             <th>Status</th>
                             <th>Job ID</th>
-                            <th style="text-align: right;">Action</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body">
-                        {"".join(rows_html) if rows_html else empty_msg}
+                    <tbody id="jobsBody">
+                        {''.join(rows_html) if rows_html else empty_msg}
                     </tbody>
                 </table>
             </div>
-        </div>
-
-        <footer>
-            EasyApply Automator Analytics &bull; Designed for rapid job search automation &bull; Generated locally
-        </footer>
+        </section>
     </div>
 
-    <!-- Toast Notification Element -->
-    <div id="toast" class="toast">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        <span id="toast-text">Notification</span>
-    </div>
-
-    <!-- Client-side Interactive Logic -->
-    <script id="records-data" type="application/json">
+    <script id="recordsData" type="application/json">
         {records_json_str}
     </script>
     <script>
-        const rawRecords = JSON.parse(document.getElementById('records-data').textContent || '[]');
+        const searchInput = document.getElementById('searchInput');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const rows = document.querySelectorAll('.job-row');
         let currentFilter = 'all';
-        let searchQuery = '';
 
-        function setFilter(filterType, elem) {{
-            currentFilter = filterType;
-            document.querySelectorAll('.filter-pill').forEach(el => el.classList.remove('active'));
-            if (elem) elem.classList.add('active');
-            renderFilteredRows();
-        }}
-
-        function handleSearch(query) {{
-            searchQuery = query.toLowerCase().trim();
-            renderFilteredRows();
-        }}
-
-        function renderFilteredRows() {{
-            const rows = document.querySelectorAll('#table-body tr.job-row');
-            let visibleCount = 0;
-
+        function applyFilter() {{
+            const term = (searchInput ? searchInput.value : '').toLowerCase().trim();
             rows.forEach(row => {{
-                const status = row.getAttribute('data-status');
-                const text = row.innerText.toLowerCase();
-
-                const matchesStatus = (currentFilter === 'all') || (status === currentFilter);
-                const matchesSearch = !searchQuery || text.includes(searchQuery);
-
-                if (matchesStatus && matchesSearch) {{
-                    row.style.display = '';
-                    visibleCount++;
-                }} else {{
-                    row.style.display = 'none';
-                }}
+                const status = row.dataset.status;
+                const text = row.textContent.toLowerCase();
+                const matchStatus = currentFilter === 'all' || status === currentFilter;
+                const matchSearch = !term || text.includes(term);
+                row.style.display = (matchStatus && matchSearch) ? '' : 'none';
             }});
         }}
 
-        function showToast(msg) {{
-            const toast = document.getElementById('toast');
-            const text = document.getElementById('toast-text');
-            text.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }}
-
-        function copySessionSummary() {{
-            const summary = `EasyApply Automator Session Summary\\n` +
-                `• Jobs Scanned: {total_scanned}\\n` +
-                `• Applied & Sent: {applied_count}\\n` +
-                `• Attempted: {attempted_count}\\n` +
-                `• Skipped: {skipped_count}\\n` +
-                `• Success Rate: {success_rate}%\\n` +
-                `• Generated at: {now_str}`;
-            navigator.clipboard.writeText(summary).then(() => {{
-                showToast('Summary copied to clipboard!');
-            }}).catch(() => {{
-                showToast('Failed to copy to clipboard');
+        if (searchInput) searchInput.addEventListener('input', applyFilter);
+        filterBtns.forEach(btn => {{
+            btn.addEventListener('click', () => {{
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                applyFilter();
             }});
-        }}
-
-        function exportData(format) {{
-            if (!rawRecords.length) {{
-                showToast('No records to export');
-                return;
-            }}
-
-            if (format === 'json') {{
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(rawRecords, null, 2));
-                const dlAnchorElem = document.createElement('a');
-                dlAnchorElem.setAttribute("href", dataStr);
-                dlAnchorElem.setAttribute("download", "easyapply_session_records.json");
-                dlAnchorElem.click();
-                showToast('Exported JSON successfully!');
-            }} else if (format === 'csv') {{
-                const keys = Object.keys(rawRecords[0] || {{}});
-                let csvContent = keys.join(",") + "\\n";
-                rawRecords.forEach(r => {{
-                    const row = keys.map(k => '"' + (String(r[k] || '')).replace(/"/g, '""') + '"');
-                    csvContent += row.join(",") + "\\n";
-                }});
-                const blob = new Blob([csvContent], {{ type: 'text/csv;charset=utf-8;' }});
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(blob);
-                link.setAttribute("download", "easyapply_session_records.csv");
-                link.click();
-                showToast('Exported CSV successfully!');
-            }}
-        }}
+        }});
     </script>
 </body>
 </html>

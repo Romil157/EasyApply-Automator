@@ -58,6 +58,7 @@ class SearchLoopMixin:
         )
         log.info("Looking for jobs.. Please wait..")
 
+        consecutive_empty_pages = 0
         while (
             not self.stop_requested
             and time.time() < self.session_deadline
@@ -104,8 +105,23 @@ class SearchLoopMixin:
                         job_ids[job_id] = "To be processed"
 
                     if job_ids:
+                        consecutive_empty_pages = 0
                         self.apply_loop(job_ids)
+                    else:
+                        consecutive_empty_pages += 1
                     pages_processed += 1
+                    if consecutive_empty_pages >= 2:
+                        self.log_event(
+                            "combo_no_results",
+                            position=position,
+                            location=location,
+                            pages_processed=pages_processed,
+                        )
+                        log.info(
+                            f"No more job results found for '{position}' in '{location}' "
+                            f"after {consecutive_empty_pages} consecutive empty pages. Moving to next search combination."
+                        )
+                        break
                     if pages_processed >= self.max_pages_per_search:
                         self.log_event(
                             "combo_page_cap_reached",
@@ -122,7 +138,20 @@ class SearchLoopMixin:
                         experience_level=self.experience_level,
                     )
                 else:
+                    consecutive_empty_pages += 1
                     pages_processed += 1
+                    if consecutive_empty_pages >= 2:
+                        self.log_event(
+                            "combo_no_results",
+                            position=position,
+                            location=location,
+                            pages_processed=pages_processed,
+                        )
+                        log.info(
+                            f"No more job results found for '{position}' in '{location}' "
+                            f"after {consecutive_empty_pages} consecutive empty pages. Moving to next search combination."
+                        )
+                        break
                     if pages_processed >= self.max_pages_per_search:
                         self.log_event(
                             "combo_page_cap_reached",
@@ -160,22 +189,18 @@ class SearchLoopMixin:
             )
             for card in cards:
                 try:
-                    job_id = card.get_attribute("data-job-id") or ""
+                    job_id = card.get_attribute("data-job-id")
                     if not job_id:
-                        try:
-                            link = card.find_element(By.CSS_SELECTOR, "a[data-job-id]")
-                            job_id = link.get_attribute("data-job-id") or ""
-                        except Exception:
-                            continue
-                    if not job_id:
+                        link_el = card.find_elements(By.CSS_SELECTOR, "a[data-job-id]")
+                        if link_el:
+                            job_id = link_el[0].get_attribute("data-job-id")
+                    if not job_id or str(job_id) in titles:
                         continue
-
                     for sel in (
-                        ".job-card-list__title strong",
-                        ".job-card-list__title",
-                        ".artdeco-entity-lockup__title",
-                        "a.job-card-container__link strong",
-                        "a strong",
+                        "a.job-card-list__title",
+                        "a.job-card-container__link",
+                        ".job-card-list__title--link",
+                        "strong",
                     ):
                         try:
                             el = card.find_element(By.CSS_SELECTOR, sel)
@@ -212,6 +237,15 @@ class SearchLoopMixin:
                         "job_skipped_seen_recently",
                         job_id=str(job_id),
                         reason="already_in_recent_results",
+                    )
+                    job_ids[job_id] = "Skipped"
+                    continue
+
+                if hasattr(self, "session_failed_ids") and str(job_id) in self.session_failed_ids:
+                    self.log_event(
+                        "job_skipped_seen_recently",
+                        job_id=str(job_id),
+                        reason="failed_earlier_in_session",
                     )
                     job_ids[job_id] = "Skipped"
                     continue
@@ -272,6 +306,7 @@ class SearchLoopMixin:
         import urllib.parse
 
         params: dict[str, str] = {
+            "f_AL": "true",
             "f_LF": "f_AL",
             "keywords": position,
             "start": str(jobs_per_page),

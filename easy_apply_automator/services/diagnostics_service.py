@@ -44,34 +44,19 @@ class DiagnosticsService(ServiceBase):
         else:
             self.bot.current_job_debug_dir = None
             self.bot.current_job_first_try_dir = None
-            self.bot.log_event(
-                "debug_trace_started",
-                mode="normal_job",
-                job_id=str(job_id),
-                debug_dir=None,
-                first_try_dir=None,
-                html_capture=False,
-            )
+            self.bot.log_event("debug_trace_started", mode="normal_job", job_id=str(job_id), debug_dir=None, first_try_dir=None, html_capture=False)
 
     def finish_job_debug_trace(self) -> None:
         mode = "first_job" if self.bot.current_job_debug_dir is not None else "normal_job"
+        self.bot.log_event(
+            "debug_trace_finished",
+            mode=mode,
+            job_id=self.bot.current_job_id,
+            debug_dir=str(self.bot.current_job_debug_dir) if self.bot.current_job_debug_dir else None,
+            html_capture=bool(self.bot.current_job_debug_dir),
+        )
         if self.bot.current_job_debug_dir is not None:
-            self.bot.log_event(
-                "debug_trace_finished",
-                mode=mode,
-                job_id=self.bot.current_job_id,
-                debug_dir=str(self.bot.current_job_debug_dir),
-                html_capture=True,
-            )
             self.bot.first_job_debug_done = True
-        else:
-            self.bot.log_event(
-                "debug_trace_finished",
-                mode=mode,
-                job_id=self.bot.current_job_id,
-                debug_dir=None,
-                html_capture=False,
-            )
 
         self.bot.current_job_id = None
         self.bot.current_job_debug_dir = None
@@ -79,9 +64,7 @@ class DiagnosticsService(ServiceBase):
         self.bot.current_job_debug_step = 0
         self.bot.current_job_failure_count = 0
 
-    def dump_debug_html(
-        self, tag: str, force_dir: Path | None = None, extra: dict | None = None
-    ) -> None:
+    def dump_debug_html(self, tag: str, force_dir: Path | None = None, extra: dict | None = None) -> None:
         target_dir = force_dir or self.bot.current_job_first_try_dir
         if target_dir is None:
             return
@@ -90,8 +73,7 @@ class DiagnosticsService(ServiceBase):
             self.bot.current_job_debug_step += 1
             prefix = f"{self.bot.current_job_debug_step:03d}"
             filename = f"{prefix}_{self.sanitize_for_path(tag)}.html"
-            html_path = target_dir / filename
-            html_path.write_text(self.bot.browser.page_source or "", encoding="utf-8")
+            (target_dir / filename).write_text(self.bot.browser.page_source or "", encoding="utf-8")
             meta = {
                 "timestamp": datetime.now().isoformat(timespec="seconds"),
                 "tag": tag,
@@ -101,19 +83,17 @@ class DiagnosticsService(ServiceBase):
                 "progress": self.bot._get_easy_apply_progress(),
                 **(extra or {}),
             }
-            meta_path = target_dir / f"{prefix}_{self.sanitize_for_path(tag)}.json"
-            meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            (target_dir / f"{prefix}_{self.sanitize_for_path(tag)}.json").write_text(
+                json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
         except Exception as exc:
             self.bot.log_event("debug_dump_error", tag=tag, error=str(exc))
 
     def dump_failure_snapshot(self, reason: str, force_failed_root: bool = False) -> None:
         reason_safe = self.sanitize_for_path(reason)
-
         if self.bot.current_job_debug_dir is not None and not force_failed_root:
             self.bot.current_job_failure_count += 1
-            failure_dir = (
-                self.bot.current_job_debug_dir / f"failed_{self.bot.current_job_failure_count:04d}"
-            )
+            failure_dir = self.bot.current_job_debug_dir / f"failed_{self.bot.current_job_failure_count:04d}"
         else:
             ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             job_id = self.sanitize_for_path(str(self.bot.current_job_id or "unknown_job"))
@@ -122,11 +102,7 @@ class DiagnosticsService(ServiceBase):
             failure_dir = job_debug_dir / "failed_0001"
 
         failure_dir.mkdir(parents=True, exist_ok=True)
-        self.dump_debug_html(
-            f"failure_{reason_safe}",
-            force_dir=failure_dir,
-            extra={"failure_reason": reason},
-        )
+        self.dump_debug_html(f"failure_{reason_safe}", force_dir=failure_dir, extra={"failure_reason": reason})
         proof = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "job_id": self.bot.current_job_id,
@@ -137,206 +113,112 @@ class DiagnosticsService(ServiceBase):
             "failure_dir": str(failure_dir),
         }
         try:
-            (failure_dir / "proof.json").write_text(
-                json.dumps(proof, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-        except Exception as exc:
-            self.bot.log_event(
-                "debug_dump_error",
-                tag="proof_json",
-                error=str(exc),
-                failure_dir=str(failure_dir),
-            )
-        self.bot.log_event(
-            "debug_failure_snapshot",
-            reason=reason,
-            job_id=self.bot.current_job_id,
-            debug_dir=str(failure_dir),
-        )
+            (failure_dir / "proof.json").write_text(json.dumps(proof, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        self.bot.log_event("debug_failure_snapshot", reason=reason, job_id=self.bot.current_job_id, debug_dir=str(failure_dir))
 
     def extract_job_metadata(self, job_id: str | None = None) -> dict:
         page_title = self.bot.browser.title or ""
         current_url = self.bot.browser.current_url or ""
-        page_source = self.bot.browser.page_source or ""
-        soup = BeautifulSoup(page_source, "lxml")
+        soup = BeautifulSoup(self.bot.browser.page_source or "", "lxml")
 
-        def first_text(selectors: list[tuple[str, str]]) -> str | None:
-            for by, value in selectors:
-                node = None
-                if by == "css":
-                    node = soup.select_one(value)
+        def first_text(selectors: list[str]) -> str | None:
+            for sel in selectors:
+                node = soup.select_one(sel)
                 if node:
                     text = node.get_text(" ", strip=True)
                     if text:
                         return text
             return None
 
-        title_from_page = first_text(
-            [
-                ("css", "h1"),
-                ("css", ".top-card-layout__title"),
-                ("css", ".jobs-unified-top-card__job-title"),
-                ("css", ".job-details-jobs-unified-top-card__job-title"),
-                ("css", "h1.t-24"),
-                ("css", "a[data-view-name='job-title']"),
-            ]
-        )
+        title_from_page = first_text([
+            "h1", ".top-card-layout__title", ".jobs-unified-top-card__job-title",
+            ".job-details-jobs-unified-top-card__job-title", "h1.t-24", "a[data-view-name='job-title']",
+        ])
         if title_from_page and title_from_page.strip().lower() in ("linkedin", "jobs", "feed"):
             title_from_page = None
 
-        company_from_page = first_text(
-            [
-                ("css", ".topcard__org-name-link"),
-                ("css", ".jobs-unified-top-card__company-name"),
-                ("css", ".job-details-jobs-unified-top-card__company-name"),
-                ("css", "a[data-tracking-control-name='public_jobs_topcard-org-name']"),
-                ("css", ".jobs-unified-top-card__primary-description a"),
-                ("css", "a[href*='/company/']"),
-            ]
-        )
-        location_from_page = first_text(
-            [
-                ("css", ".topcard__flavor--bullet"),
-                ("css", ".jobs-unified-top-card__bullet"),
-                ("css", ".jobs-unified-top-card__workplace-type"),
-                ("css", ".job-details-jobs-unified-top-card__bullet"),
-            ]
-        )
+        company_from_page = first_text([
+            ".topcard__org-name-link", ".jobs-unified-top-card__company-name",
+            ".job-details-jobs-unified-top-card__company-name", "a[data-tracking-control-name='public_jobs_topcard-org-name']",
+            ".jobs-unified-top-card__primary-description a", "a[href*='/company/']",
+        ])
+        location_from_page = first_text([
+            ".topcard__flavor--bullet", ".jobs-unified-top-card__bullet",
+            ".jobs-unified-top-card__workplace-type", ".job-details-jobs-unified-top-card__bullet",
+        ])
 
-        salary_snippet = None
-
-        def normalize_salary(value: str) -> str:
-            return re.sub(r"\s+", " ", value).strip(" ,;:-")
+        def normalize_salary(val: str) -> str:
+            return re.sub(r"\s+", " ", val).strip(" ,;:-")
 
         def extract_salary_from_text(text: str, require_context: bool = True) -> str | None:
             if not text:
                 return None
             cleaned = re.sub(r"\s+", " ", text).strip()
-            patterns = [
-                r"(\$\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?(?:\s?-\s?\$\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)",
-                r"(₹\s?\d{1,3}(?:,\d{2,3})*(?:\.\d+)?(?:\s?[kKlLcC]r?)?(?:\s?-\s?₹\s?\d{1,3}(?:,\d{2,3})*(?:\.\d+)?(?:\s?[kKlLcC]r?)?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week|pm|pa)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)",
-                r"(£\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?(?:\s?-\s?£\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)",
-                r"(€\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?(?:\s?-\s?€\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s?[kK])?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)",
-            ]
-            for pat in patterns:
-                m = re.search(pat, cleaned, flags=re.IGNORECASE)
-                if not m:
-                    continue
+            pat = r"([$₹£€]\s?\d{1,3}(?:[,\.]\d{2,3})*(?:\.\d+)?(?:\s?[kKlLcC]r?)?(?:\s?-\s?[$₹£€]?\s?\d{1,3}(?:[,\.]\d{2,3})*(?:\.\d+)?(?:\s?[kKlLcC]r?)?)?\s*(?:/\s*(?:yr|year|hr|hour|mo|month|wk|week|pm|pa)|per\s+(?:year|hour|month|week)|a\s+(?:year|hour|month|week))?)"
+            m = re.search(pat, cleaned, flags=re.IGNORECASE)
+            if m:
                 match_text = m.group(1).strip()
-                if require_context:
-                    has_symbol = any(sym in match_text for sym in ("$", "₹", "£", "€"))
-                    has_period = bool(
-                        re.search(
-                            r"/\s*(?:yr|year|hr|hour|mo|month|wk|week|pm|pa)|per\s+|a\s+(?:year|month|hour)",
-                            match_text,
-                            flags=re.IGNORECASE,
-                        )
-                    )
-                    has_k = bool(re.search(r"\d+\s?[kKlLcC]r?", match_text))
-                    if has_symbol and (has_period or has_k or "-" in match_text):
-                        return normalize_salary(match_text)
-                else:
+                if not require_context:
+                    return normalize_salary(match_text)
+                has_symbol = any(sym in match_text for sym in ("$", "₹", "£", "€"))
+                has_period = bool(re.search(r"/\s*(?:yr|year|hr|hour|mo|month|wk|week|pm|pa)|per\s+|a\s+(?:year|month|hour)", match_text, flags=re.IGNORECASE))
+                has_k = bool(re.search(r"\d+\s?[kKlLcC]r?", match_text))
+                if has_symbol and (has_period or has_k or "-" in match_text):
                     return normalize_salary(match_text)
             return None
 
+        salary_snippet = None
         try:
-            scripts = soup.find_all("script", type=re.compile(r"ld\+json", re.I))
-            for s in scripts:
+            for s in soup.find_all("script", type=re.compile(r"ld\+json", re.I)):
                 payload = s.string or s.text or ""
-                if not payload:
-                    continue
-                data = json.loads(payload)
-                items = data if isinstance(data, list) else [data]
-                for item in items:
-                    if not isinstance(item, dict):
-                        continue
-                    bs = item.get("baseSalary")
-                    if isinstance(bs, dict):
-                        currency = bs.get("currency") or ""
-                        val_obj = bs.get("value")
-                        if isinstance(val_obj, dict):
-                            min_value = val_obj.get("minValue")
-                            max_value = val_obj.get("maxValue")
-                            value = val_obj.get("value")
-                            unit_text = val_obj.get("unitText")
-                            currency_symbol = (
-                                "$"
-                                if currency == "USD"
-                                else "₹"
-                                if currency == "INR"
-                                else "£"
-                                if currency == "GBP"
-                                else "€"
-                                if currency == "EUR"
-                                else currency
-                            )
-                            unit_map = {
-                                "YEAR": "/year",
-                                "MONTH": "/month",
-                                "HOUR": "/hour",
-                                "WEEK": "/week",
-                            }
-                            unit_suffix = (
-                                unit_map.get(str(unit_text).upper(), f"/{unit_text.lower()}")
-                                if unit_text
-                                else ""
-                            )
-                            if min_value is not None and max_value is not None:
-                                salary_snippet = normalize_salary(
-                                    f"{currency_symbol}{min_value}-{currency_symbol}{max_value} {unit_suffix}"
-                                )
-                            elif value is not None:
-                                salary_snippet = normalize_salary(
-                                    f"{currency_symbol}{value} {unit_suffix}"
-                                )
-                    if salary_snippet:
-                        break
+                if payload:
+                    data = json.loads(payload)
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        if isinstance(item, dict) and isinstance(item.get("baseSalary"), dict):
+                            bs = item["baseSalary"]
+                            curr = bs.get("currency") or "$"
+                            val_obj = bs.get("value")
+                            if isinstance(val_obj, dict):
+                                min_v, max_v, v = val_obj.get("minValue"), val_obj.get("maxValue"), val_obj.get("value")
+                                unit = f"/{str(val_obj.get('unitText', '')).lower()}" if val_obj.get("unitText") else ""
+                                if min_v is not None and max_v is not None:
+                                    salary_snippet = normalize_salary(f"{curr}{min_v}-{curr}{max_v} {unit}")
+                                elif v is not None:
+                                    salary_snippet = normalize_salary(f"{curr}{v} {unit}")
+                        if salary_snippet:
+                            break
                 if salary_snippet:
                     break
         except Exception:
-            salary_snippet = None
+            pass
 
         if not salary_snippet:
-            salary_selectors = [
-                ".jobs-unified-top-card__job-insight",
-                ".job-details-jobs-unified-top-card__job-insight",
-                ".jobs-unified-top-card__subtitle-secondary-grouping",
-                ".jobs-description__content",
-            ]
-            for selector in salary_selectors:
-                for node in soup.select(selector):
-                    salary_snippet = extract_salary_from_text(
-                        node.get_text(" ", strip=True), require_context=True
-                    )
+            for sel in (".jobs-unified-top-card__job-insight", ".job-details-jobs-unified-top-card__job-insight", ".jobs-description__content"):
+                node = soup.select_one(sel)
+                if node:
+                    salary_snippet = extract_salary_from_text(node.get_text(" ", strip=True), require_context=True)
                     if salary_snippet:
                         break
-                if salary_snippet:
-                    break
-
-        if not salary_snippet:
-            salary_snippet = extract_salary_from_text(
-                soup.get_text(" ", strip=True), require_context=True
-            )
 
         derived_job_id = job_id
         if not derived_job_id:
-            id_match = re.search(r"/jobs/view/(\d+)", current_url)
-            if id_match:
-                derived_job_id = id_match.group(1)
+            m = re.search(r"/jobs/view/(\d+)", current_url)
+            if m:
+                derived_job_id = m.group(1)
 
         title_parts = [p.strip() for p in page_title.split(" | ")] if page_title else []
         if title_parts and title_parts[-1].lower() == "linkedin":
             title_parts = title_parts[:-1]
 
         if len(title_parts) >= 2:
-            fallback_company = title_parts[-1]
-            fallback_title = " | ".join(title_parts[:-1])
+            fallback_company, fallback_title = title_parts[-1], " | ".join(title_parts[:-1])
         elif len(title_parts) == 1:
-            fallback_title = title_parts[0]
-            fallback_company = None
+            fallback_company, fallback_title = None, title_parts[0]
         else:
-            fallback_title = None
-            fallback_company = None
+            fallback_company, fallback_title = None, None
 
         return {
             "job_id": derived_job_id,
@@ -349,28 +231,17 @@ class DiagnosticsService(ServiceBase):
         }
 
     def medical_keyword_match(self) -> str | None:
-        def normalize_text(value: str) -> str:
-            value = value.lower()
-            value = re.sub(r"\s+", " ", value)
-            return value.strip()
+        def norm(val: str) -> str:
+            return re.sub(r"\s+", " ", (val or "").lower()).strip()
 
-        benefit_phrases = {
-            "medical insurance",
-            "health insurance",
-            "dental insurance",
-            "vision insurance",
-            "disability insurance",
-            "paid maternity leave",
-            "paid paternity leave",
-            "commuter benefits",
-            "pension plan",
-            "401(k)",
-            "featured benefits",
-            "benefits package",
-        }
+        benefit_phrases = (
+            "medical insurance", "health insurance", "dental insurance", "vision insurance",
+            "disability insurance", "paid maternity leave", "paid paternity leave",
+            "commuter benefits", "pension plan", "401(k)", "featured benefits", "benefits package",
+        )
 
         try:
-            title = normalize_text(self.bot.browser.title or "")
+            title = norm(self.bot.browser.title or "")
             for kw in self.bot.medical_related_keywords:
                 if kw in title:
                     return kw
@@ -379,27 +250,18 @@ class DiagnosticsService(ServiceBase):
 
         try:
             soup = BeautifulSoup(self.bot.browser.page_source or "", "lxml")
-            description_node = soup.select_one(".show-more-less-html__markup")
-            description_text = normalize_text(
-                description_node.get_text(" ", strip=True) if description_node else ""
-            )
-            if not description_text:
-                return None
-
-            for phrase in benefit_phrases:
-                description_text = description_text.replace(phrase, " ")
-            description_text = normalize_text(description_text)
-
-            for kw in self.bot.medical_related_keywords:
-                if kw not in description_text:
-                    continue
-                for match in re.finditer(re.escape(kw), description_text):
-                    left = max(0, match.start() - 30)
-                    right = min(len(description_text), match.end() + 50)
-                    snippet = description_text[left:right]
-                    if "insurance" in snippet or "benefit" in snippet:
-                        continue
-                    return kw
+            node = soup.select_one(".show-more-less-html__markup")
+            desc = norm(node.get_text(" ", strip=True) if node else "")
+            if desc:
+                for phrase in benefit_phrases:
+                    desc = desc.replace(phrase, " ")
+                desc = norm(desc)
+                for kw in self.bot.medical_related_keywords:
+                    if kw in desc:
+                        for match in re.finditer(re.escape(kw), desc):
+                            snippet = desc[max(0, match.start() - 30):min(len(desc), match.end() + 50)]
+                            if "insurance" not in snippet and "benefit" not in snippet:
+                                return kw
         except Exception:
             pass
         return None

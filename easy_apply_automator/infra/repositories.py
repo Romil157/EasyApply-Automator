@@ -45,6 +45,21 @@ def load_recent_applied_ids(filename: str, days: int = 2) -> list[str] | None:
                 job_id_str = str(job_id)
                 if job_id_str in seen_ids:
                     continue
+                res = record.get("result")
+                reason = str(record.get("reason") or "")
+                is_definitive = bool(res) or reason in (
+                    "already_applied",
+                    "submitted",
+                    "title_blacklisted",
+                    "medical_related_title",
+                    "database_related_title",
+                    "not_relevant",
+                    "no_easy_apply_button",
+                    "blacklisted_title",
+                    "blacklisted_company",
+                )
+                if not is_definitive:
+                    continue
                 ts = record.get("timestamp")
                 if not ts:
                     continue

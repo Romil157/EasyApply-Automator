@@ -35,9 +35,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--level",
-        choices=["1", "2", "3"],
+        choices=["1", "2", "3", "4"],
         default=None,
-        help="Experience level filter: 1=Internship, 2=Entry/Associate, 3=All Levels",
+        help="Experience level filter: 1=Internship, 2=Entry Level, 3=All Levels, 4=Entry & Associate",
     )
     parser.add_argument(
         "--date-posted",
@@ -102,29 +102,54 @@ def run_from_config(
 
     choice = cli_args.level if cli_args and cli_args.level else None
 
-    if choice is None:
-        print("\n" + "=" * 50)
-        print("      SELECT JOB EXPERIENCE LEVEL")
-        print("=" * 50)
-        print(" 1 -> Internship Only")
-        print(" 2 -> Entry Level & Associate (Other)")
-        print(" 3 -> All Levels (Internship, Entry Level & Associate)")
-        print("=" * 50)
+    if choice is not None:
+        if choice == "1":
+            app_config.experience_level = [1]
+            app_config.job_types = ["internship"]
+        elif choice == "2":
+            app_config.experience_level = [2, 3]
+            app_config.job_types = ["full_time", "contract"]
+        elif choice == "4":
+            # Keep config.yaml settings
+            pass
+        else:
+            app_config.experience_level = [1, 2, 3]
+            app_config.job_types = ["internship", "full_time", "contract"]
+    else:
+        print("\n" + "=" * 55)
+        print("      SELECT JOB TYPE & EXPERIENCE TARGET")
+        print("=" * 55)
+        print(" [1] Internship Roles Only")
+        print(" [2] Full-Time & Entry-Level Roles")
+        print(" [3] All Opportunities (Internship & Full-Time)")
+        print(" [4] Keep Settings from config.yaml")
+        print("=" * 55)
 
-        choice = "3"
+        prompt_choice = "3"
         try:
-            user_input = input("Select option (1, 2, or 3) [Default: 3]: ").strip()
-            if user_input in ["1", "2", "3"]:
-                choice = user_input
+            user_input = input("Select option (1, 2, 3, or 4) [Default: 3]: ").strip()
+            if user_input in ["1", "2", "3", "4"]:
+                prompt_choice = user_input
         except (EOFError, OSError):
             pass
 
-    if choice == "1":
-        app_config.experience_level = [1]
-    elif choice == "2":
-        app_config.experience_level = [2, 3]
-    else:
-        app_config.experience_level = [1, 2, 3]
+        if prompt_choice == "1":
+            app_config.experience_level = [1]
+            app_config.job_types = ["internship"]
+            log.info("Applying to: Internship Roles Only")
+        elif prompt_choice == "2":
+            app_config.experience_level = [2, 3]
+            app_config.job_types = ["full_time", "contract"]
+            log.info("Applying to: Full-Time & Entry-Level Roles")
+        elif prompt_choice == "4":
+            log.info(
+                f"Using config.yaml settings (experience_level={app_config.experience_level}, "
+                f"job_types={app_config.job_types})"
+            )
+        else:
+            app_config.experience_level = [1, 2, 3]
+            app_config.job_types = ["internship", "full_time", "contract"]
+            log.info("Applying to: All Opportunities (Internship & Full-Time)")
 
     bot = LinkedInEasyApplyOrchestrator(app_config)
     try:
