@@ -257,6 +257,10 @@ class QuestionService(ServiceBase):
             (By.CSS_SELECTOR, ".jobs-easy-apply-form-section__grouping"),
             (By.CSS_SELECTOR, "fieldset"),
             (By.CSS_SELECTOR, ".fb-form-element"),
+            (By.CSS_SELECTOR, ".fb-dash-form-element"),
+            (By.CSS_SELECTOR, ".jobs-easy-apply-form-element"),
+            (By.CSS_SELECTOR, "div[data-test-form-element]"),
+            (By.CSS_SELECTOR, ".artdeco-text-input"),
         ]
         for by, value in selectors:
             try:

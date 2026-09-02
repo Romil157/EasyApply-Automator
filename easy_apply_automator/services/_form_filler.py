@@ -39,10 +39,22 @@ COUNTRY_DIAL_CODES: dict[str, list[str]] = {
 class FormFillerMixin:
     bot: LinkedInEasyApplyOrchestrator
 
+    def _click_element_or_label(self, group, element, el_id: str) -> bool:
+        """Helper to click label associated with an input or fallback to direct element click."""
+        if el_id:
+            try:
+                label_el = group.find_element(By.CSS_SELECTOR, f"label[for='{el_id}']")
+                if self.bot._safe_click(label_el):
+                    return True
+            except Exception:
+                pass
+        return bool(self.bot._safe_click(element))
+
     def fill_easy_apply_required_fields(self) -> None:
         self.fill_required_radios_from_context()
         self.fill_required_checkboxes_from_context()
 
+        # Handle select elements
         try:
             selects = self.bot.browser.find_elements(
                 By.CSS_SELECTOR, "select[required], select[aria-required='true'], select"
@@ -67,166 +79,20 @@ class FormFillerMixin:
                                 .strip()
                             )
                             candidates = COUNTRY_DIAL_CODES.get(country_code, [country_code])
-                            selected = False
-                            for candidate in candidates:
-                                if self.bot._select_option_by_answer(select_el, candidate):
-                                    selected = True
-                                    break
+                            selected = any(
+                                self.bot._select_option_by_answer(select_el, c)
+                                for c in candidates
+                            )
                             if not selected:
                                 self.bot._select_non_default_option(select_el)
                         else:
                             self.bot._select_non_default_option(select_el)
                 except Exception as exc:
-                    log.debug(f"Failed to check/select non-default select option: {exc}")
-                    continue
+                    log.debug(f"Failed to process select element: {exc}")
         except Exception as exc:
-            log.debug(f"Select element lookup failed in fill_required_selects_from_context: {exc}")
+            log.debug(f"Select element lookup failed: {exc}")
 
-    def fill_required_radios_from_context(self) -> None:
-        try:
-            groups = self.bot.browser.find_elements(
-                By.CSS_SELECTOR,
-                ".jobs-easy-apply-form-section__grouping, fieldset, .fb-form-element",
-            )
-        except Exception as exc:
-            log.debug(f"Group lookup failed in fill_required_radios_from_context: {exc}")
-            return
-
-        for group in groups:
-            try:
-                radios = group.find_elements(By.CSS_SELECTOR, "input[type='radio']")
-                if not radios:
-                    continue
-                if any(r.is_selected() for r in radios):
-                    continue
-
-                raw_question = group.text or ""
-                question = self.bot._clean_question_text(raw_question)
-                if not question:
-                    continue
-
-                direct = self.bot._derive_direct_answer(question)
-                answer = direct if direct is not None else self.bot.ans_question(question.lower())
-                answer_aliases = self.bot._answer_aliases(answer)
-
-                selected = False
-                for radio in radios:
-                    try:
-                        if self.bot._radio_matches_answer(group, radio, answer):
-                            rid = radio.get_attribute("id") or ""
-                            label_clicked = False
-                            if rid:
-                                try:
-                                    label_el = group.find_element(
-                                        By.CSS_SELECTOR, f"label[for='{rid}']"
-                                    )
-                                    self.bot._safe_click(label_el)
-                                    label_clicked = True
-                                except Exception as exc:
-                                    log.debug(f"Failed to click label for rid '{rid}': {exc}")
-                            if not label_clicked:
-                                self.bot._safe_click(radio)
-                            selected = True
-                            self.bot.log_event(
-                                "question_answered",
-                                kind="required_radio_recovery",
-                                question=question,
-                                answer=answer,
-                            )
-                            break
-
-                        value = (radio.get_attribute("value") or "").strip().lower()
-                        if value and value in answer_aliases:
-                            rid = radio.get_attribute("id") or ""
-                            label_clicked = False
-                            if rid:
-                                try:
-                                    label_el = group.find_element(
-                                        By.CSS_SELECTOR, f"label[for='{rid}']"
-                                    )
-                                    self.bot._safe_click(label_el)
-                                    label_clicked = True
-                                except Exception as exc:
-                                    log.debug(f"Failed to click label for rid '{rid}': {exc}")
-                            if not label_clicked:
-                                self.bot._safe_click(radio)
-                            selected = True
-                            self.bot.log_event(
-                                "question_answered",
-                                kind="required_radio_value_recovery",
-                                question=question,
-                                answer=answer,
-                            )
-                            break
-                    except Exception as exc:
-                        log.debug(f"Failed to set radio option: {exc}")
-                        continue
-
-                if not selected and {"yes", "true", "1", "y"} & answer_aliases:
-                    for radio in radios:
-                        if (radio.get_attribute("value") or "").strip().lower() in {
-                            "true",
-                            "yes",
-                            "1",
-                        }:
-                            rid = radio.get_attribute("id") or ""
-                            label_clicked = False
-                            if rid:
-                                try:
-                                    label_el = group.find_element(
-                                        By.CSS_SELECTOR, f"label[for='{rid}']"
-                                    )
-                                    self.bot._safe_click(label_el)
-                                    label_clicked = True
-                                except Exception as exc:
-                                    log.debug(
-                                        f"Failed to click fallback label for rid '{rid}': {exc}"
-                                    )
-                            if not label_clicked:
-                                self.bot._safe_click(radio)
-                            selected = True
-                            self.bot.log_event(
-                                "question_answered",
-                                kind="required_radio_yes_fallback",
-                                question=question,
-                                answer=answer,
-                            )
-                            break
-
-                if not selected and {"no", "false", "0", "n"} & answer_aliases:
-                    for radio in radios:
-                        if (radio.get_attribute("value") or "").strip().lower() in {
-                            "false",
-                            "no",
-                            "0",
-                        }:
-                            rid = radio.get_attribute("id") or ""
-                            label_clicked = False
-                            if rid:
-                                try:
-                                    label_el = group.find_element(
-                                        By.CSS_SELECTOR, f"label[for='{rid}']"
-                                    )
-                                    self.bot._safe_click(label_el)
-                                    label_clicked = True
-                                except Exception as exc:
-                                    log.debug(
-                                        f"Failed to click fallback label for rid '{rid}': {exc}"
-                                    )
-                            if not label_clicked:
-                                self.bot._safe_click(radio)
-                            selected = True
-                            self.bot.log_event(
-                                "question_answered",
-                                kind="required_radio_no_fallback",
-                                question=question,
-                                answer=answer,
-                            )
-                            break
-            except Exception as exc:
-                log.debug(f"Radio processing loop error for group: {exc}")
-                continue
-
+        # Handle un-prefilled national phone inputs
         try:
             phone_inputs = self.bot.browser.find_elements(
                 By.CSS_SELECTOR,
@@ -235,122 +101,146 @@ class FormFillerMixin:
             for phone_input in phone_inputs:
                 current = (phone_input.get_attribute("value") or "").strip()
                 if not current and self.bot.phone_number:
-                    digits_only = re.sub(r"[^\d]", "", str(self.bot.phone_number))
-                    if digits_only:
-                        phone_input.send_keys(digits_only)
+                    digits = re.sub(r"[^\d]", "", str(self.bot.phone_number))
+                    if digits:
+                        phone_input.send_keys(digits)
         except Exception as exc:
-            log.debug(f"Phone number input logic failed: {exc}")
+            log.debug(f"Phone input logic failed: {exc}")
 
+        # Handle initial empty required text inputs
         try:
             text_inputs = self.bot.browser.find_elements(
                 By.CSS_SELECTOR,
-                "input[required][type='text'], input[required][type='number'], input[aria-required='true'][type='text'], input[aria-required='true'][type='number']",
+                "input[required][type='text'], input[required][type='number'], "
+                "input[aria-required='true'][type='text'], input[aria-required='true'][type='number']",
             )
             for input_el in text_inputs:
-                value = (input_el.get_attribute("value") or "").strip()
-                if value:
+                val = (input_el.get_attribute("value") or "").strip()
+                if val:
                     continue
+                input_id = input_el.get_attribute("id") or ""
                 question = ""
-                try:
-                    input_id = input_el.get_attribute("id")
-                    if input_id:
-                        labels = self.bot.browser.find_elements(
-                            By.CSS_SELECTOR, f"label[for='{input_id}']"
-                        )
-                        if labels:
-                            question = labels[0].text.strip()
-                except Exception as exc:
-                    log.debug(f"Label lookup failed for input element '{input_id}': {exc}")
-                    question = ""
+                if input_id:
+                    labels = self.bot.browser.find_elements(
+                        By.CSS_SELECTOR, f"label[for='{input_id}']"
+                    )
+                    if labels:
+                        question = labels[0].text.strip()
                 if question:
-                    direct = self.bot._derive_direct_answer(
-                        question, input_el.get_attribute("id") or ""
-                    )
-                    answer = (
-                        direct if direct is not None else self.bot.ans_question(question.lower())
-                    )
-                    normalized_answer = self.bot._normalize_text_answer(
-                        question, answer, input_el.get_attribute("id") or ""
-                    )
-                    if normalized_answer:
-                        is_typeahead = input_el.get_attribute(
-                            "role"
-                        ) == "combobox" or input_el.get_attribute("aria-autocomplete") in (
-                            "list",
-                            "both",
+                    direct = self.bot._derive_direct_answer(question, input_id)
+                    ans = direct if direct is not None else self.bot.ans_question(question.lower())
+                    norm = self.bot._normalize_text_answer(question, ans, input_id)
+                    if norm:
+                        is_typeahead = input_el.get_attribute("role") == "combobox" or (
+                            input_el.get_attribute("aria-autocomplete") in ("list", "both")
                         )
                         if is_typeahead:
-                            self.bot._fill_typeahead_input(input_el, normalized_answer)
+                            self.bot._fill_typeahead_input(input_el, norm)
                         else:
-                            input_el.send_keys(normalized_answer)
+                            input_el.send_keys(norm)
         except Exception as exc:
             log.debug(f"Text inputs processing failed: {exc}")
+
+    def _process_radio_group(
+        self, group, fallback_to_first: bool = False
+    ) -> bool:
+        """Evaluates a single radio group and clicks the best matching option."""
+        try:
+            radios = group.find_elements(By.CSS_SELECTOR, "input[type='radio']")
+            if not radios or any(r.is_selected() for r in radios):
+                return False
+
+            raw_question = group.text or ""
+            question = self.bot._clean_question_text(raw_question)
+            if not question:
+                return False
+
+            direct = self.bot._derive_direct_answer(question)
+            answer = direct if direct is not None else self.bot.ans_question(question.lower())
+            answer_aliases = self.bot._answer_aliases(answer)
+
+            # Strategy 1: Match by label text or value attribute
+            for radio in radios:
+                rid = radio.get_attribute("id") or ""
+                val = (radio.get_attribute("value") or "").strip().lower()
+                if self.bot._radio_matches_answer(group, radio, answer) or (val and val in answer_aliases):
+                    if self._click_element_or_label(group, radio, rid):
+                        self.bot.log_event(
+                            "question_answered",
+                            kind="required_radio_recovery",
+                            question=question,
+                            answer=answer,
+                        )
+                        return True
+
+            # Strategy 2: Yes/True fallback
+            if {"yes", "true", "1", "y"} & answer_aliases:
+                for radio in radios:
+                    if (radio.get_attribute("value") or "").strip().lower() in {"true", "yes", "1"}:
+                        rid = radio.get_attribute("id") or ""
+                        if self._click_element_or_label(group, radio, rid):
+                            self.bot.log_event(
+                                "question_answered",
+                                kind="required_radio_yes_fallback",
+                                question=question,
+                                answer=answer,
+                            )
+                            return True
+
+            # Strategy 3: No/False fallback
+            if {"no", "false", "0", "n"} & answer_aliases:
+                for radio in radios:
+                    if (radio.get_attribute("value") or "").strip().lower() in {"false", "no", "0"}:
+                        rid = radio.get_attribute("id") or ""
+                        if self._click_element_or_label(group, radio, rid):
+                            self.bot.log_event(
+                                "question_answered",
+                                kind="required_radio_no_fallback",
+                                question=question,
+                                answer=answer,
+                            )
+                            return True
+
+            # Strategy 4: Fallback to first available radio option during recovery
+            if fallback_to_first:
+                for radio in radios:
+                    if radio.is_displayed() and radio.is_enabled():
+                        rid = radio.get_attribute("id") or ""
+                        if self._click_element_or_label(group, radio, rid):
+                            self.bot.log_event(
+                                "question_answered",
+                                kind="required_radio_first_option_recovery",
+                                question=question,
+                                answer=answer,
+                            )
+                            return True
+        except Exception as exc:
+            log.debug(f"Error evaluating radio group: {exc}")
+        return False
+
+    def fill_required_radios_from_context(self) -> None:
+        try:
+            groups = self.bot.browser.find_elements(
+                By.CSS_SELECTOR,
+                ".jobs-easy-apply-form-section__grouping, fieldset, .fb-form-element, .fb-dash-form-element, .jobs-easy-apply-form-element, div[data-test-form-element]",
+            )
+            for group in groups:
+                self._process_radio_group(group, fallback_to_first=False)
+        except Exception as exc:
+            log.debug(f"Radio lookup failed in fill_required_radios_from_context: {exc}")
 
     def recover_unanswered_radio_groups(self) -> int:
         recovered = 0
         try:
             groups = self.bot.browser.find_elements(
                 By.CSS_SELECTOR,
-                ".jobs-easy-apply-form-section__grouping, fieldset, .fb-form-element",
+                ".jobs-easy-apply-form-section__grouping, fieldset, .fb-form-element, .fb-dash-form-element, .jobs-easy-apply-form-element, div[data-test-form-element]",
             )
+            for group in groups:
+                if group.is_displayed() and self._process_radio_group(group, fallback_to_first=True):
+                    recovered += 1
         except Exception as exc:
-            log.debug(f"Radio group lookup failed in recover_unanswered_radio_groups: {exc}")
-            return recovered
-
-        for group in groups:
-            try:
-                if not group.is_displayed():
-                    continue
-                radios = group.find_elements(By.CSS_SELECTOR, "input[type='radio']")
-                if not radios or any(r.is_selected() for r in radios):
-                    continue
-
-                raw_question = group.text or ""
-                question = self.bot._clean_question_text(raw_question)
-                direct = self.bot._derive_direct_answer(question)
-                answer = direct if direct is not None else self.bot.ans_question(question.lower())
-
-                matched_radio = None
-                for radio in radios:
-                    if self.bot._radio_matches_answer(group, radio, answer):
-                        matched_radio = radio
-                        break
-
-                target_radio = matched_radio
-                if target_radio is None:
-                    for radio in radios:
-                        if radio.is_displayed() and radio.is_enabled():
-                            target_radio = radio
-                            break
-                if target_radio is None:
-                    continue
-
-                rid = target_radio.get_attribute("id") or ""
-                label_clicked = False
-                if rid:
-                    try:
-                        label_el = group.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
-                        self.bot._safe_click(label_el)
-                        label_clicked = True
-                    except Exception as exc:
-                        log.debug(f"Failed to click label for rid '{rid}': {exc}")
-                if not label_clicked and not self.bot._safe_click(target_radio):
-                    continue
-
-                recovered += 1
-                self.bot.log_event(
-                    "question_answered",
-                    kind=(
-                        "required_radio_recovery"
-                        if matched_radio is not None
-                        else "required_radio_first_option_recovery"
-                    ),
-                    question=question,
-                    answer=answer,
-                )
-            except Exception as exc:
-                log.debug(f"Failed to process radio group recovery: {exc}")
-                continue
+            log.debug(f"Radio lookup failed in recover_unanswered_radio_groups: {exc}")
         return recovered
 
     def recover_empty_required_text_fields(self) -> int:
@@ -362,7 +252,7 @@ class FormFillerMixin:
                 "input[required], input[aria-required='true']",
             )
         except Exception as exc:
-            log.debug(f"Required fields lookup failed in recover_empty_required_text_fields: {exc}")
+            log.debug(f"Required fields lookup failed: {exc}")
             return recovered
 
         for field in fields:
@@ -372,18 +262,11 @@ class FormFillerMixin:
                 tag_name = (field.tag_name or "").lower()
                 input_type = (field.get_attribute("type") or "").lower()
                 if tag_name == "input" and input_type in {
-                    "hidden",
-                    "file",
-                    "checkbox",
-                    "radio",
-                    "submit",
-                    "button",
-                    "search",
+                    "hidden", "file", "checkbox", "radio", "submit", "button", "search"
                 }:
                     continue
 
-                value = (field.get_attribute("value") or "").strip()
-                if value:
+                if (field.get_attribute("value") or "").strip():
                     continue
 
                 field_id = (field.get_attribute("id") or "").strip()
@@ -403,49 +286,45 @@ class FormFillerMixin:
 
                 direct = self.bot._derive_direct_answer(question, field_id)
                 answer = direct if direct is not None else self.bot.ans_question(question.lower())
-                normalized_answer = self.bot._normalize_text_answer(question, answer, field_id)
-                normalized_answer = self.bot.questions.humanize_free_text_answer(
-                    question,
-                    normalized_answer,
-                    "textarea" if tag_name == "textarea" else "text",
+                normalized = self.bot._normalize_text_answer(question, answer, field_id)
+                normalized = self.bot.questions.humanize_free_text_answer(
+                    question, normalized, "textarea" if tag_name == "textarea" else "text"
                 ).strip()
-                if not normalized_answer:
-                    normalized_answer = "N/A"
+                if not normalized:
+                    normalized = "N/A"
 
-                is_typeahead = field.get_attribute("role") == "combobox" or field.get_attribute(
-                    "aria-autocomplete"
-                ) in ("list", "both")
+                is_typeahead = field.get_attribute("role") == "combobox" or (
+                    field.get_attribute("aria-autocomplete") in ("list", "both")
+                )
                 if is_typeahead:
-                    if not self.bot._fill_typeahead_input(field, normalized_answer):
+                    if not self.bot._fill_typeahead_input(field, normalized):
                         continue
                 else:
                     field.clear()
-                    field.send_keys(normalized_answer)
+                    field.send_keys(normalized)
 
                 recovered += 1
                 self.bot.log_event(
                     "question_answered",
-                    kind=(
-                        "required_textarea_recovery"
-                        if tag_name == "textarea"
-                        else "required_text_recovery"
-                    ),
+                    kind="required_textarea_recovery" if tag_name == "textarea" else "required_text_recovery",
                     question=question,
-                    answer=normalized_answer,
+                    answer=normalized,
                 )
             except Exception as exc:
-                log.debug(f"Failed to recover empty field: {exc}")
-                continue
+                log.debug(f"Failed to recover empty text field: {exc}")
         return recovered
 
     def recover_inline_validation_errors(self) -> int:
         recovered = 0
         try:
             bad_inputs = self.bot.browser.find_elements(
-                By.CSS_SELECTOR, "input.fb-dash-form-element__error-field"
+                By.CSS_SELECTOR,
+                "input.fb-dash-form-element__error-field, input[aria-invalid='true'], textarea[aria-invalid='true']",
             )
             for input_el in bad_inputs:
                 try:
+                    if not input_el.is_displayed():
+                        continue
                     input_id = input_el.get_attribute("id") or ""
                     question = ""
                     if input_id:
@@ -454,49 +333,23 @@ class FormFillerMixin:
                         )
                         if labels:
                             question = (labels[0].text or "").strip()
-                    if not question and "numeric" not in input_id.lower():
-                        continue
-                    answer = self.bot._coerce_numeric_answer(question, "")
+                    if not question:
+                        question = (input_el.get_attribute("aria-label") or "").strip()
+
+                    direct = self.bot._derive_direct_answer(question, input_id)
+                    answer = direct if direct is not None else self.bot.ans_question(question.lower())
+                    coerced = self.bot._coerce_numeric_answer(question, answer) if "numeric" in input_id.lower() or "year" in question.lower() or "experience" in question.lower() else answer
                     input_el.clear()
-                    input_el.send_keys(answer)
+                    input_el.send_keys(coerced or "0")
                     recovered += 1
                 except Exception as exc:
-                    log.debug(f"Failed to clear/fill error field '{input_id}': {exc}")
-                    continue
+                    log.debug(f"Failed to clear error field '{input_id}': {exc}")
         except Exception as exc:
-            log.debug(f"Failed to process inline validation recovery: {exc}")
-            return recovered
+            log.debug(f"Inline validation recovery failed: {exc}")
         return recovered
 
     def fill_required_checkboxes_from_context(self) -> None:
-        try:
-            checkboxes = self.bot.browser.find_elements(
-                By.CSS_SELECTOR,
-                "input[type='checkbox'][required], input[type='checkbox'][aria-required='true']",
-            )
-            for cb in checkboxes:
-                try:
-                    if not cb.is_displayed() or cb.is_selected():
-                        continue
-                    cb_id = cb.get_attribute("id") or ""
-                    if "follow-company" in cb_id:
-                        continue
-                    label_clicked = False
-                    if cb_id:
-                        labels = self.bot.browser.find_elements(
-                            By.CSS_SELECTOR, f"label[for='{cb_id}']"
-                        )
-                        if labels:
-                            self.bot._safe_click(labels[0])
-                            label_clicked = True
-                    if not label_clicked:
-                        self.bot._safe_click(cb)
-                    self.bot.log_event("question_answered", kind="required_checkbox", id=cb_id)
-                except Exception as exc:
-                    log.debug(f"Failed to check required checkbox: {exc}")
-                    continue
-        except Exception as exc:
-            log.debug(f"Checkbox lookup failed in fill_required_checkboxes_from_context: {exc}")
+        self.recover_required_checkboxes()
 
     def recover_required_checkboxes(self) -> int:
         recovered = 0
@@ -512,25 +365,15 @@ class FormFillerMixin:
                     cb_id = cb.get_attribute("id") or ""
                     if "follow-company" in cb_id:
                         continue
-                    label_clicked = False
-                    if cb_id:
-                        labels = self.bot.browser.find_elements(
-                            By.CSS_SELECTOR, f"label[for='{cb_id}']"
+                    if self._click_element_or_label(self.bot.browser, cb, cb_id):
+                        recovered += 1
+                        self.bot.log_event(
+                            "question_answered", kind="required_checkbox_recovery", id=cb_id
                         )
-                        if labels:
-                            self.bot._safe_click(labels[0])
-                            label_clicked = True
-                    if not label_clicked:
-                        self.bot._safe_click(cb)
-                    recovered += 1
-                    self.bot.log_event(
-                        "question_answered", kind="required_checkbox_recovery", id=cb_id
-                    )
                 except Exception as exc:
-                    log.debug(f"Failed to check required checkbox during recovery: {exc}")
-                    continue
+                    log.debug(f"Failed to check required checkbox: {exc}")
         except Exception as exc:
-            log.debug(f"Checkbox lookup failed in recover_required_checkboxes: {exc}")
+            log.debug(f"Checkbox lookup failed: {exc}")
         return recovered
 
     def recover_unselected_comboboxes(self) -> int:
@@ -545,43 +388,36 @@ class FormFillerMixin:
                     if not box.is_displayed():
                         continue
                     tag = (box.tag_name or "").lower()
-                    if tag == "input":
-                        val = (box.get_attribute("value") or "").strip()
-                        if val:
-                            continue
-                        box_id = box.get_attribute("id") or ""
-                        question = ""
-                        if box_id:
-                            labels = self.bot.browser.find_elements(
-                                By.CSS_SELECTOR, f"label[for='{box_id}']"
+                    if tag == "input" and (box.get_attribute("value") or "").strip():
+                        continue
+                    box_id = box.get_attribute("id") or ""
+                    question = ""
+                    if box_id:
+                        labels = self.bot.browser.find_elements(
+                            By.CSS_SELECTOR, f"label[for='{box_id}']"
+                        )
+                        if labels:
+                            question = self.bot._clean_question_text(labels[0].text or "")
+                    if not question:
+                        question = self.bot._clean_question_text(
+                            (box.get_attribute("aria-label") or "").strip()
+                        )
+                    if question:
+                        direct = self.bot._derive_direct_answer(question, box_id)
+                        answer = direct if direct is not None else self.bot.ans_question(question.lower())
+                        normalized = self.bot._normalize_text_answer(question, answer, box_id)
+                        if self.bot._fill_typeahead_input(box, normalized):
+                            recovered += 1
+                            self.bot.log_event(
+                                "question_answered",
+                                kind="combobox_recovery",
+                                question=question,
+                                answer=normalized,
                             )
-                            if labels:
-                                question = self.bot._clean_question_text(labels[0].text or "")
-                        if not question:
-                            question = self.bot._clean_question_text(
-                                (box.get_attribute("aria-label") or "").strip()
-                            )
-                        if question:
-                            direct = self.bot._derive_direct_answer(question, box_id)
-                            answer = (
-                                direct
-                                if direct is not None
-                                else self.bot.ans_question(question.lower())
-                            )
-                            normalized = self.bot._normalize_text_answer(question, answer, box_id)
-                            if self.bot._fill_typeahead_input(box, normalized):
-                                recovered += 1
-                                self.bot.log_event(
-                                    "question_answered",
-                                    kind="combobox_recovery",
-                                    question=question,
-                                    answer=normalized,
-                                )
                 except Exception as exc:
-                    log.debug(f"Failed to process combobox in recovery: {exc}")
-                    continue
+                    log.debug(f"Combobox processing failed: {exc}")
         except Exception as exc:
-            log.debug(f"Combobox lookup failed in recover_unselected_comboboxes: {exc}")
+            log.debug(f"Combobox lookup failed: {exc}")
         return recovered
 
     def uncheck_follow_company(self) -> None:
@@ -593,4 +429,4 @@ class FormFillerMixin:
                 )
                 self.bot._safe_click(label)
         except Exception as exc:
-            log.debug(f"Failed to uncheck follow company check: {exc}")
+            log.debug(f"Failed to uncheck follow company checkbox: {exc}")

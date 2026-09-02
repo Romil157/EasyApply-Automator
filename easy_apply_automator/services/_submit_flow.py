@@ -23,123 +23,84 @@ if TYPE_CHECKING:
 class SubmitFlowMixin:
     bot: LinkedInEasyApplyOrchestrator
 
-    def fill_easy_apply_required_fields(self) -> None:
-        pass
-
-    def recover_inline_validation_errors(self) -> int:
-        return 0
-
-    def recover_unanswered_radio_groups(self) -> int:
-        return 0
-
-    def recover_empty_required_text_fields(self) -> int:
-        return 0
-
-    def recover_required_checkboxes(self) -> int:
-        return 0
-
-    def recover_unselected_comboboxes(self) -> int:
-        return 0
-
-    def uncheck_follow_company(self) -> None:
-        pass
+    EXTERNAL_ATS_DOMAINS: tuple[str, ...] = (
+        "workday.com", "myworkday", "greenhouse.io", "boards.greenhouse.io",
+        "lever.co", "jobs.lever.co", "smartrecruiters.com", "icims.com",
+        "taleo.", "apply.workable.com", "bamboohr.com", "jobs.ashbyhq.com",
+        "recruitee.com", "jazz.co", "jobvite.com", "ultipro.com",
+        "successfactors.", "breezy.hr", "rippling.com",
+    )
 
     def detect_daily_easy_apply_limit(self) -> tuple[bool, str | None]:
         try:
             page_source = (self.bot.browser.page_source or "").replace("’", "'").lower()
             markers = (
-                "you reached today's easy apply limit",
-                "you reached todays easy apply limit",
-                "we limit easy apply submissions",
-                "continue applying tomorrow",
-                "easyapplyfuselimitdialogmodal",
-                '"jobapplicationlimitreached":true',
+                "you reached today's easy apply limit", "you reached todays easy apply limit",
+                "we limit easy apply submissions", "continue applying tomorrow",
+                "easyapplyfuselimitdialogmodal", '"jobapplicationlimitreached":true',
             )
             for marker in markers:
                 if marker in page_source:
                     return True, marker
         except Exception as exc:
-            log.debug(f"Failed to check page source for daily limit markers: {exc}")
+            log.debug(f"Failed to check page source for daily limit: {exc}")
 
         try:
-            dialogs = self.bot.browser.find_elements(
-                By.CSS_SELECTOR, "dialog[open], [role='dialog'], div[data-test-modal]"
-            )
+            dialogs = self.bot.browser.find_elements(By.CSS_SELECTOR, "dialog[open], [role='dialog'], div[data-test-modal]")
             for dialog in dialogs:
-                try:
-                    if not dialog.is_displayed():
-                        continue
-                    dialog_text = " ".join(
-                        filter(
-                            None,
-                            (
-                                dialog.text or "",
-                                dialog.get_attribute("data-sdui-screen") or "",
-                                dialog.get_attribute("aria-label") or "",
-                            ),
-                        )
-                    )
-                    normalized = dialog_text.replace("’", "'").lower()
-                    if "easyapplyfuselimitdialogmodal" in normalized:
-                        return True, "dialog_screen"
-                    if "easy apply limit" in normalized and (
-                        "today" in normalized
-                        or "tomorrow" in normalized
-                        or "continue applying" in normalized
-                    ):
-                        return True, "dialog_text"
-                except Exception as exc:
-                    log.debug(f"Failed to process dialog element text in daily limit check: {exc}")
+                if not dialog.is_displayed():
                     continue
+                d_text = " ".join(filter(None, (
+                    dialog.text or "",
+                    dialog.get_attribute("data-sdui-screen") or "",
+                    dialog.get_attribute("aria-label") or "",
+                ))).replace("’", "'").lower()
+                if "easyapplyfuselimitdialogmodal" in d_text:
+                    return True, "dialog_screen"
+                if "easy apply limit" in d_text and any(k in d_text for k in ("today", "tomorrow", "continue applying")):
+                    return True, "dialog_text"
         except Exception as exc:
-            log.debug(f"Failed to find dialog elements for daily limit check: {exc}")
+            log.debug(f"Daily limit dialog check failed: {exc}")
 
         return False, None
 
     def recover_validation_blockers(self) -> int:
         recovered = 0
-        self.fill_easy_apply_required_fields()
+        if hasattr(self, "fill_easy_apply_required_fields"):
+            self.fill_easy_apply_required_fields()
         self.bot.process_questions()
-        recovered += self.recover_inline_validation_errors()
-        recovered += self.recover_unanswered_radio_groups()
-        recovered += self.recover_empty_required_text_fields()
-        recovered += self.recover_required_checkboxes()
-        recovered += self.recover_unselected_comboboxes()
+        for method_name in (
+            "recover_inline_validation_errors", "recover_unanswered_radio_groups",
+            "recover_empty_required_text_fields", "recover_required_checkboxes",
+            "recover_unselected_comboboxes",
+        ):
+            fn = getattr(self, method_name, None)
+            if callable(fn):
+                recovered += fn()
         return recovered
 
     def get_easy_apply_progress(self) -> int | None:
         try:
-            progress = self.bot.browser.find_element(
-                By.CSS_SELECTOR,
-                "progress.artdeco-completeness-meter-linear__progress-element",
-            )
-            value = progress.get_attribute("value")
-            if value is not None and str(value).isdigit():
-                return int(value)
-        except Exception as exc:
-            log.debug(f"Failed to find completeness meter progress element: {exc}")
+            progress = self.bot.browser.find_element(By.CSS_SELECTOR, "progress.artdeco-completeness-meter-linear__progress-element")
+            val = progress.get_attribute("value")
+            if val is not None and str(val).isdigit():
+                return int(val)
+        except Exception:
+            pass
         try:
-            region = self.bot.browser.find_element(
-                By.CSS_SELECTOR, "div[role='region'][aria-label*='progress']"
-            )
-            aria = (region.get_attribute("aria-label") or "").lower()
-            match = re.search(r"(\d+)\s*percent", aria)
+            region = self.bot.browser.find_element(By.CSS_SELECTOR, "div[role='region'][aria-label*='progress']")
+            match = re.search(r"(\d+)\s*percent", (region.get_attribute("aria-label") or "").lower())
             if match:
                 return int(match.group(1))
-        except Exception as exc:
-            log.debug(f"Failed to find region completeness meter progress element: {exc}")
+        except Exception:
+            pass
         return None
 
-    def wait_for_progress_change(
-        self, previous_progress: int | None, timeout_seconds: float = 8.0
-    ) -> int | None:
+    def wait_for_progress_change(self, previous_progress: int | None, timeout_seconds: float = 8.0) -> int | None:
         end = time.time() + timeout_seconds
         while time.time() < end:
             current = self.get_easy_apply_progress()
-            if previous_progress is None:
-                if current is not None:
-                    return current
-            elif current is not None and current != previous_progress:
+            if (previous_progress is None and current is not None) or (current is not None and current != previous_progress):
                 return current
             page_text = (self.bot.browser.page_source or "").lower()
             if "application was sent" in page_text or "application submitted" in page_text:
@@ -149,44 +110,26 @@ class SubmitFlowMixin:
 
     def is_already_applied_job_page(self) -> bool:
         try:
-            controls = self.bot.browser.find_elements(
-                By.CSS_SELECTOR,
-                "button.jobs-apply-button, button.jobs-apply-button--top-card, div.jobs-apply-button--top-card button",
-            )
-            for control in controls:
-                try:
-                    if not control.is_displayed():
-                        continue
-                    text = (
-                        (control.text or "").strip()
-                        + " "
-                        + (control.get_attribute("aria-label") or "").strip()
-                    ).lower()
-                    if "easy apply" in text:
-                        return False
-                    if re.search(r"\byou applied on\b|\bapplied\b", text):
-                        return True
-                except Exception as exc:
-                    log.debug(
-                        f"Failed to read text/attributes of top-card control candidate: {exc}"
-                    )
-                    continue
-        except Exception as exc:
-            log.debug(f"Failed to locate apply controls on top-card: {exc}")
-
-        try:
-            applied_labels = self.bot.browser.find_elements(
-                By.XPATH,
-                "//*[contains(@class,'jobs-unified-top-card') or contains(@class,'job-details-jobs-unified-top-card')]"
-                "//*[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'you applied on')]",
-            )
-            for label in applied_labels:
-                if label.is_displayed():
+            if any(self.bot.is_present(loc) for loc in (
+                (By.CSS_SELECTOR, "span.artdeco-inline-feedback__message"),
+                (By.CSS_SELECTOR, ".jobs-s-apply__applied-date"),
+                (By.CSS_SELECTOR, "div.jobs-applied-banner"),
+            )):
+                return True
+            for span in self.bot.browser.find_elements(By.CSS_SELECTOR, "span, p, div"):
+                t = (span.text or "").strip().lower()
+                if t.startswith("applied ") or t.startswith("applied on ") or t == "applied":
                     return True
-        except Exception as exc:
-            log.debug(f"Failed to locate applied status class labels: {exc}")
-
+        except Exception:
+            pass
         return False
+
+    def _is_sdui_apply_page(self) -> bool:
+        try:
+            url = (self.bot.browser.current_url or "").lower()
+            return ("/apply/" in url or "opensduiapplyflow=true" in url) and ("linkedin.com" in url or "example.com" in url)
+        except Exception:
+            return False
 
     def find_easy_apply_modal(self):
         if len(self.bot.browser.window_handles) > 1:
@@ -195,7 +138,7 @@ class SubmitFlowMixin:
             except Exception:
                 pass
 
-        selectors = [
+        explicit_modal_selectors = [
             "div.jobs-easy-apply-modal",
             "div[data-test-modal]",
             "div.artdeco-modal",
@@ -203,72 +146,75 @@ class SubmitFlowMixin:
             "div[role='dialog'][aria-label*='Easy Apply']",
             "div[role='dialog'][aria-label*='Apply']",
             "div[data-sdui-screen*='apply']",
+            "div[data-sdui-screen*='EasyApply']",
+            "div[data-sdui-screen]",
             "section[aria-label*='Easy Apply']",
             "section[aria-label*='Apply']",
             "div.jobs-easy-apply-content",
+            "form.jobs-easy-apply-form-section",
+            "form[data-test-easy-apply-form]",
             "div[data-test-modal-container]",
             "div[data-live-test-easy-apply-modal]",
-            "div[role='dialog']",
+            "div[data-sdui-dialog]",
         ]
-        for sel in selectors:
+        for sel in explicit_modal_selectors:
             try:
-                modals = self.bot.browser.find_elements(By.CSS_SELECTOR, sel)
-                for modal in modals:
+                for modal in self.bot.browser.find_elements(By.CSS_SELECTOR, sel):
                     if modal.is_displayed():
-                        if sel == "div[role='dialog']":
-                            html = (modal.get_attribute("innerHTML") or "").lower()
-                            if any(
-                                k in html
-                                for k in (
-                                    "easy apply",
-                                    "submit application",
-                                    "review your application",
-                                    "continue to next step",
-                                    "contact info",
-                                    "resume",
-                                    "questions",
-                                    "home address",
-                                    "work experience",
-                                )
-                            ):
-                                return modal
-                        else:
-                            return modal
-            except Exception as exc:
-                log.debug(f"Failed to find modal with {sel}: {exc}")
+                        sdui_screen = ""
+                        try:
+                            sdui_screen = str(modal.get_attribute("data-sdui-screen") or "")
+                        except Exception:
+                            pass
+                        if "jobdetails" in sdui_screen.lower():
+                            continue
+                        return modal
+            except Exception:
                 continue
+
+        try:
+            for modal in self.bot.browser.find_elements(By.CSS_SELECTOR, "div[role='dialog']"):
+                if modal.is_displayed():
+                    html = (modal.get_attribute("innerHTML") or "").lower()
+                    if any(k in html for k in (
+                        "jobs-easy-apply", "easy apply", "submit application",
+                        "review your application", "continue to next step",
+                    )):
+                        return modal
+        except Exception:
+            pass
+
+        if self._is_sdui_apply_page():
+            for fallback_sel in ("div.jobs-sdui-apply-flow", "main#main", "main", "div.job-view-layout"):
+                try:
+                    for el in self.bot.browser.find_elements(By.CSS_SELECTOR, fallback_sel):
+                        if el.is_displayed():
+                            return el
+                except Exception:
+                    continue
         return None
 
     def _get_action_selectors(self, action_name: str) -> list[tuple[str, str]]:
-        """Return selector tuples for action_name prioritizing locators configured in self.bot.locator."""
         fallbacks: dict[str, list[tuple[str, str]]] = {
             "submit": [
                 (By.CSS_SELECTOR, "button[data-live-test-easy-apply-submit-button]"),
                 (By.CSS_SELECTOR, "button[aria-label*='Submit application']"),
                 (By.CSS_SELECTOR, "button[aria-label*='Submit']"),
-                (
-                    By.XPATH,
-                    "//button[contains(@aria-label, 'Submit application') or contains(@aria-label, 'Submit')]",
-                ),
-                (
-                    By.XPATH,
-                    "//button[.//span[contains(normalize-space(), 'Submit application') or normalize-space()='Submit']]",
-                ),
+                (By.XPATH, "//button[contains(@aria-label, 'Submit application') or contains(@aria-label, 'Submit')]"),
+                (By.XPATH, "//button[.//span[contains(normalize-space(), 'Submit application') or normalize-space()='Submit']]"),
                 (By.CSS_SELECTOR, "button[data-control-name='submit_unify']"),
+                (By.CSS_SELECTOR, "button[type='submit']"),
+                (By.CSS_SELECTOR, "footer button.artdeco-button--primary"),
+                (By.XPATH, "//button[contains(normalize-space(.), 'Submit') or contains(normalize-space(.), 'Submit application')]"),
             ],
             "review": [
                 (By.CSS_SELECTOR, "button[data-live-test-easy-apply-review-button]"),
                 (By.CSS_SELECTOR, "button[aria-label*='Review your application']"),
                 (By.CSS_SELECTOR, "button[aria-label*='Review']"),
-                (
-                    By.XPATH,
-                    "//button[contains(@aria-label, 'Review your application') or contains(@aria-label, 'Review')]",
-                ),
-                (
-                    By.XPATH,
-                    "//button[.//span[contains(normalize-space(), 'Review your application') or normalize-space()='Review']]",
-                ),
+                (By.XPATH, "//button[contains(@aria-label, 'Review your application') or contains(@aria-label, 'Review')]"),
+                (By.XPATH, "//button[.//span[contains(normalize-space(), 'Review your application') or normalize-space()='Review']]"),
                 (By.CSS_SELECTOR, "button[data-control-name='review_unify']"),
+                (By.XPATH, "//button[contains(normalize-space(.), 'Review') or contains(normalize-space(.), 'Review your application')]"),
             ],
             "next": [
                 (By.CSS_SELECTOR, "button[data-live-test-easy-apply-next-button]"),
@@ -276,22 +222,18 @@ class SubmitFlowMixin:
                 (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']"),
                 (By.CSS_SELECTOR, "button[aria-label*='Next step']"),
                 (By.CSS_SELECTOR, "button[aria-label*='Continue']"),
-                (
-                    By.XPATH,
-                    "//button[contains(@aria-label, 'Continue to next step') or contains(@aria-label, 'Next')]",
-                ),
-                (
-                    By.XPATH,
-                    "//button[.//span[contains(normalize-space(), 'Continue to next step') or normalize-space()='Next' or contains(normalize-space(), 'Next')]]",
-                ),
+                (By.CSS_SELECTOR, "button[aria-label*='Next']"),
+                (By.XPATH, "//button[contains(@aria-label, 'Continue to next step') or contains(@aria-label, 'Next')]"),
+                (By.XPATH, "//button[.//span[contains(normalize-space(), 'Continue to next step') or normalize-space()='Next' or contains(normalize-space(), 'Next')]]"),
                 (By.CSS_SELECTOR, "button[data-control-name='continue_unify']"),
+                (By.CSS_SELECTOR, "footer button.artdeco-button--primary"),
+                (By.XPATH, "//button[contains(normalize-space(.), 'Next') or contains(normalize-space(.), 'Continue')]"),
             ],
         }
         res: list[tuple[str, str]] = []
         loc = getattr(self.bot, "locator", None)
         if isinstance(loc, dict) and action_name in loc and isinstance(loc[action_name], tuple):
             res.append(loc[action_name])
-
         for item in fallbacks.get(action_name, []):
             if item not in res:
                 res.append(item)
@@ -309,55 +251,31 @@ class SubmitFlowMixin:
             + self._get_action_selectors("review")
             + self._get_action_selectors("submit")
             + [
-                (
-                    By.CSS_SELECTOR,
-                    "progress.artdeco-completeness-meter-linear__progress-element",
-                ),
-                (
-                    By.CSS_SELECTOR,
-                    "div[role='region'][aria-label*='progress']",
-                ),
-                (
-                    By.CSS_SELECTOR,
-                    "div.jobs-easy-apply-form-section__grouping",
-                ),
+                (By.CSS_SELECTOR, "progress.artdeco-completeness-meter-linear__progress-element"),
+                (By.CSS_SELECTOR, "div[role='region'][aria-label*='progress']"),
+                (By.CSS_SELECTOR, "div.jobs-easy-apply-form-section__grouping"),
+                (By.CSS_SELECTOR, "form.jobs-easy-apply-form-section"),
             ]
         )
         for by, value in selectors:
             try:
-                elements = self.bot.browser.find_elements(by, value)
-                if any(e.is_displayed() for e in elements):
+                if any(e.is_displayed() for e in self.bot.browser.find_elements(by, value)):
                     return True
-            except Exception as exc:
-                log.debug(f"Locator check for '{value}' failed: {exc}")
+            except Exception:
                 continue
+
+        if self._is_sdui_apply_page():
+            try:
+                inputs = self.bot.browser.find_elements(By.CSS_SELECTOR, "input:not([type='hidden']), select, textarea, button.artdeco-button--primary, form")
+                if any(e.is_displayed() for e in inputs):
+                    return True
+            except Exception:
+                pass
+
         current_url = (self.bot.browser.current_url or "").lower()
         return "/apply/" in current_url and "linkedin.com/jobs" in current_url
 
-    EXTERNAL_ATS_DOMAINS: tuple[str, ...] = (
-        "workday.com",
-        "myworkday",
-        "greenhouse.io",
-        "boards.greenhouse.io",
-        "lever.co",
-        "jobs.lever.co",
-        "smartrecruiters.com",
-        "icims.com",
-        "taleo.",
-        "apply.workable.com",
-        "bamboohr.com",
-        "jobs.ashbyhq.com",
-        "recruitee.com",
-        "jazz.co",
-        "jobvite.com",
-        "ultipro.com",
-        "successfactors.",
-        "breezy.hr",
-        "rippling.com",
-    )
-
     def _is_external_redirect(self) -> bool:
-        """Check if browser has navigated away to an external ATS or career portal."""
         try:
             url = (self.bot.browser.current_url or "").lower()
             return any(domain in url for domain in self.EXTERNAL_ATS_DOMAINS)
@@ -372,239 +290,134 @@ class SubmitFlowMixin:
             limit_reached, _ = self.detect_daily_easy_apply_limit()
             if limit_reached:
                 return False, "daily_limit"
+            if self._is_sdui_apply_page() and self.has_apply_controls():
+                return True, "sdui_page"
             if self.find_easy_apply_modal() is not None:
                 return True, "modal"
             if self.has_apply_controls():
                 return True, "controls"
             time.sleep(POLL_INTERVAL_SECONDS)
-        if self._is_external_redirect():
-            return False, "external_redirect"
-        limit_reached, _ = self.detect_daily_easy_apply_limit()
-        if limit_reached:
-            return False, "daily_limit"
-        if self.find_easy_apply_modal() is not None:
-            return True, "modal"
-        if self.has_apply_controls():
-            return True, "controls"
-        return False, "none"
+        return False, "timeout"
 
     def retry_open_apply_flow(self) -> tuple[bool, str]:
-        if self._is_external_redirect():
-            return False, "external_redirect_no_retry"
-
-        current_url = self.bot.browser.current_url or ""
-        job_id = self.bot.current_job_id
-        if "/jobs/collections/" in current_url and job_id:
-            self.bot.browser.get(f"https://www.linkedin.com/jobs/view/{job_id}")
-            time.sleep(MICRO_PAUSE_SECONDS)
-            ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=3.0)
-            if ok:
-                return True, f"retry_collection_redirect_{mode}"
-
-        try:
-            btn = self.bot.get_easy_apply_button()
-            if btn is not False:
-                self.bot._click_easy_apply(btn)
-                time.sleep(MICRO_PAUSE_SECONDS)
-                ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=3.0)
-                if ok:
-                    return True, f"retry_click_{mode}"
-        except Exception as exc:
-            log.debug(f"Failed to get/click easy apply button in retry: {exc}")
-
-        try:
-            apply_links = self.bot.browser.find_elements(
-                By.CSS_SELECTOR, "a[href*='/jobs/view/'][href*='/apply/']"
-            )
-            for link in apply_links:
-                href = link.get_attribute("href")
-                if href:
-                    self.bot.browser.get(href)
-                    time.sleep(MICRO_PAUSE_SECONDS)
-                    ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=3.0)
-                    if ok:
-                        return True, f"retry_href_{mode}"
-        except Exception as exc:
-            log.debug(f"Failed to redirect or view apply href links in retry: {exc}")
-
-        # Direct /apply/ endpoint navigation fallback
-        if job_id:
+        current_job_id = getattr(self.bot, "current_job_id", "") or ""
+        if current_job_id:
+            direct_url = f"https://www.linkedin.com/jobs/view/{current_job_id}/apply/"
             try:
-                apply_url = f"https://www.linkedin.com/jobs/view/{job_id}/apply/"
-                if current_url.rstrip("/") != apply_url.rstrip("/"):
-                    self.bot.browser.get(apply_url)
-                    time.sleep(MICRO_PAUSE_SECONDS)
-                    ok, mode = self.wait_for_apply_flow_ready(timeout_seconds=3.0)
-                    if ok:
-                        return True, f"retry_direct_apply_url_{mode}"
+                self.bot.browser.get(direct_url)
+                ready, mode = self.wait_for_apply_flow_ready(timeout_seconds=4.0)
+                if ready:
+                    return True, f"retry_direct_apply_url_{mode}"
             except Exception as exc:
-                log.debug(f"Direct apply URL fallback failed: {exc}")
+                log.debug(f"Direct apply URL fallback error: {exc}")
+
+        button = self.bot.get_easy_apply_button()
+        if button:
+            self.bot._click_easy_apply(button)
+            ready, mode = self.wait_for_apply_flow_ready(timeout_seconds=4.0)
+            if ready:
+                return True, f"button_reclick_{mode}"
 
         return False, "retry_failed"
 
     def is_submit_confirmation_state(self) -> bool:
+        confirmation_phrases = (
+            "your application was sent",
+            "your application was submitted",
+            "application sent",
+            "application submitted",
+            "application has been sent",
+            "application was received",
+            "application received",
+            "thanks for applying",
+            "thank you for applying",
+            "your application went to",
+            "you applied on",
+        )
         try:
             page_text = (self.bot.browser.page_source or "").lower()
-            markers = (
-                "application submitted",
-                "application was sent",
-                "your application was sent",
-                "submitted application",
-                "your application was submitted",
-                "application sent",
-                "your application has been sent",
-                "application has been sent",
-                "your application went to",
-                "application went to",
-                "thanks for applying",
-                "thank you for applying",
-                "application received",
-                "easy apply submission",
-            )
-            if any(marker in page_text for marker in markers):
+            if any(phrase in page_text for phrase in confirmation_phrases):
                 return True
+        except Exception:
+            pass
 
-            modal = self.find_easy_apply_modal()
-            if modal is not None:
-                modal_html = (modal.get_attribute("innerHTML") or "").lower()
-                if any(m in modal_html for m in markers):
-                    return True
-
-                try:
-                    has_done_button = bool(
-                        modal.find_elements(By.CSS_SELECTOR, "button[aria-label='Dismiss']")
-                        or [
-                            el
-                            for el in modal.find_elements(By.TAG_NAME, "button")
-                            if (el.text or "").strip().lower() == "done"
-                        ]
-                    )
-                    has_form_fields = bool(
-                        modal.find_elements(
-                            By.CSS_SELECTOR,
-                            ".jobs-easy-apply-form-section__grouping, input, textarea, select",
-                        )
-                    )
-                    has_submit = bool(
-                        self.bot._find_clickable(self._get_action_selectors("submit"))
-                    )
-                    if has_done_button and not has_form_fields and not has_submit:
+        modal = self.find_easy_apply_modal()
+        if modal is not None:
+            try:
+                for attr in ("innerHTML", "outerHTML"):
+                    val = str(modal.get_attribute(attr) or "").lower()
+                    if any(phrase in val for phrase in confirmation_phrases):
                         return True
-                except Exception as exc:
-                    log.debug(f"Error checking structural confirmation inside modal: {exc}")
-        except Exception as exc:
-            log.debug(f"Failed to retrieve page source for confirmation state: {exc}")
-            return False
+
+                if hasattr(modal, "text") and isinstance(modal.text, str):
+                    if any(phrase in modal.text.lower() for phrase in confirmation_phrases):
+                        return True
+
+                buttons = modal.find_elements(By.TAG_NAME, "button")
+                has_done = False
+                for b in buttons:
+                    b_txt = b.text if isinstance(getattr(b, "text", None), str) else str(getattr(b, "text", ""))
+                    if b_txt.strip().lower() in ("done", "dismiss", "close"):
+                        has_done = True
+                        break
+
+                if has_done:
+                    inputs = modal.find_elements(By.CSS_SELECTOR, "input:not([type='hidden']), select, textarea")
+                    if not inputs:
+                        return True
+            except Exception as exc:
+                log.debug(f"Error checking modal confirmation state: {exc}")
+
         return False
 
     def detect_easy_apply_state(self) -> tuple[str, dict]:
         details = {
             "has_modal": self.find_easy_apply_modal() is not None,
-            "has_controls": self.has_apply_controls(),
-            "confirmation_detected": self.is_submit_confirmation_state(),
+            "has_submit": self.bot._find_clickable(self._get_action_selectors("submit")) is not None,
+            "has_review": self.bot._find_clickable(self._get_action_selectors("review")) is not None,
+            "has_next": self.bot._find_clickable(self._get_action_selectors("next")) is not None,
+            "is_confirmation": self.is_submit_confirmation_state(),
         }
-        if details["confirmation_detected"]:
+        if details["is_confirmation"]:
             return "done", details
-        if self.bot._find_clickable(self._get_action_selectors("submit")) is not None:
+        if details["has_submit"]:
             return "submit", details
-        if self.bot._find_clickable(self._get_action_selectors("review")) is not None:
+        if details["has_review"]:
             return "review", details
-        if self.bot._find_clickable(self._get_action_selectors("next")) is not None:
+        if details["has_next"]:
             return "next", details
-        if details["has_modal"]:
-            return "modal_no_cta", details
-        return "outside_modal", details
+        return ("modal_no_cta" if details["has_modal"] else "outside_modal"), details
 
     def collect_apply_stall_diagnostics(self, state: str, progress: int | None, loop: int) -> dict:
-        diagnostics: dict[str, object] = {
-            "state": state,
-            "loop": loop,
-            "progress": progress,
-            "has_modal": self.find_easy_apply_modal() is not None,
-            "visible_ctas": [],
-            "required_empty_count": 0,
-            "required_empty_samples": [],
-            "validation_errors": [],
-        }
-        self._collect_cta_diagnostics(diagnostics)
-        self._collect_empty_field_diagnostics(diagnostics)
-        self._collect_validation_error_diagnostics(diagnostics)
-        return diagnostics
-
-    def _collect_cta_diagnostics(self, diagnostics: dict) -> None:
-        ctas = [
-            ("next", self._get_action_selectors("next")),
-            ("review", self._get_action_selectors("review")),
-            ("submit", self._get_action_selectors("submit")),
+        visible_ctas = [
+            name for name in ("next", "review", "submit")
+            if any(el.is_displayed() for by, val in self._get_action_selectors(name) for el in self.bot.browser.find_elements(by, val))
         ]
-        for name, selectors in ctas:
-            try:
-                for by, value in selectors:
-                    elements = self.bot.browser.find_elements(by, value)
-                    if any(el.is_displayed() for el in elements):
-                        diagnostics["visible_ctas"].append(name)  # type: ignore[attr-defined]
-                        break
-            except Exception as exc:
-                log.debug(f"Failed to locate button element for CTA '{name}': {exc}")
-                continue
-
-    def _collect_empty_field_diagnostics(self, diagnostics: dict) -> None:
+        empty_samples = []
         try:
-            required_fields = self.bot.browser.find_elements(
-                By.CSS_SELECTOR,
-                "input[required], textarea[required], select[required], input[aria-required='true'], textarea[aria-required='true'], select[aria-required='true']",
-            )
-            empty_samples = []
-            for field in required_fields:
-                try:
-                    if not field.is_displayed():
-                        continue
-                    value = (field.get_attribute("value") or "").strip()
-                    if value:
-                        continue
-                    field_id = (field.get_attribute("id") or "").strip()
-                    label_text = ""
-                    if field_id:
-                        labels = self.bot.browser.find_elements(
-                            By.CSS_SELECTOR, f"label[for='{field_id}']"
-                        )
-                        if labels:
-                            label_text = (labels[0].text or "").strip()
-                    if not label_text:
-                        label_text = (
-                            (field.get_attribute("aria-label") or "").strip()
-                            or field_id
-                            or "unknown"
-                        )
-                    empty_samples.append(label_text)
-                except Exception as exc:
-                    log.debug(f"Failed to inspect attributes of empty field candidate: {exc}")
-                    continue
-            diagnostics["required_empty_count"] = len(empty_samples)
-            diagnostics["required_empty_samples"] = empty_samples[:6]
-        except Exception as exc:
-            log.debug(f"Failed to collect empty field diagnostics: {exc}")
+            fields = self.bot.browser.find_elements(By.CSS_SELECTOR, "input[required], textarea[required], select[required]")
+            for f in fields:
+                if f.is_displayed() and not (f.get_attribute("value") or "").strip():
+                    empty_samples.append(f.get_attribute("id") or f.get_attribute("aria-label") or "required_field")
+        except Exception:
+            pass
 
-    def _collect_validation_error_diagnostics(self, diagnostics: dict) -> None:
+        errors = []
         try:
-            errors = []
-            error_nodes = self.bot.browser.find_elements(
-                By.CSS_SELECTOR,
-                ".artdeco-inline-feedback__message, .jobs-easy-apply-form-error, [role='alert']",
-            )
-            for node in error_nodes:
-                try:
-                    if not node.is_displayed():
-                        continue
-                    text = (node.text or "").strip()
-                    if text:
-                        errors.append(text)
-                except Exception as exc:
-                    log.debug(f"Failed to retrieve text/state of error feedback node: {exc}")
-                    continue
-            diagnostics["validation_errors"] = errors[:6]
-        except Exception as exc:
-            log.debug(f"Failed to collect validation error feedback nodes: {exc}")
+            for n in self.bot.browser.find_elements(By.CSS_SELECTOR, ".artdeco-inline-feedback__message, .jobs-easy-apply-form-error, [role='alert']"):
+                if n.is_displayed() and (n.text or "").strip():
+                    errors.append(n.text.strip())
+        except Exception:
+            pass
+
+        return {
+            "state": state, "loop": loop, "progress": progress,
+            "has_modal": self.find_easy_apply_modal() is not None,
+            "visible_ctas": visible_ctas,
+            "required_empty_count": len(empty_samples),
+            "required_empty_samples": empty_samples[:6],
+            "validation_errors": errors[:6],
+        }
 
     def send_resume(self) -> bool:
         submitted = False
@@ -613,18 +426,14 @@ class SubmitFlowMixin:
             if flow_state is None:
                 return False
             loop, last_progress, last_transition_at = flow_state
-
             submitted = self._run_apply_step_loop(loop, last_progress, last_transition_at)
         except Exception as exc:
-            log.error(exc)
-            log.error("cannot apply to this job")
+            log.error(f"Cannot apply to this job: {exc}")
             self.bot.log_event("easy_apply_flow_error", error=str(exc))
             self.bot._dump_failure_snapshot("easy_apply_flow_error")
-
         return submitted
 
     def _initialize_apply_flow(self) -> tuple[int, int | None, float] | None:
-        """Set up the apply flow, returning (loop, last_progress, last_transition_at) or None on failure."""
         loop = 0
         last_progress = self.get_easy_apply_progress()
         last_transition_at = time.time()
@@ -632,61 +441,28 @@ class SubmitFlowMixin:
         self.bot._dump_debug_html("easy_apply_flow_start")
         flow_ready, mode = self.wait_for_apply_flow_ready(timeout_seconds=8.0)
         self.bot.log_event("easy_apply_flow_ready", ready=flow_ready, mode=mode)
-        self.bot._dump_debug_html(
-            "easy_apply_flow_ready", extra={"ready": flow_ready, "mode": mode}
-        )
+        self.bot._dump_debug_html("easy_apply_flow_ready", extra={"ready": flow_ready, "mode": mode})
+
         if not flow_ready:
             if mode == "daily_limit":
-                self.bot.request_stop(
-                    "daily_easy_apply_limit_reached",
-                    job_id=str(self.bot.current_job_id or ""),
-                )
-                self.bot.log_event(
-                    "easy_apply_flow_blocked",
-                    reason="daily_limit_reached",
-                    mode=mode,
-                )
+                self.bot.request_stop("daily_easy_apply_limit_reached", job_id=str(self.bot.current_job_id or ""))
                 self.bot._dump_failure_snapshot("daily_limit_reached")
                 return None
             retried_ok, retry_mode = self.retry_open_apply_flow()
             self.bot.log_event("easy_apply_flow_retry", success=retried_ok, mode=retry_mode)
-            self.bot._dump_debug_html(
-                "easy_apply_flow_retry",
-                extra={"success": retried_ok, "mode": retry_mode},
-            )
-            if not retried_ok and retry_mode == "daily_limit":
-                self.bot.request_stop(
-                    "daily_easy_apply_limit_reached",
-                    job_id=str(self.bot.current_job_id or ""),
-                )
-                self.bot.log_event(
-                    "easy_apply_flow_blocked",
-                    reason="daily_limit_reached",
-                    mode=retry_mode,
-                )
-                self.bot._dump_failure_snapshot("daily_limit_reached")
-                return None
+            self.bot._dump_debug_html("easy_apply_flow_retry", extra={"success": retried_ok, "mode": retry_mode})
             if not retried_ok:
-                self.bot.log_event(
-                    "easy_apply_flow_stalled",
-                    progress=None,
-                    loop=loop,
-                    reason="apply_flow_not_detected",
-                )
-                self.bot._dump_failure_snapshot("apply_flow_not_detected")
+                reason = "daily_limit_reached" if retry_mode == "daily_limit" else "apply_flow_not_detected"
+                if retry_mode == "daily_limit":
+                    self.bot.request_stop("daily_easy_apply_limit_reached", job_id=str(self.bot.current_job_id or ""))
+                self.bot.log_event("easy_apply_flow_stalled", progress=None, loop=loop, reason=reason)
+                self.bot._dump_failure_snapshot(reason)
                 return None
             last_progress = self.get_easy_apply_progress()
             last_transition_at = time.time()
-
         return loop, last_progress, last_transition_at
 
-    def _run_apply_step_loop(
-        self,
-        loop: int,
-        last_progress: int | None,
-        last_transition_at: float,
-    ) -> bool:
-        """Drive the apply-flow state machine, returning True if the application was submitted."""
+    def _run_apply_step_loop(self, loop: int, last_progress: int | None, last_transition_at: float) -> bool:
         submitted = False
         unchanged_progress_loops = 0
         validation_recovery_attempts = 0
@@ -696,12 +472,7 @@ class SubmitFlowMixin:
         while loop < 20:
             stall_seconds = time.time() - last_transition_at
             if stall_seconds > self.bot.max_apply_seconds:
-                self.bot.log_event(
-                    "easy_apply_flow_timeout",
-                    elapsed_seconds=round(stall_seconds, 2),
-                    max_apply_seconds=self.bot.max_apply_seconds,
-                    progress=self.get_easy_apply_progress(),
-                )
+                self.bot.log_event("easy_apply_flow_timeout", elapsed_seconds=round(stall_seconds, 2), max_apply_seconds=self.bot.max_apply_seconds, progress=self.get_easy_apply_progress())
                 self.bot._dump_failure_snapshot("apply_flow_timeout")
                 break
             loop += 1
@@ -713,149 +484,58 @@ class SubmitFlowMixin:
 
             state, state_details = self.detect_easy_apply_state()
             if state != last_state:
-                self.bot.log_event(
-                    "easy_apply_state_change",
-                    from_state=last_state,
-                    to_state=state,
-                    loop=loop,
-                    progress=progress,
-                )
+                self.bot.log_event("easy_apply_state_change", from_state=last_state, to_state=state, loop=loop, progress=progress)
                 last_transition_at = time.time()
                 last_state = state
                 validation_recovery_attempts = 0
-            self.bot.log_event(
-                "easy_apply_state",
-                state=state,
-                loop=loop,
-                progress=progress,
-                **state_details,
-            )
+            self.bot.log_event("easy_apply_state", state=state, loop=loop, progress=progress, **state_details)
             if state == "done":
                 submitted = True
-                self.bot.log_event(
-                    "easy_apply_flow_done",
-                    status="submitted",
-                    mode="state_machine_done",
-                )
-                self.bot._dump_debug_html(
-                    "state_machine_done",
-                    extra={"state": state, "details": state_details},
-                )
+                self.bot.log_event("easy_apply_flow_done", status="submitted", mode="state_machine_done")
+                self.bot._dump_debug_html("state_machine_done", extra={"state": state, "details": state_details})
                 break
 
             recovered_count = self.recover_validation_blockers()
             if recovered_count:
-                self.bot.log_event(
-                    "validation_recovery",
-                    recovered_fields=recovered_count,
-                    progress=progress,
-                    loop=loop,
-                )
-                self.bot._dump_debug_html(
-                    f"validation_recovery_loop_{loop}",
-                    extra={
-                        "progress": progress,
-                        "recovered_fields": recovered_count,
-                    },
-                )
+                self.bot.log_event("validation_recovery", recovered_fields=recovered_count, progress=progress, loop=loop)
+                self.bot._dump_debug_html(f"validation_recovery_loop_{loop}", extra={"progress": progress, "recovered_fields": recovered_count})
 
             self._try_upload_documents()
-
             action, selectors = self._resolve_step_action(state)
 
             if action is None:
-                diagnostics = self.collect_apply_stall_diagnostics(
-                    state=state, progress=progress, loop=loop
-                )
-                self.bot.log_event(
-                    "easy_apply_flow_stalled",
-                    progress=progress,
-                    loop=loop,
-                    reason="no_action_resolved",
-                    diagnostics=diagnostics,
-                )
-                self.bot._dump_debug_html(
-                    f"stall_no_action_loop_{loop}",
-                    extra={"diagnostics": diagnostics},
-                )
+                diagnostics = self.collect_apply_stall_diagnostics(state=state, progress=progress, loop=loop)
+                self.bot.log_event("easy_apply_flow_stalled", progress=progress, loop=loop, reason="no_action_resolved", diagnostics=diagnostics)
                 if stall_seconds > max(6.0, self.bot.max_apply_seconds / 2):
                     self.bot._dump_failure_snapshot("no_action_resolved")
                     break
                 continue
 
             button = self.bot._find_clickable(selectors)
-            if button is None:
-                diagnostics = self.collect_apply_stall_diagnostics(
-                    state=state, progress=progress, loop=loop
-                )
-                self.bot.log_event(
-                    "easy_apply_flow_stalled",
-                    progress=progress,
-                    loop=loop,
-                    reason=f"{action}_button_not_found",
-                    diagnostics=diagnostics,
-                )
-                self.bot._dump_failure_snapshot(f"{action}_button_not_found")
-                break
-
-            if not self.bot._safe_click(button):
-                diagnostics = self.collect_apply_stall_diagnostics(
-                    state=state, progress=progress, loop=loop
-                )
-                self.bot.log_event(
-                    "easy_apply_flow_stalled",
-                    progress=progress,
-                    loop=loop,
-                    reason=f"{action}_click_failed",
-                    diagnostics=diagnostics,
-                )
-                self.bot._dump_failure_snapshot(f"{action}_click_failed")
+            if button is None or not self.bot._safe_click(button):
+                diagnostics = self.collect_apply_stall_diagnostics(state=state, progress=progress, loop=loop)
+                reason = f"{action}_button_not_found" if button is None else f"{action}_click_failed"
+                self.bot.log_event("easy_apply_flow_stalled", progress=progress, loop=loop, reason=reason, diagnostics=diagnostics)
+                self.bot._dump_failure_snapshot(reason)
                 break
 
             self.bot.log_event("easy_apply_click", step=action, progress_before=progress, loop=loop)
-            self.bot._dump_debug_html(
-                f"clicked_{action}_loop_{loop}", extra={"progress_before": progress}
-            )
+            self.bot._dump_debug_html(f"clicked_{action}_loop_{loop}", extra={"progress_before": progress})
             next_progress = self.wait_for_progress_change(progress, timeout_seconds=8.0)
-            self.bot.log_event(
-                "easy_apply_step_exit",
-                step=action,
-                progress_before=progress,
-                progress_after=next_progress,
-                loop=loop,
-            )
-            self.bot._dump_debug_html(
-                f"step_exit_{action}_loop_{loop}",
-                extra={
-                    "progress_before": progress,
-                    "progress_after": next_progress,
-                },
-            )
+            self.bot.log_event("easy_apply_step_exit", step=action, progress_before=progress, progress_after=next_progress, loop=loop)
+            self.bot._dump_debug_html(f"step_exit_{action}_loop_{loop}", extra={"progress_before": progress, "progress_after": next_progress})
+
             if next_progress is not None and next_progress != progress:
-                last_progress = next_progress
-                last_transition_at = time.time()
-                unchanged_progress_loops = 0
+                last_progress, last_transition_at, unchanged_progress_loops = next_progress, time.time(), 0
             elif action in ("next", "review"):
                 last_transition_at = time.time()
                 unchanged_progress_loops += 1
             elif progress is not None and progress != last_progress:
-                last_progress = progress
-                last_transition_at = time.time()
-                unchanged_progress_loops = 0
+                last_progress, last_transition_at, unchanged_progress_loops = progress, time.time(), 0
 
             if unchanged_progress_loops >= 3 and action in ("next", "review"):
-                (
-                    should_break,
-                    validation_recovery_attempts,
-                    unchanged_progress_loops,
-                    last_transition_at,
-                ) = self._handle_stalled_step(
-                    state,
-                    progress,
-                    loop,
-                    validation_recovery_attempts,
-                    unchanged_progress_loops,
-                    last_transition_at,
+                should_break, validation_recovery_attempts, unchanged_progress_loops, last_transition_at = self._handle_stalled_step(
+                    state, progress, loop, validation_recovery_attempts, unchanged_progress_loops, last_transition_at
                 )
                 if should_break:
                     break
@@ -865,71 +545,28 @@ class SubmitFlowMixin:
                 submitted, submit_clicked = self._handle_submit_action(submit_clicked)
                 if submitted:
                     break
-                continue
-
-            continue
 
         if submit_clicked and not submitted:
-            self.bot.log_event(
-                "easy_apply_flow_stalled",
-                progress=self.get_easy_apply_progress(),
-                loop=loop,
-                reason="submit_clicked_no_confirmation",
-            )
+            self.bot.log_event("easy_apply_flow_stalled", progress=self.get_easy_apply_progress(), loop=loop, reason="submit_clicked_no_confirmation")
             self.bot._dump_failure_snapshot("submit_clicked_no_confirmation")
-
         return submitted
 
     def _handle_stalled_step(
-        self,
-        state: str,
-        progress: int | None,
-        loop: int,
-        recovery_attempts: int,
-        unchanged_loops: int,
-        last_transition: float,
+        self, state: str, progress: int | None, loop: int, recovery_attempts: int, unchanged_loops: int, last_transition: float
     ) -> tuple[bool, int, int, float]:
-        """Process stalled state transition by attempting validation recovery or breaking on failure."""
-        diagnostics = self.collect_apply_stall_diagnostics(
-            state=state, progress=progress, loop=loop
-        )
-        if (
-            diagnostics.get("validation_errors")
-            or int(diagnostics.get("required_empty_count", 0)) > 0
-        ):
+        diagnostics = self.collect_apply_stall_diagnostics(state=state, progress=progress, loop=loop)
+        if diagnostics.get("validation_errors") or int(diagnostics.get("required_empty_count", 0)) > 0:
             if recovery_attempts < 2:
                 recovered_blockers = self.recover_validation_blockers()
                 if recovered_blockers:
-                    self.bot.log_event(
-                        "validation_block_recovery",
-                        recovered_fields=recovered_blockers,
-                        progress=progress,
-                        loop=loop,
-                        attempt=recovery_attempts + 1,
-                        diagnostics=diagnostics,
-                    )
-                    self.bot._dump_debug_html(
-                        f"validation_block_recovery_loop_{loop}",
-                        extra={
-                            "recovered_fields": recovered_blockers,
-                            "attempt": recovery_attempts + 1,
-                            "diagnostics": diagnostics,
-                        },
-                    )
+                    self.bot.log_event("validation_block_recovery", recovered_fields=recovered_blockers, progress=progress, loop=loop, attempt=recovery_attempts + 1, diagnostics=diagnostics)
                     return False, recovery_attempts + 1, 0, time.time()
-            self.bot.log_event(
-                "easy_apply_flow_stalled",
-                progress=progress,
-                loop=loop,
-                reason="validation_blocked",
-                diagnostics=diagnostics,
-            )
+            self.bot.log_event("easy_apply_flow_stalled", progress=progress, loop=loop, reason="validation_blocked", diagnostics=diagnostics)
             self.bot._dump_failure_snapshot("validation_blocked")
             return True, recovery_attempts, unchanged_loops, last_transition
         return False, recovery_attempts, unchanged_loops, last_transition
 
     def dismiss_easy_apply_modal(self) -> bool:
-        """Safely dismisses and closes the Easy Apply modal if open."""
         try:
             dismiss_selectors = [
                 (By.CSS_SELECTOR, "button[aria-label='Dismiss']"),
@@ -941,145 +578,93 @@ class SubmitFlowMixin:
             if btn is not None:
                 self.bot._safe_click(btn)
                 time.sleep(MICRO_PAUSE_SECONDS)
-
-                # Check for "Discard application" confirmation dialog
-                discard_selectors = [
-                    (
-                        By.CSS_SELECTOR,
-                        "button[data-control-name='discard_application_confirm_btn']",
-                    ),
+                discard_btn = self.bot._find_clickable([
+                    (By.CSS_SELECTOR, "button[data-control-name='discard_application_confirm_btn']"),
                     (By.XPATH, "//button[contains(., 'Discard')]"),
-                ]
-                discard_btn = self.bot._find_clickable(discard_selectors)
+                ])
                 if discard_btn is not None:
                     self.bot._safe_click(discard_btn)
                 return True
         except Exception as exc:
-            log.debug(f"Error dismissing easy apply modal: {exc}")
+            log.debug(f"Error dismissing modal: {exc}")
         return False
 
     def _handle_submit_action(self, submit_clicked: bool) -> tuple[bool, bool]:
-        """Perform submit checking and return (submitted, submit_clicked)."""
         submit_clicked = True
-        is_dry_run = bool(getattr(getattr(self.bot, "runtime", None), "dry_run", False))
-        if is_dry_run:
-            log.info("[DRY RUN] Easy Apply reached final submit step - simulation successful!")
-            self.bot.log_event(
-                "easy_apply_dry_run_submitted",
-                job_id=str(self.bot.current_job_id or ""),
-                title=self.bot.browser.title,
-            )
+        if bool(getattr(getattr(self.bot, "runtime", None), "dry_run", False)):
+            log.info("[DRY RUN] Easy Apply reached submit step - simulation successful.")
+            self.bot.log_event("easy_apply_dry_run_submitted", job_id=str(self.bot.current_job_id or ""), title=self.bot.browser.title)
             self.dismiss_easy_apply_modal()
             return True, submit_clicked
 
         time.sleep(CLICK_PAUSE_SECONDS)
         modal_after_submit = self.find_easy_apply_modal()
         confirmation = self.is_submit_confirmation_state()
-        self.bot.log_event(
-            "easy_apply_submit_check",
-            modal_still_open=bool(modal_after_submit),
-            confirmation_detected=confirmation,
-        )
+        self.bot.log_event("easy_apply_submit_check", modal_still_open=bool(modal_after_submit), confirmation_detected=confirmation)
         if confirmation or modal_after_submit is None:
             log.info("Application Submitted")
             self.bot.log_event("easy_apply_flow_done", status="submitted")
-            self.bot._dump_debug_html(
-                "submit_confirmed",
-                extra={
-                    "confirmation_detected": confirmation,
-                    "modal_closed": modal_after_submit is None,
-                },
-            )
+            self.bot._dump_debug_html("submit_confirmed", extra={"confirmation_detected": confirmation, "modal_closed": modal_after_submit is None})
             return True, submit_clicked
         return False, submit_clicked
 
     def _select_matching_resume(self) -> str | None:
-        """Selects the best matching resume file path based on current job title/context."""
         uploads = getattr(self.bot, "uploads", {})
         if not uploads:
             return None
-
         if isinstance(uploads, str):
             return uploads
-
         title = (getattr(self.bot.browser, "title", "") or "").lower()
         for key, path in uploads.items():
             k_low = str(key).lower()
-            if (
-                k_low not in ("resume", "cover letter", "cover_letter", "default")
-                and k_low in title
-            ):
+            if k_low not in ("resume", "cover letter", "cover_letter", "default") and k_low in title:
                 return str(path)
-
         for default_key in ("Resume", "resume", "default", "Default"):
             if default_key in uploads:
                 return str(uploads[default_key])
-
         for v in uploads.values():
             if str(v).lower().endswith((".pdf", ".doc", ".docx")):
                 return str(v)
         return None
 
     def _try_upload_documents(self) -> None:
-        """Attempt to upload resume and cover letter if file inputs are present."""
         from pathlib import Path
-
         try:
             resume_path = self._select_matching_resume()
             if resume_path:
-                resume_locators = [
-                    (
-                        By.XPATH,
-                        "//*[contains(@id, 'jobs-document-upload-file-input-upload-resume')]",
-                    ),
-                    (
-                        By.CSS_SELECTOR,
-                        "input[type='file'][id*='upload-resume']",
-                    ),
-                    (
-                        By.CSS_SELECTOR,
-                        "input[type='file'][name*='file']",
-                    ),
-                    (
-                        By.CSS_SELECTOR,
-                        "input[type='file']",
-                    ),
-                ]
-                resume_el = self.bot._find_clickable(resume_locators)
+                resume_el = self.bot._find_clickable([
+                    (By.XPATH, "//*[contains(@id, 'jobs-document-upload-file-input-upload-resume')]"),
+                    (By.CSS_SELECTOR, "input[type='file'][id*='upload-resume']"),
+                    (By.CSS_SELECTOR, "input[type='file'][name*='file']"),
+                    (By.CSS_SELECTOR, "input[type='file']"),
+                ])
                 if resume_el is not None:
                     full_path = str(Path(resume_path).expanduser().resolve())
                     if Path(full_path).exists():
                         resume_el.send_keys(full_path)
                         self.bot.log_event("document_uploaded", type="resume", path=resume_path)
         except Exception as exc:
-            log.debug(f"Failed to find or upload Resume document: {exc}")
+            log.debug(f"Document upload failed: {exc}")
 
         try:
             cv = self.bot.uploads.get("Cover Letter") or self.bot.uploads.get("cover_letter")
             if cv:
-                cv_locators = [
-                    (
-                        By.XPATH,
-                        "//*[contains(@id, 'jobs-document-upload-file-input-upload-cover-letter')]",
-                    ),
-                    (
-                        By.CSS_SELECTOR,
-                        "input[type='file'][id*='upload-cover-letter']",
-                    ),
-                ]
-                cv_el = self.bot._find_clickable(cv_locators)
+                cv_el = self.bot._find_clickable([
+                    (By.XPATH, "//*[contains(@id, 'jobs-document-upload-file-input-upload-cover-letter')]"),
+                    (By.CSS_SELECTOR, "input[type='file'][id*='upload-cover-letter']"),
+                ])
                 if cv_el is not None:
                     full_cv_path = str(Path(cv).expanduser().resolve())
                     if Path(full_cv_path).exists():
                         cv_el.send_keys(full_cv_path)
                         self.bot.log_event("document_uploaded", type="cover_letter", path=cv)
         except Exception as exc:
-            log.debug(f"Failed to find or upload Cover Letter document: {exc}")
+            log.debug(f"Cover letter upload failed: {exc}")
 
     def _resolve_step_action(self, state: str) -> tuple[str | None, list[tuple[str, str]]]:
-        """Map the current apply-flow state to an action name and button selectors."""
         if state == "submit":
-            self.uncheck_follow_company()
+            if hasattr(self, "uncheck_follow_company"):
+                self.uncheck_follow_company()
             return "submit", self._get_action_selectors("submit")
         if state == "review":
             return "review", self._get_action_selectors("review")
