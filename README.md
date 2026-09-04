@@ -2,16 +2,16 @@
 
 <div align="center">
 
-[![Python 3.12](https://img.shields.io/badge/python-3.12+-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI Tests](https://img.shields.io/badge/Tests-277%2B%20Passed-brightgreen.svg)](tests/)
-[![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Type Checked: Mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
-[![AI Engine: Groq / Gemini / Claude](https://img.shields.io/badge/AI%20Engine-Groq%20%7C%20Gemini%20%7C%20Claude-orange.svg)](easy_apply_automator/qa/)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12+-3776AB.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![CI Tests](https://img.shields.io/badge/Tests-289%20Passed-brightgreen.svg?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
+[![Code Style: Ruff](https://img.shields.io/badge/Code%20Style-Ruff-000000.svg?style=for-the-badge&logo=ruff&logoColor=white)](https://github.com/astral-sh/ruff)
+[![Type Checked: Mypy](https://img.shields.io/badge/Type%20Checked-Mypy-blue.svg?style=for-the-badge&logo=python&logoColor=white)](http://mypy-lang.org/)
+[![AI Engine](https://img.shields.io/badge/AI%20Engine-Groq%20%7C%20Gemini%20%7C%20Claude-orange.svg?style=for-the-badge&logo=openai&logoColor=white)](easy_apply_automator/qa/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
-**Stealth, AI-powered automation engine and real-time control center for LinkedIn Easy Apply.**
+**Next-generation, stealth AI automation engine and real-time control center for LinkedIn Easy Apply.**
 
-[Key Features](#key-features) • [System Architecture](#system-architecture) • [Smart Decision Pipeline](#smart-decision-pipeline) • [Quick Start](#quick-start) • [Web Dashboard](#live-web-dashboard--qa-studio) • [Configuration](#configuration) • [Engineering Highlights](#engineering-decisions--presentation-highlights)
+[Key Features](#key-features) • [System Architecture](#system-architecture) • [Smart Decision Pipeline](#smart-decision-pipeline) • [Account Safety Guide](#linkedin-account-safety--anti-detection-guide) • [Quick Start](#quick-start) • [Control Center Dashboard](#live-web-dashboard--qa-studio) • [Configuration](#configuration-guide) • [Engineering Highlights](#engineering-highlights--interview-talking-points) • [FAQ](#troubleshooting--faq)
 
 </div>
 
@@ -20,80 +20,113 @@
 ## Disclaimer
 
 > **Educational & Research Purpose Only.**  
-> LinkedIn's User Agreement strictly prohibits unauthorized automation, scraping, or botting. Use this software responsibly and at your own risk. The developers assume no liability for account warnings, restrictions, or suspensions resulting from automated activity.
+> LinkedIn's User Agreement strictly prohibits unauthorized automation, scraping, or botting. Use this software responsibly, ethically, and at your own discretion. The developers assume no liability for account warnings, restrictions, or suspensions resulting from automated activity. Review the [Account Safety Guide](#linkedin-account-safety--anti-detection-guide) below before running long sessions.
 
 ---
 
 ## Key Features
 
-### 1. Resilient Job Discovery & SDUI Navigation Support
-* **Multi-Selector Card Discovery**: Resiliently scrapes job cards across varying LinkedIn search layouts (`data-job-id`, `data-occludable-job-id`, `div.job-card-container`, `li.jobs-search-results__list-item`, and regex `/jobs/view/(\d+)` anchor parsing) to ensure no listings are missed during DOM restructuring.
-* **Server-Driven UI (SDUI) Flow Handling**: Fully supports LinkedIn's modern SDUI navigation-based apply flow (`<a href="...?openSDUIApplyFlow=true">` and dedicated `/apply/` URLs) alongside traditional client-side modal dialogs.
-* **Post-Navigation Page Synchronization**: Detects link-triggered page transitions, awaiting DOM readiness and scrolling new application pages before engaging form controls.
-* **Resilient Multi-Strategy Fallback**: Direct `/apply/` URL navigation and collection redirect recovery when in-page modal dialogs do not render.
+### 1. Resilient Job Discovery & SDUI Navigation Engine
+* **Multi-Selector Card Discovery**: Scrapes job listings dynamically across varying LinkedIn search layouts (`data-job-id`, `data-occludable-job-id`, `div.job-card-container`, `li.jobs-search-results__list-item`, and regex `/jobs/view/(\d+)` anchor parsing). Resilient against LinkedIn A/B tests and DOM updates.
+* **Server-Driven UI (SDUI) Support**: Seamlessly navigates both standard modal popups and LinkedIn's modern dedicated SDUI `/apply/?openSDUIApplyFlow=true` application pages.
+* **Post-Navigation Synchronization**: Automatically detects full-page transitions, verifies DOM readiness, and scrolls into view before interacting with form components.
+* **Direct Route Fallback**: Automatic recovery navigating directly to application endpoints when client-side trigger buttons fail to open modals.
 
-### 2. Resume Relevance Scoring & Pre-Click Search Filtering
-* **Search Result Card Pre-Filter**: Scrapes and checks job titles directly from LinkedIn search result cards before clicking into the job page. Blacklisted and low-relevance roles are skipped in under 0.1 seconds without loading or scrolling the full page.
-* **Resume-Aligned Relevance Scorer**: Zero-cost heuristic scoring engine (`RelevanceScorer`) matching 60+ technical skills (Software, Python, Flask, Node.js, SQL, Data Scraping, Cybersecurity, SIEM, IT Support, AI/ML, NLP, Automation, QA, Finance, SEO) and blocking 40+ irrelevant categories (non-English language roles, video/reels creation, healthcare, manual labor, sales).
-* **Empty Page Fast Exit**: Automatically detects when a search keyword or location yields no more listings after consecutive empty pages, terminating the combo early to avoid burning redundant pagination requests.
+### 2. Pre-Click Search Filtration & Heuristic Scoring
+* **Sub-Millisecond Card Pre-Filter**: Reads job titles directly from search result cards before loading the job page. Blacklisted and irrelevant positions are skipped in under **0.1 seconds**, saving >90% bandwidth and session time.
+* **Resume-Aligned Relevance Scorer**: High-throughput heuristic scoring engine (`RelevanceScorer`) matching 60+ technical skills (Python, Flask, Node.js, SQL, Data Scraping, Cybersecurity, SIEM, IT Support, AI/ML, NLP, QA Automation, Finance, SEO) while filtering out 40+ non-technical categories (sales, cold calling, marketing, non-English roles, manual labor).
+* **Empty Page Fast Exit**: Detects consecutive empty pages and automatically skips redundant pagination to avoid burning rate limits on exhausted search combinations.
 
-### 3. External ATS Redirect & Modal Detection
-* **External ATS Early Exit**: Automatically detects when an Easy Apply button redirects to external portals (Workday, Greenhouse, Lever, SmartRecruiters, Ashby, iCIMS, Taleo) within 1-2 seconds, exiting early and returning to LinkedIn without wasting 30+ seconds waiting for non-existent modals.
-* **Stealth Single-Click Dispatcher**: Uses randomized single-click strategies (`ActionChains`, direct interaction, or script execution) with humanized pause variance, eliminating synthetic multi-click patterns that trigger anti-bot protections.
+### 3. Multi-Tiered AI Question Answering & resume.md Integration
+* **5-Stage Answer Resolution**:
+  1. **Deterministic YAML Rules**: Instant regex match from `questions_answers.yaml` (0ms latency, zero API cost).
+  2. **Dynamic Skill Years**: Extracts exact years from `profile.years` matching target keywords.
+  3. **Contextual Recruitment Heuristics**: Handles standard questions (notice period, sponsorship, commute, relocation).
+  4. **Zero-Shot LLM Reasoning**: Injects job metadata and full candidate `resume.md` into high-speed LLMs (Groq, Gemini, Claude, OpenAI, Ollama) for custom open-ended questions.
+  5. **Safe Fallback**: Configurable fallback defaults ensuring forms are never left incomplete.
+* **Self-Learning YAML Cache**: Answers generated by LLMs are automatically cached to local YAML storage on disk, turning future occurrences into zero-cost instant lookups.
+* **Numeric Precision**: Preserves `0` and `0.0` values for years of experience without misrepresenting freshers or entry-level skills.
+* **Prompt Injection Defense**: Sanitizes input questions, strips control characters, and wraps prompts in strict XML boundary tags.
 
-### 4. Smart Deduplication, Session Persistence & Atomic Storage
-* **Automatic Session Persistence**: Seamlessly caches LinkedIn authentication cookies to `.auth/linkedin_cookies.json` upon successful login, eliminating the need to solve verification challenges on every session run.
-* **Atomic Storage & Self-Healing Data Recovery**: Protects `results.json` and CSV reports from truncation or sudden termination crashes using atomic write swaps (`.tmp` + rename). Automatically detects and recovers from corrupted JSON by archiving faulty state (`.corrupt_*`) and cleanly initializing.
-* **Non-Destructive Failure Handling**: Distinguishes permanent job skips (already applied, title blacklist, medical filters, low relevance) from transient execution issues (modal timeouts, network stalls). Transient failures remain eligible for subsequent passes instead of being permanently locked out.
-* **Multi-Day Cache Ingestion**: Intelligently loads prior successful submissions while preserving uncompleted applications across separate runs.
+### 4. Advanced Anti-Detection & Human Simulation
+* **Cubic Bézier Mouse Trajectories**: Generates randomized Bézier curves with natural acceleration, deceleration, and human overshoot corrections instead of robotic straight-line movements.
+* **Typing Cadence Jitter (`human_type_with_jitter`)**: Emulates human keystroke variance (20ms–65ms) and punctuation delays across all text inputs.
+* **Smooth Scrolling & Reading Pauses**: Simulates natural user reading behavior before interacting with form sections.
+* **Adaptive Circuit Breaker**: Detects consecutive failure spikes and triggers escalating cooldown intervals (60s, 120s, 180s up to 300s) to safeguard the account from detection.
+* **Session Persistence**: Caches authentication cookies locally (`.auth/linkedin_cookies.json`), eliminating repeated 2FA or CAPTCHA challenges between runs.
+* **Atomic Telemetry & Self-Healing Storage**: All results and logs use atomic write-and-replace (`.tmp` + rename), preventing data corruption on abrupt termination.
 
-### 5. AI Zero-Shot Question Answering & Numeric Precision
-* **Universal Multi-Provider AI Client**: Native REST client supporting **Groq** (`openai/gpt-oss-120b`, `llama-3.3-70b`), **Google Gemini Flash**, **OpenAI**, **Anthropic Claude**, and **local Ollama** without heavy third-party SDK dependencies.
-* **Numeric Answer Precision**: Accurately preserves `0` and `0.0` values for years of experience and numerical questions (preventing zero-experience candidates from being mischaracterized with 1+ years).
-* **Prompt Injection Defense & Sanitization**: Strips non-printable control characters and enforces length limits with XML boundary encapsulation on recruiter questions before sending to LLMs.
-* **Job-Specific Prompt Enrichment**: Injects the active job title, hiring company, candidate background profile, and `resume.md` into zero-shot prompts, generating customized answers for questions like "Why are you interested in this role?".
-* **Self-Learning Local Cache**: When AI resolves an unknown question, it dynamically appends the rule into your local `questions_answers.yaml` on disk. Future occurrences are resolved locally with zero API calls and zero latency.
+### 5. Real-Time Control Center & Historical Analytics Dashboard
+* **Glassmorphic Single-Page Application**: Real-time Web Control Center running on Flask (`python dashboard.py`).
+* **Date-Filtered Analytics**: Select specific calendar dates or session runs to view historical success rates, submission counts, and logs.
+* **Interactive QA Studio**: Test recruiter questions in an in-browser sandbox to inspect resolved answers in real time.
+* **YAML Rule & Profile Editor**: Modify skill experience years and add custom regex matching rules directly from the web interface.
+* **Live Event Stream**: Real-time event stream (`logs/events.jsonl`) showing exactly what the bot is clicking and evaluating.
 
-### 6. Anti-Detection & Human Simulation
-* **Cubic Bezier Mouse Trajectories**: Generates randomized cubic Bezier cursor paths with human velocity profiles and subtle overshoot corrections instead of robotic straight-line jumps.
-* **Human Keystroke Jitter (`human_type_with_jitter`)**: Emulates human typing cadence with variable inter-keystroke intervals (20ms-65ms) and natural punctuation pauses across all form inputs and contact fields.
-* **Natural Smooth Scrolling & Reading Pauses**: Injects multi-step eased scrolling and realistic page reading pauses before interacting with application forms.
-* **Progressive Circuit Breaker**: Monitors consecutive failure bursts and triggers escalating cooldown intervals (60s, 120s, 180s up to 300s) to protect accounts from rate limiting, gradually recovering cooldown thresholds as successful submissions resume.
-* **Stealth Chrome Flags**: Built-in `--disable-blink-features=AutomationControlled` and persistent user profile support to evade heuristic bot detection.
+---
 
-### 7. Automated Contact Pre-Filling & SDUI Form Recovery
-* **Full Contact Field Pre-Filling**: Automatically fills Mobile Phone, Email, First Name, Last Name, City, LinkedIn Profile URL, and GitHub Portfolio with natural typing jitter on initial form pages.
-* **Smart Form Auto-Recovery**: Automatically resolves unselected comboboxes, typeahead dropdowns, required legal checkboxes, and multi-option radio groups.
+## LinkedIn Account Safety & Anti-Detection Guide
 
-### 8. Live Web Dashboard, Telemetry & Storage Management
-* **Glassmorphic Single-Page Application**: Real-time control center (`python dashboard.py`) featuring live KPI streaming (Applications Submitted, Failed, Jobs Evaluated, Submission Rate).
-* **Session Performance Telemetry**: Outputs structured summary reports at session completion (duration, attempts, submissions, failure rates, termination reasons).
-* **Automated Storage Management**: Automatically prunes older debug HTML failure snapshots on startup to keep disk consumption capped.
+To protect your LinkedIn account from flags, checkpoints, or temporary restrictions, follow these best practices:
+
+| Safety Practice | Recommended Setting / Behavior | Why It Matters |
+| :--- | :--- | :--- |
+| **Application Quotas** | `max_applications: 40-60` per day | Submitting hundreds of applications in a short span triggers automated spam filters. Keep daily totals reasonable. |
+| **Pacing & Breaks** | `session_duration_hours_min: 2`<br>`session_duration_hours_max: 4`<br>`short_break_min_seconds: 15-45` | Natural pauses and short breaks every 30–60 minutes simulate human browsing patterns. |
+| **Browser Visibility** | `headless: false` *(Keep UI visible)* | LinkedIn deploys sophisticated JavaScript fingerprinting to identify headless Chrome. Running with the browser visible looks like normal user traffic. |
+| **Search Shuffling** | `shuffle_search_combos: true` | Prevents rigid, predictable search patterns by randomizing title and location queries. |
+| **Working Hours** | Run during normal daytime hours (9 AM – 9 PM) | Continuous 24/7 automated activity is a primary signal for bot detection. |
+| **Pre-Click Filtering** | Keep `blacklist_titles` and filters updated | Reduces the number of page loads by rejecting non-matching jobs before opening them. |
 
 ---
 
 ## System Architecture
 
 ```text
-+----------------------------------------------------------------------------------+
-|                             EasyApply Automator Core                             |
-+--------------------------+--------------------------+----------------------------+
-|   Application Layer      |     Services Layer       |   Infrastructure Layer     |
-|  +--------------------+  |  +--------------------+  |  +----------------------+  |
-|  | Orchestrator /     |  |  | Apply Flow State   |  |  | Undetected Browser   |  |
-|  | Search Loop        |--|  | Machine & ATS Gate |  |  | Factory (Chrome)     |  |
-|  +--------------------+  |  +--------------------+  |  +----------------------+  |
-|            |             |            |             |            |               |
-|  +--------------------+  |  +--------------------+  |  +----------------------+  |
-|  | Live Control       |  |  | Form Filler /      |  |  | Human Simulation:    |  |
-|  | Dashboard Server   |  |  | SDUI Recovery      |  |  | Bezier & Jitter      |  |
-|  +--------------------+  |  +--------------------+  |  +----------------------+  |
-+------------+--------------------------+--------------------------+---------------+
-             |                          |                          |
-   +-------------------+      +-------------------+      +-------------------+
-   | questions_answers |      | Groq / Gemini /   |      | JSONL Telemetry & |
-   | Local YAML Rules  |      | Claude LLM Engine |      | Cookie Repository |
-   +-------------------+      +-------------------+      +-------------------+
++-----------------------------------------------------------------------------------------+
+|                                EasyApply Automator Core                                 |
++----------------------------+----------------------------+-------------------------------+
+|     Application Layer      |       Services Layer       |     Infrastructure Layer      |
+|  +----------------------+  |  +----------------------+  |  +-------------------------+  |
+|  | Orchestrator /       |  |  | Apply Flow State     |  |  | Undetected ChromeDriver |  |
+|  | Search Loop Engine   |--|  | Machine & ATS Gate   |--|  | Stealth Browser Engine  |  |
+|  +----------------------+  |  +----------------------+  |  +-------------------------+  |
+|             |              |             |              |               |               |
+|  +----------------------+  |  +----------------------+  |  +-------------------------+  |
+|  | Web Control Center   |  |  | Form Filler / SDUI   |  |  | Human Simulation:       |  |
+|  | Dashboard (Flask)    |  |  | Navigation Handler   |  |  | Bézier Curves & Jitter   |  |
+|  +----------------------+  |  +----------------------+  |  +-------------------------+  |
++-------------+----------------------------+------------------------------+---------------+
+              |                            |                              |
+    +-------------------+        +--------------------+        +---------------------+
+    | questions_answers |        | Universal LLM API  |        | Atomic JSONL Logs & |
+    | Local YAML Engine |        | Groq/Gemini/Claude |        | Session Cookies     |
+    +-------------------+        +--------------------+        +---------------------+
+```
+
+### Directory Structure
+
+```text
+EasyApply-Automator/
+├── config.yaml                    # Main search criteria, locations, filters, and pacing
+├── resume.md                      # Candidate resume in Markdown (fed to LLM for zero-shot QA)
+├── questions_answers.yaml         # Deterministic regex rules and skill experience profile
+├── locators.yaml                  # Decoupled Page Object Model selectors for LinkedIn DOM
+├── dashboard.py                   # Control Center Web Dashboard launcher
+├── easy_apply_bot.py              # CLI entry point to launch automation
+├── run.bat                        # Windows 1-Click interactive launcher
+├── run.sh                         # Linux / macOS 1-Click interactive launcher
+├── easy_apply_automator/
+│   ├── app/                       # Runner, Orchestrator, Search Loop engine
+│   ├── config/                    # YAML loaders and Pydantic configuration schemas
+│   ├── dashboard/                 # Flask backend and single-page glassmorphic UI
+│   ├── domain/                    # Clean dataclasses and business entity definitions
+│   ├── infra/                     # Undetected ChromeDriver factory, Bézier math, repositories
+│   ├── observability/             # Structured JSONL event logging and run summaries
+│   ├── qa/                        # AutoAnswer engine, RelevanceScorer, universal LLM client
+│   └── services/                  # Form filling, ATS redirect detection, session management
+├── results/                       # Dated JSON results of processed, applied, and skipped jobs
+└── tests/                         # 289 unit, integration, and mock tests
 ```
 
 ---
@@ -102,45 +135,57 @@
 
 ```mermaid
 flowchart TD
-    A[Search Results Page Loaded] --> B[Extract Visible Card Titles]
-    B --> C{Card Title Blacklisted?}
-    C -- Yes --> S1[Skip Job\n0.1s - No Page Load]
-    C -- No --> D{Relevance Score >= 0.15?}
-    D -- No --> S2[Skip Job\n0.1s - No Page Load]
-    D -- Yes --> E[Load Full Job Page]
-    E --> F{External ATS Redirect?}
-    F -- Yes --> S3[Early Exit & Return\n1-2s]
-    F -- No --> G[Click Easy Apply]
-    G --> H{Modal Detected?}
-    H -- No --> S4[Fast Retry & Return]
-    H -- Yes --> I[Pre-Fill Contact Fields]
-    I --> J[Form Step Loop]
-    J --> K{Question Match in YAML?}
-    K -- Yes --> L[Apply YAML / Regex Rule\n0 API Calls]
-    K -- No --> M{Dynamic Skill Pattern?}
-    M -- Yes --> N[Extract Years from profile.years]
-    M -- No --> O{Recruitment Heuristic?}
-    O -- Yes --> P[Contextual Answer\ne.g., Notice Period, Relocation]
-    O -- No --> Q{AI Engine Configured?}
-    Q -- Yes --> R[Zero-Shot LLM Call\n+ Job Target & resume.md]
-    R --> S[Persist Rule to YAML\nSelf-Learning Cache]
-    Q -- No --> T[Default Fallback\ne.g., 1 / user provided]
-    L --> U[Review & Submit Application]
-    N --> U
-    P --> U
-    S --> U
-    T --> U
+    Start[Load Search Results Page] --> Extract[Extract Visible Job Cards]
+    Extract --> Blacklist{Title Blacklisted?}
+    Blacklist -- Yes --> Skip1[Skip Card\n< 0.1s - No Page Load]
+    Blacklist -- No --> Relevance{Relevance Score >= 0.15?}
+    Relevance -- No --> Skip2[Skip Card\n< 0.1s - No Page Load]
+    Relevance -- Yes --> OpenJob[Open Full Job Page]
+    
+    OpenJob --> ATSCheck{External ATS Redirect?\ne.g., Workday, Lever}
+    ATSCheck -- Yes --> Skip3[Fast Exit & Return\n1-2s]
+    ATSCheck -- No --> ClickApply[Click Easy Apply Button]
+    
+    ClickApply --> ModalCheck{Modal or SDUI Detected?}
+    ModalCheck -- No --> Fallback[Attempt Direct Route / Fallback]
+    ModalCheck -- Yes --> PreFill[Pre-Fill Contact Fields]
+    
+    PreFill --> FormLoop[Form Step Loop]
+    FormLoop --> QRule{Question in YAML Rules?}
+    
+    QRule -- Yes --> AnsYAML[Apply YAML Answer\n0 API Cost / 0ms]
+    QRule -- No --> QSkill{Matches Skill Pattern?}
+    
+    QSkill -- Yes --> AnsSkill[Extract Years from profile.years]
+    QSkill -- No --> QHeuristic{Standard Recruiter Heuristic?}
+    
+    QHeuristic -- Yes --> AnsHeur[Apply Standard Answer\ne.g., Notice Period, Auth]
+    QHeuristic -- No --> QAI{AI Engine Configured?}
+    
+    QAI -- Yes --> AnsLLM[Call LLM with resume.md & Job Context]
+    AnsLLM --> CacheYAML[Persist Rule to YAML on disk]
+    QAI -- No --> AnsDefault[Apply Configured Fallback]
+    
+    AnsYAML --> SubmitStep[Review & Submit Application]
+    AnsSkill --> SubmitStep
+    AnsHeur --> SubmitStep
+    CacheYAML --> SubmitStep
+    AnsDefault --> SubmitStep
+    
+    SubmitStep --> Record[Atomically Record to results.json]
 ```
 
 ---
 
 ## Quick Start
 
-### Option 1: One-Click Interactive Launcher
-* **Windows**: Double-click **`run.bat`** (or run `run.bat` in CMD / PowerShell).
+### Option 1: 1-Click Interactive Launcher (Recommended)
+
+* **Windows**: Double-click **`run.bat`** (or execute `run.bat` in CMD / PowerShell).
 * **Linux / macOS**: Run **`./run.sh`**.
 
-The launcher provides an interactive menu for operation mode and target role level:
+The launcher handles environment initialization, displays the main menu, and prompts for your target role type:
+
 ```text
 ============================================
    EasyApply Automator - Control Center
@@ -153,44 +198,52 @@ Choose an option to run:
 
 Enter choice 1, 2, or 3 (default 1): 1
 
-Select Target Experience Level:
+Select Target Role Type:
   [1] Internship Roles Only
-  [2] Full-Time & Entry-Level Roles
-  [3] All Opportunities (Default)
-  [4] Keep config.yaml Settings
+  [2] Full-Time and Entry-Level Roles Only
+  [3] Both (Default)
+
+Enter choice 1, 2, or 3 (default 3): 3
 ```
 
-### Option 2: Manual Installation & CLI
+### Option 2: Manual Setup via CLI
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/Romil157/EasyApply-Automator.git
 cd EasyApply-Automator
 
-# 2. Set up virtual environment
+# 2. Create and activate a Python 3.12 virtual environment
 python -m venv venv
-source venv/bin/activate  # Linux / macOS
-venv\Scripts\activate     # Windows
+source venv/bin/activate       # Linux / macOS
+venv\Scripts\activate          # Windows PowerShell / CMD
 
-# 3. Install in editable mode with dev dependencies
+# 3. Install in editable mode with development dependencies
 pip install -e ".[dev]"
 
 # 4. Copy configuration templates
 cp .env.example .env
 cp questions_answers.example.yaml questions_answers.yaml
 
-# 5. Start the bot or web dashboard
-python easy_apply_bot.py      # Run LinkedIn bot
-python dashboard.py           # Launch Web Control Center on http://127.0.0.1:5000
+# 5. Populate your resume in Markdown format
+# Place your updated resume content inside resume.md
+
+# 6. Run the bot or launch the dashboard
+python easy_apply_bot.py       # Start automation bot
+python dashboard.py            # Launch Web Control Center on http://127.0.0.1:5000
 ```
 
 ---
 
 ## Live Web Dashboard & QA Studio
 
-Launch the dashboard at any time to monitor your applications or test QA rules:
+Launch the dashboard anytime to inspect ongoing sessions, review historical results by date, or simulate question answering:
+
 ```bash
 python dashboard.py --port 5000
 ```
+
+Open **`http://127.0.0.1:5000`** in your browser.
 
 ```text
 ==================================================
@@ -199,88 +252,126 @@ python dashboard.py --port 5000
 ==================================================
 ```
 
-### Dashboard Capabilities:
-* **Real-Time KPIs**: Total evaluated jobs, successful submissions, failure rates, and live pacing speed.
-* **Applications Table**: Searchable history of applied jobs with direct links, timestamps, and error diagnostics.
-* **Live Event Stream**: Real-time event log viewer updating automatically as the bot navigates.
-* **QA Testing Studio**: Type any recruiter question into the in-browser sandbox to preview the resolved answer.
+### Dashboard Capabilities
+
+* **Performance Overview with Date Filtering**:
+  * Filter metrics across **All Time**, **Today**, or any specific calendar date.
+  * Live KPI cards: Total Processed, Applications Submitted, Success Rate, and Session Logs.
+* **Applied Jobs Explorer**:
+  * Real-time table of all processed jobs with role title, company, submission status, and direct LinkedIn links.
+  * Instant search and status filtering (Submitted vs. Skipped).
+  * Date selector dropdown to isolate applications from a particular session.
+* **Question Answering Studio**:
+  * In-browser sandbox to test recruiter questions and preview how the bot answers them using YAML rules, skill years, or your LLM engine.
+* **QA Rules & Profile Editor**:
+  * Add, update, or remove regex matching rules directly from the browser without editing raw YAML files.
+  * Adjust skill experience years (Python, SQL, AWS, Backend, etc.) with automatic persistence to disk.
+* **Live Event Log**:
+  * Real-time stream showing exact button clicks, page transitions, skipped jobs, and error diagnostics.
 
 ---
 
-## Configuration
+## Configuration Guide
 
-EasyApply Automator follows a clean **3-layer configuration architecture**:
+EasyApply Automator uses a clean **3-layer configuration hierarchy**:
 
 ```text
 +-------------------------------------------------------------+
 | 1. config.yaml (Tracked)                                    |
-|    Search positions, locations, filters & date range        |
+|    Search positions, locations, filters & session pacing    |
 +-------------------------------------------------------------+
 | 2. .env (Gitignored)                                        |
-|    Credentials, phone, email, API keys (Groq/Gemini)        |
+|    Credentials, contact info & AI API keys (Groq/Gemini)   |
 +-------------------------------------------------------------+
 | 3. questions_answers.yaml & resume.md (Gitignored)          |
-|    Candidate experience years, custom rules, resume text    |
+|    Skill years, custom regex rules & Markdown resume context|
 +-------------------------------------------------------------+
 ```
 
-### 1. `.env` (Secrets & Personal Data)
-Copy `.env.example` to `.env` and fill in your details:
+### 1. `.env` (Secrets & Personal Profile)
+
+Create `.env` from `.env.example`:
 
 ```env
 # LinkedIn Credentials
 LINKEDIN_USERNAME=your_email@example.com
-LINKEDIN_PASSWORD=
+LINKEDIN_PASSWORD=your_secure_password
 
-# Personal Info Auto-filled in Forms
+# Contact Information (Auto-filled on initial form pages)
 LINKEDIN_FULL_NAME=Your Full Name
-LINKEDIN_FIRST_NAME=Your First Name
-LINKEDIN_LAST_NAME=Your Last Name
+LINKEDIN_FIRST_NAME=YourFirstName
+LINKEDIN_LAST_NAME=YourLastName
 LINKEDIN_EMAIL=your_email@example.com
-LINKEDIN_PHONE_NUMBER=1234567890
+LINKEDIN_PHONE_NUMBER=9876543210
 LINKEDIN_LOCATION_COUNTRY=IN
 LINKEDIN_LOCATION_CITY=Mumbai
 LINKEDIN_SALARY=1000000
 
-# AI / LLM Auto-Answer Engine (Groq / Gemini / OpenAI / Claude)
+# AI Auto-Answer Engine (Groq, Gemini, OpenAI, Claude, or Ollama)
 GROQ_API_KEY=gsk_your_groq_api_key_here
 AI_PROVIDER=groq
 AI_MODEL=openai/gpt-oss-120b
 AI_AUTO_LEARN=1
 ```
 
-### 2. `config.yaml` (Job Search & Criteria)
+### 2. `resume.md` (AI Context & Resume Integration)
+
+Save your complete resume inside `resume.md` in standard Markdown format. When the bot encounters complex or role-specific questions (e.g., *"Describe a time you handled database migration"* or *"Summarize your experience with REST APIs"*), the LLM client injects `resume.md` along with the job posting description to generate authentic, context-aware answers.
+
+### 3. `config.yaml` (Job Search & Runtime Parameters)
+
 ```yaml
+# Target Roles
 positions:
   - "Software Engineer"
   - "Python Developer"
   - "Backend Developer"
   - "Data Analyst"
-  - "Data Engineer"
   - "Cybersecurity Analyst"
-  - "IT Support"
   - "Financial Analyst"
   - "SEO Intern"
 
+# Target Geographic Locations
 locations:
-  - Remote
   - Mumbai
+  - Remote
   - India
   - Bengaluru
 
+# Workplace Preferences
 workplace_types:
   - remote
   - hybrid
   - onsite
 
-# Experience level mapping:
-# 1: Internship | 2: Entry level | 3: Associate | 4: Mid-Senior
+# Experience Levels: 1=Internship, 2=Entry Level, 3=Associate, 4=Mid-Senior
 experience_level:
   - 1
   - 2
+
+# Maximum applications per session (0 = unlimited)
+max_applications: 50
+
+# Resume mapping for file upload prompts
+uploads:
+  Resume: "resume.md"
+
+# Stealth Session Pacing
+session_duration_hours_min: 2
+session_duration_hours_max: 4
+short_break_min_seconds: 15
+short_break_max_seconds: 45
+short_break_every_min_minutes: 30
+short_break_every_max_minutes: 60
+shuffle_search_combos: true
+
+# Runtime Flags
+dry_run: false
+headless: false
 ```
 
-### 3. `questions_answers.yaml` (Answer Profile & Rules)
+### 4. `questions_answers.yaml` (Rules & Skill Profiles)
+
 ```yaml
 version: 1
 
@@ -294,10 +385,10 @@ profile:
   years:
     python: "2"
     sql: "2"
+    flask: "2"
     backend: "2"
-    web_development: "2"
-    cybersecurity: "2"
     machine_learning: "1"
+    cybersecurity: "2"
   work_auth:
     require_sponsorship: "No"
     legally_authorized: "Yes"
@@ -309,122 +400,104 @@ rules:
       - "(?i)experience with python"
     answer: "{years.python}"
 
-  - id: sponsorship
+  - id: notice_period
     match_any:
-      - "(?i)require sponsorship"
-      - "(?i)need visa sponsorship"
-    answer: "{require_sponsorship}"
+      - "(?i)notice period"
+      - "(?i)joining time"
+    answer: "Immediate / 15 days"
 ```
-
-### 4. `resumes/` Directory & Multi-Resume Uploads
-Place your PDF resume files inside the `resumes/` directory. By default, `config.yaml` points to `resumes/resume.pdf`:
-
-```yaml
-uploads:
-  Resume: "resumes/resume.pdf"
-  # Target-specific resumes:
-  # data: "resumes/data_engineer_resume.pdf"
-  # python: "resumes/python_resume.pdf"
-  # "Cover Letter": "resumes/cover_letter.pdf"
-```
-
-When an Easy Apply form requests an explicit resume file upload, the bot matches the job title against your configured upload keys and uploads the corresponding file. If a file is missing from disk, a clear warning is logged without crashing the session.
 
 ---
 
-## CLI Flags & Options
+## CLI Flags & Advanced Commands
 
-The bot supports command-line flags to customize any session on the fly:
+Customize any execution on the fly using command-line arguments:
 
 ```bash
-# Run in headless mode without opening Chrome UI
-python easy_apply_bot.py --headless
+# Filter target role types (1=Internship, 2=Full-Time & Entry, 3=Both)
+python easy_apply_bot.py --level 1
 
-# Test search and form-filling without submitting applications
+# Run in test mode without actually submitting forms
 python easy_apply_bot.py --dry-run
 
-# Filter only jobs posted within the last 24 hours
+# Run in headless mode (no Chrome window opened)
+python easy_apply_bot.py --headless
+
+# Filter jobs posted within the last 24 hours
 python easy_apply_bot.py --date-posted past_24h
 
-# Filter only Remote jobs
+# Filter strictly for Remote positions
 python easy_apply_bot.py --remote-only
 
-# Limit the maximum applications for this session
-python easy_apply_bot.py --max-apps 25
+# Cap maximum submitted applications for the current run
+python easy_apply_bot.py --max-apps 30
+
+# Specify custom configuration or QA paths
+python easy_apply_bot.py --config my_config.yaml --qa my_qa.yaml
 ```
 
 ---
 
-## Engineering Decisions & Presentation Highlights
+## Engineering Highlights & Interview Talking Points
 
-If showcasing this project in technical reviews or interviews, highlight these core design decisions:
+If showcasing this project in technical evaluations, code reviews, or software engineering interviews, highlight these architectural decisions:
 
-1. **Domain-Driven Design (DDD) & Layered Architecture**:
-   - `domain/`: Pure dataclasses (`AppConfig`, `RunConfig`, `JobMetadata`).
-   - `infra/`: Browser automation factory, Bezier trajectory generator, repositories.
-   - `qa/`: `RelevanceScorer`, `AutoAnswer` pattern matching, and universal REST LLM client.
-   - `services/`: Business logic, state machines, external ATS gate, and SDUI form handlers.
-   - `dashboard/`: Flask control center and REST streaming.
-2. **Anti-Fingerprinting & Behavioral Simulation**:
-   - Uses `undetected-chromedriver` with overridden Chrome properties, single-click randomization, and cubic Bezier curves to emulate human cursor physics.
+1. **Domain-Driven Design (DDD) & Clean Architecture**:
+   * Pure domain dataclasses (`AppConfig`, `RunConfig`, `JobMetadata`) separated strictly from infrastructure, browser drivers, and presentation layers.
+2. **Anti-Fingerprinting & Natural Physics**:
+   * Uses `undetected-chromedriver` combined with randomized cubic Bézier curves to simulate human cursor velocity and overshoot physics.
 3. **Pre-Click Filtration Pipeline**:
-   - Reduces wasted session time by evaluating search result cards before page loads, bypassing blacklisted or irrelevant positions immediately.
+   * Evaluates job card titles directly from search pages, eliminating full page loads for blacklisted or irrelevant roles in under 0.1 seconds.
 4. **Decoupled Page Object Model (`locators.yaml`)**:
-   - HTML selectors are externalized into `locators.yaml`. UI updates on LinkedIn require **zero code changes**.
-5. **Hybrid PII Protection**:
-   - High-sensitivity data (credentials, phone, name, email) is isolated into `.env` and `resume.md` (gitignored), ensuring no personal data is committed to source control.
-6. **Self-Learning QA Architecture**:
-   - Combines deterministic regex rules with zero-shot LLM reasoning and auto-persisting cache for efficient, cost-free answer reuse.
+   * All CSS and XPath selectors are decoupled into an external YAML registry. DOM restructuring requires zero Python code edits.
+5. **Universal Multi-Provider AI Architecture**:
+   * Built on a lightweight, native REST client supporting Groq, Gemini, Claude, OpenAI, and local Ollama without heavy third-party SDK bloat.
+6. **Zero-Leak PII Protection**:
+   * Credentials, phone numbers, and resumes are strictly gitignored via `.env` and `resume.md`, preventing sensitive personal data leaks.
 7. **Atomic Persistence & Self-Healing Telemetry**:
-   - Results and reports employ atomic temp-file replace operations (`.tmp` + `replace()`), eliminating truncation risk on abrupt user cancellation (Ctrl+C) and automatically recovering corrupted logs via timestamped backups.
-8. **Resilient Multi-Selector Job Card Resolution**:
-   - Avoids single-selector layout fragility by unifying CSS containers, occludable job IDs, entity URNs, and anchor regex extraction into a fault-tolerant discovery loop.
+   * Application outputs employ atomic temporary file swaps (`.tmp` + `replace()`), preventing JSON file corruption from unexpected halts (`Ctrl+C`).
+8. **Self-Learning Cache Architecture**:
+   * Dynamically appends novel answers generated by AI into local YAML rules, driving marginal API costs down to zero as the rule set expands.
 
 ---
 
 ## Troubleshooting & FAQ
 
-### 1. Chrome Version / Driver Mismatches
-* **Symptom**: `SessionNotCreatedException` or Chrome driver startup error.
-* **Resolution**: Ensure your installed Google Chrome browser is up to date (`chrome://settings/help`). The bot uses `undetected-chromedriver` which automatically retrieves the compatible driver binary. If issues persist, delete the cached chromedriver folder in your system temporary directory.
+### 1. Chrome Version & Driver Initialization
+* **Symptom**: `SessionNotCreatedException` or Chrome driver startup timeout.
+* **Fix**: Ensure Google Chrome is up to date (`chrome://settings/help`). The bot uses `undetected-chromedriver` which auto-downloads matching drivers. If an issue occurs, clear cached driver binaries from your temporary folder (`%TEMP%` on Windows).
 
-### 2. Daily Easy Apply Limit Reached
-* **Symptom**: LinkedIn displays "You reached today's Easy Apply limit" or "We limit Easy Apply submissions to protect our community".
-* **Resolution**: LinkedIn imposes dynamic rolling limits on Easy Apply submissions (often 50-100 per 24 hours depending on account age and verification status). When this happens, the bot's limit detector automatically stops the session cleanly and records the event in `logs/events.jsonl`. Wait until the following day for LinkedIn to reset your quota.
+### 2. Daily Easy Apply Limit Checkpoint
+* **Symptom**: LinkedIn displays *"You've reached today's Easy Apply limit"*.
+* **Fix**: LinkedIn enforces rolling daily limits (typically 50–100 applications every 24 hours). The bot's limit detector intercepts this modal, records the event cleanly, and halts the session gracefully. Resume your session the following day.
 
-### 3. Login Checkpoints & Two-Factor Authentication
-* **Symptom**: LinkedIn triggers SMS verification, email code, or CAPTCHA challenge upon login.
-* **Resolution**: Run the bot in non-headless mode (without `--headless`). Complete the verification challenge directly in the opened Chrome browser window. Once logged in, the session service automatically saves authentication cookies to `.auth/linkedin_cookies.json`, enabling future sessions to authenticate without repeating verification.
+### 3. Login Checkpoints & 2FA Challenges
+* **Symptom**: LinkedIn presents an SMS verification code, email challenge, or CAPTCHA during login.
+* **Fix**: Run the bot with `headless: false`. Complete the verification manually once in the opened Chrome browser. The session service will automatically serialize and save authentication cookies to `.auth/linkedin_cookies.json`, allowing subsequent sessions to bypass verification.
 
-### 4. Resume File Missing Warning
-* **Symptom**: Warning logged: `Resume file configured at 'resumes/resume.pdf' does not exist on disk`.
-* **Resolution**: Place your PDF resume in the `resumes/` folder (default name `resumes/resume.pdf`), or update the path under `uploads` in `config.yaml` to match your resume's location.
-
-### 5. Graceful Shutdown & Cookie Preservation
-* **Symptom**: Stopping the bot with Ctrl+C.
-* **Resolution**: Pressing `Ctrl+C` once sends a graceful stop request, permitting the bot to finalize the active step and persist session cookies before quitting. Pressing `Ctrl+C` a second time forces an immediate exit.
+### 4. Preserving Session Data on Shutdown
+* **Symptom**: Need to exit a running session cleanly.
+* **Fix**: Press `Ctrl+C` **once**. The bot enters graceful termination, finishes the current operation, flushes pending JSON logs, and saves updated cookies before shutting down. Pressing `Ctrl+C` a second time forces an immediate termination.
 
 ---
 
 ## Testing & Quality Assurance
 
-The codebase is tested with unit and mock-based tests:
+The codebase is protected by **289 automated tests** covering unit behavior, integration paths, and mock browser flows:
 
 ```bash
-# Run full pytest suite with coverage
+# Run the full test suite with coverage report
 python -m pytest tests/ -v --cov=easy_apply_automator --cov-report=term-missing
 
-# Linting with Ruff
+# Run code style formatting and lint checks
 python -m ruff check .
 
-# Static type checking with Mypy
+# Execute static type checking
 python -m mypy easy_apply_automator
 ```
-
-Continuous Integration (`.github/workflows/ci.yml`) runs tests, type checking, and linter validation on every push.
 
 ---
 
 ## License
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for complete terms.
