@@ -115,7 +115,7 @@ max_applications: 0
 
 # Multi-Resume mapping (selects matching resume by job title keyword, falls back to Resume/default)
 uploads:
-  Resume: "resumes/resume.md"
+  Resume: "resume.md"
 
 # Runtime Flags
 dry_run: false
