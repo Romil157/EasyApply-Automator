@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import signal
+import sys
 
 from easy_apply_automator.config.loader import load_run_config
 from easy_apply_automator.domain.models import AppConfig
@@ -35,9 +37,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--level",
-        choices=["1", "2", "3", "4"],
+        choices=["1", "2", "3"],
         default=None,
-        help="Experience level filter: 1=Internship, 2=Entry Level, 3=All Levels, 4=Entry & Associate",
+        help="Target role type: 1=Internship only, 2=Full-Time and Entry-Level, 3=Both (Default)",
     )
     parser.add_argument(
         "--date-posted",
@@ -102,62 +104,80 @@ def run_from_config(
 
     choice = cli_args.level if cli_args and cli_args.level else None
 
-    if choice is not None:
-        if choice == "1":
-            app_config.experience_level = [1]
-            app_config.job_types = ["internship"]
-        elif choice == "2":
-            app_config.experience_level = [2, 3]
-            app_config.job_types = ["full_time", "contract"]
-        elif choice == "4":
-            # Keep config.yaml settings
-            pass
-        else:
-            app_config.experience_level = [1, 2, 3]
-            app_config.job_types = ["internship", "full_time", "contract"]
-    else:
-        print("\n" + "=" * 55)
-        print("      SELECT JOB TYPE & EXPERIENCE TARGET")
-        print("=" * 55)
+    if choice is None and sys.stdin and sys.stdin.isatty():
+        print("\n=======================================================")
+        print("            SELECT TARGET ROLE TYPE")
+        print("=======================================================")
         print(" [1] Internship Roles Only")
-        print(" [2] Full-Time & Entry-Level Roles")
-        print(" [3] All Opportunities (Internship & Full-Time)")
-        print(" [4] Keep Settings from config.yaml")
-        print("=" * 55)
-
-        prompt_choice = "3"
+        print(" [2] Full-Time and Entry-Level Roles")
+        print(" [3] Both (Internship and Full-Time) [Default]")
+        print("=======================================================")
         try:
-            user_input = input("Select option (1, 2, 3, or 4) [Default: 3]: ").strip()
-            if user_input in ["1", "2", "3", "4"]:
-                prompt_choice = user_input
-        except (EOFError, OSError):
-            pass
+            user_input = input("Select option (1, 2, or 3) [Default: 3]: ").strip()
+            choice = user_input if user_input in ("1", "2", "3") else "3"
+        except (EOFError, KeyboardInterrupt):
+            choice = "3"
 
-        if prompt_choice == "1":
-            app_config.experience_level = [1]
-            app_config.job_types = ["internship"]
-            log.info("Applying to: Internship Roles Only")
-        elif prompt_choice == "2":
-            app_config.experience_level = [2, 3]
-            app_config.job_types = ["full_time", "contract"]
-            log.info("Applying to: Full-Time & Entry-Level Roles")
-        elif prompt_choice == "4":
-            log.info(
-                f"Using config.yaml settings (experience_level={app_config.experience_level}, "
-                f"job_types={app_config.job_types})"
-            )
-        else:
-            app_config.experience_level = [1, 2, 3]
-            app_config.job_types = ["internship", "full_time", "contract"]
-            log.info("Applying to: All Opportunities (Internship & Full-Time)")
+    if choice == "1":
+        app_config.experience_level = [1]
+        app_config.job_types = ["internship"]
+        log.info(
+            "Target role type: Internship Roles Only "
+            "(experience_level=[1], job_types=['internship'])"
+        )
+    elif choice == "2":
+        app_config.experience_level = [2, 3]
+        app_config.job_types = ["full_time", "contract"]
+        log.info(
+            "Target role type: Full-Time and Entry-Level Roles "
+            "(experience_level=[2, 3], job_types=['full_time', 'contract'])"
+        )
+    elif choice == "3":
+        app_config.experience_level = [1, 2, 3]
+        app_config.job_types = ["internship", "full_time", "contract"]
+        log.info(
+            "Target role type: Both Internship and Full-Time "
+            "(experience_level=[1, 2, 3], job_types=['internship', 'full_time', 'contract'])"
+        )
+    else:
+        log.info(
+            f"Using config.yaml settings (experience_level={app_config.experience_level}, "
+            f"job_types={app_config.job_types})"
+        )
 
     bot = LinkedInEasyApplyOrchestrator(app_config)
+    interrupted_once = False
+
+    def _sigint_handler(signum, frame):
+        nonlocal interrupted_once
+        if not interrupted_once:
+            interrupted_once = True
+            log.warning("Interrupt signal received (Ctrl+C). Initiating graceful shutdown...")
+            bot.request_stop("keyboard_interrupt")
+        else:
+            log.warning("Second interrupt received. Forcing exit immediately...")
+            try:
+                bot.save_session_cookies()
+            except Exception:
+                pass
+            try:
+                bot.browser.quit()
+            except Exception:
+                pass
+            sys.exit(130)
+
+    old_sigint = signal.signal(signal.SIGINT, _sigint_handler)
     try:
         bot.start_apply(app_config.positions, app_config.locations)
     except KeyboardInterrupt:
         bot.log_event("session_interrupted", reason="keyboard_interrupt")
         log.warning("Session interrupted by user (Ctrl+C).")
     finally:
+        signal.signal(signal.SIGINT, old_sigint)
+        try:
+            bot.save_session_cookies()
+        except Exception as exc:
+            log.debug(f"Failed to save cookies on shutdown: {exc}")
         try:
             bot.browser.quit()
         except Exception:

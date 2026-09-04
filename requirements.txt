@@ -1,1 +1,12 @@
+# EasyApply Automator Core Dependencies
+# Install with: pip install -r requirements.txt
+beautifulsoup4>=4.12.3
+flask>=3.0.0
+lxml>=5.2.2
+packaging>=24.1
+python-dotenv>=1.0.1
+pyyaml>=6.0.1
+selenium>=4.23.1
+setuptools>=70.0.0
+undetected-chromedriver>=3.5.5
 -e .

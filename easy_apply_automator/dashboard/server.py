@@ -24,7 +24,7 @@ def create_dashboard_app(
     app = Flask(
         __name__,
         template_folder=str(Path(__file__).parent / "templates"),
-        static_folder=str(Path(__file__).parent / "static"),
+        static_folder=None,
     )
     # Disable noisy Flask logs for clean terminal output
     log = logging.getLogger("werkzeug")
@@ -53,8 +53,38 @@ def create_dashboard_app(
     def index():
         return render_template("index.html")
 
+    @app.route("/api/dates", methods=["GET"])
+    def get_dates():
+        dates_set = set()
+        base_path = Path(results_dir)
+        if base_path.exists():
+            for p in base_path.iterdir():
+                if p.is_dir() and len(p.name) == 10 and p.name.count("-") == 2:
+                    dates_set.add(p.name)
+
+        result_files = glob.glob(f"{results_dir}/**/*.json", recursive=True)
+        for rf in result_files:
+            try:
+                stem = Path(rf).stem
+                if len(stem) >= 10 and stem[:10].count("-") == 2 and stem[:4].isdigit():
+                    dates_set.add(stem[:10])
+                else:
+                    with open(rf, encoding="utf-8") as f:
+                        content = json.load(f)
+                        if isinstance(content, list):
+                            for item in content[:5]:
+                                ts = item.get("timestamp")
+                                if ts and len(ts) >= 10 and ts[:10].count("-") == 2:
+                                    dates_set.add(ts[:10])
+            except Exception:
+                continue
+
+        sorted_dates = sorted(dates_set, reverse=True)
+        return jsonify({"dates": sorted_dates, "count": len(sorted_dates)})
+
     @app.route("/api/status", methods=["GET"])
     def get_status():
+        date_filter = request.args.get("date", "").strip()
         total_processed = 0
         total_submitted = 0
         total_failed = 0
@@ -67,12 +97,18 @@ def create_dashboard_app(
                     content = json.load(f)
                     if isinstance(content, list):
                         for item in content:
+                            ts = item.get("timestamp") or ""
+                            if date_filter:
+                                item_date = ts[:10] if len(ts) >= 10 else ""
+                                file_matches = date_filter in rf.replace("\\", "/")
+                                if item_date != date_filter and not file_matches:
+                                    continue
+
                             total_processed += 1
                             if item.get("result"):
                                 total_submitted += 1
                             else:
                                 total_failed += 1
-                            ts = item.get("timestamp")
                             if ts and (latest_timestamp is None or ts > latest_timestamp):
                                 latest_timestamp = ts
             except Exception:
@@ -86,6 +122,7 @@ def create_dashboard_app(
 
         return jsonify({
             "status": "online",
+            "date": date_filter or None,
             "total_processed": total_processed,
             "total_submitted": total_submitted,
             "total_failed": total_failed,
@@ -96,11 +133,14 @@ def create_dashboard_app(
 
     @app.route("/api/results", methods=["GET"])
     def get_results():
-        limit = int(request.args.get("limit", 100))
+        limit = int(request.args.get("limit", 200))
         filter_status = request.args.get("status", "").lower()
         search_query = request.args.get("q", "").lower()
+        date_filter = request.args.get("date", "").strip()
 
         jobs = []
+        date_submitted = 0
+        date_skipped = 0
         result_files = sorted(glob.glob(f"{results_dir}/**/*.json", recursive=True), reverse=True)
 
         for rf in result_files:
@@ -109,15 +149,34 @@ def create_dashboard_app(
                     items = json.load(f)
                     if isinstance(items, list):
                         for item in items:
-                            status_str = "submitted" if item.get("result") else "skipped"
+                            ts = item.get("timestamp") or ""
+                            if date_filter:
+                                item_date = ts[:10] if len(ts) >= 10 else ""
+                                file_matches = date_filter in rf.replace("\\", "/")
+                                if item_date != date_filter and not file_matches:
+                                    continue
+
+                            is_submitted = bool(item.get("result"))
+                            status_str = "submitted" if is_submitted else "skipped"
+
+                            if is_submitted:
+                                date_submitted += 1
+                            else:
+                                date_skipped += 1
+
                             if filter_status and filter_status != status_str:
                                 continue
                             if search_query:
-                                title = (item.get("title") or "").lower()
+                                title = (item.get("job_title") or item.get("title") or "").lower()
                                 company = (item.get("company") or "").lower()
                                 jid = str(item.get("job_id") or "")
-                                if search_query not in title and search_query not in company and search_query not in jid:
+                                if (
+                                    search_query not in title
+                                    and search_query not in company
+                                    and search_query not in jid
+                                ):
                                     continue
+
                             jobs.append(item)
                             if len(jobs) >= limit:
                                 break
@@ -126,7 +185,16 @@ def create_dashboard_app(
             if len(jobs) >= limit:
                 break
 
-        return jsonify({"jobs": jobs, "count": len(jobs)})
+        return jsonify({
+            "jobs": jobs,
+            "count": len(jobs),
+            "date": date_filter or None,
+            "summary": {
+                "total": date_submitted + date_skipped,
+                "submitted": date_submitted,
+                "skipped": date_skipped,
+            },
+        })
 
     @app.route("/api/events", methods=["GET"])
     def get_events():

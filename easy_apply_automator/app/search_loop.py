@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import re
 import time
 from typing import Any
 
@@ -88,85 +89,41 @@ class SearchLoopMixin:
                             f"arguments[0].scrollTo(0, {i})", scroll_results[0]
                         )
 
-                if self.is_present(self.locator["links"]):
-                    links = self.get_elements("links")
-                    job_ids: dict[str, str] = {}
-                    for link in links:
-                        if "Applied" in link.text:
-                            continue
-                        if link.text in self.blacklist:
-                            continue
-                        job_id = link.get_attribute("data-job-id")
-                        if job_id == "search":
-                            log.debug(
-                                f"Job ID not found, search keyword found instead? {link.text}"
-                            )
-                            continue
-                        job_ids[job_id] = "To be processed"
-
-                    if job_ids:
-                        consecutive_empty_pages = 0
-                        self.apply_loop(job_ids)
-                    else:
-                        consecutive_empty_pages += 1
-                    pages_processed += 1
-                    if consecutive_empty_pages >= 2:
-                        self.log_event(
-                            "combo_no_results",
-                            position=position,
-                            location=location,
-                            pages_processed=pages_processed,
-                        )
-                        log.info(
-                            f"No more job results found for '{position}' in '{location}' "
-                            f"after {consecutive_empty_pages} consecutive empty pages. Moving to next search combination."
-                        )
-                        break
-                    if pages_processed >= self.max_pages_per_search:
-                        self.log_event(
-                            "combo_page_cap_reached",
-                            position=position,
-                            location=location,
-                            pages_processed=pages_processed,
-                            max_pages_per_search=self.max_pages_per_search,
-                        )
-                        break
-                    self.browser, jobs_per_page = self.next_jobs_page(
-                        position,
-                        location,
-                        jobs_per_page,
-                        experience_level=self.experience_level,
-                    )
+                job_ids = self.extract_job_card_ids()
+                if job_ids:
+                    consecutive_empty_pages = 0
+                    self.apply_loop(job_ids)
                 else:
                     consecutive_empty_pages += 1
-                    pages_processed += 1
-                    if consecutive_empty_pages >= 2:
-                        self.log_event(
-                            "combo_no_results",
-                            position=position,
-                            location=location,
-                            pages_processed=pages_processed,
-                        )
-                        log.info(
-                            f"No more job results found for '{position}' in '{location}' "
-                            f"after {consecutive_empty_pages} consecutive empty pages. Moving to next search combination."
-                        )
-                        break
-                    if pages_processed >= self.max_pages_per_search:
-                        self.log_event(
-                            "combo_page_cap_reached",
-                            position=position,
-                            location=location,
-                            pages_processed=pages_processed,
-                            max_pages_per_search=self.max_pages_per_search,
-                        )
-                        break
-                    self.browser, jobs_per_page = self.next_jobs_page(
-                        position,
-                        location,
-                        jobs_per_page,
-                        experience_level=self.experience_level,
+
+                pages_processed += 1
+                if consecutive_empty_pages >= 2:
+                    self.log_event(
+                        "combo_no_results",
+                        position=position,
+                        location=location,
+                        pages_processed=pages_processed,
                     )
+                    log.info(
+                        f"No more job results found for '{position}' in '{location}' "
+                        f"after {consecutive_empty_pages} consecutive empty pages. Moving to next search combination."
+                    )
+                    break
+                if pages_processed >= self.max_pages_per_search:
+                    self.log_event(
+                        "combo_page_cap_reached",
+                        position=position,
+                        location=location,
+                        pages_processed=pages_processed,
+                        max_pages_per_search=self.max_pages_per_search,
+                    )
+                    break
+                self.browser, jobs_per_page = self.next_jobs_page(
+                    position,
+                    location,
+                    jobs_per_page,
+                    experience_level=self.experience_level,
+                )
             except Exception as exc:
                 error_message = str(exc)
                 log.error(f"applications_loop error: {error_message}")
@@ -178,6 +135,82 @@ class SearchLoopMixin:
                     error=error_message,
                 )
                 time.sleep(PAGE_LOAD_PAUSE_SECONDS)
+
+    def extract_job_card_ids(self) -> dict[str, str]:
+        """Extracts job IDs from all visible LinkedIn job cards using multi-selector fallback."""
+        job_ids: dict[str, str] = {}
+        seen_ids: set[str] = set()
+
+        card_selectors = [
+            (By.CSS_SELECTOR, "li.jobs-search-results__list-item"),
+            (By.CSS_SELECTOR, "div.job-card-container"),
+            (By.CSS_SELECTOR, "[data-occludable-job-id]"),
+            (By.CSS_SELECTOR, "[data-job-id]"),
+            (By.CSS_SELECTOR, "div.job-card-list"),
+            (By.XPATH, "//div[@data-job-id]"),
+        ]
+
+        raw_elements = []
+        for by, val in card_selectors:
+            try:
+                found = self.browser.find_elements(by, val)
+                if found:
+                    raw_elements.extend(found)
+            except Exception:
+                continue
+
+        for el in raw_elements:
+            try:
+                text = (el.text or "").strip()
+                if "Applied" in text or (text and text in self.blacklist):
+                    continue
+
+                jid = (
+                    el.get_attribute("data-job-id")
+                    or el.get_attribute("data-occludable-job-id")
+                    or el.get_attribute("data-entity-urn")
+                    or ""
+                ).strip()
+
+                if not jid or jid == "search" or not jid.isdigit():
+                    try:
+                        links = el.find_elements(
+                            By.CSS_SELECTOR, "a[href*='/jobs/view/'], a[data-job-id]"
+                        )
+                        for link_el in links:
+                            sub_jid = link_el.get_attribute("data-job-id") or ""
+                            if sub_jid and sub_jid.isdigit():
+                                jid = sub_jid
+                                break
+                            href = link_el.get_attribute("href") or ""
+                            m = re.search(r"/jobs/view/(\d+)", href)
+                            if m:
+                                jid = m.group(1)
+                                break
+                    except Exception:
+                        pass
+
+                if jid and jid.isdigit() and jid not in seen_ids:
+                    seen_ids.add(jid)
+                    job_ids[jid] = "To be processed"
+            except Exception:
+                continue
+
+        if not job_ids:
+            try:
+                anchors = self.browser.find_elements(By.CSS_SELECTOR, "a[href*='/jobs/view/']")
+                for a in anchors:
+                    href = a.get_attribute("href") or ""
+                    m = re.search(r"/jobs/view/(\d+)", href)
+                    if m:
+                        jid = m.group(1)
+                        if jid not in seen_ids:
+                            seen_ids.add(jid)
+                            job_ids[jid] = "To be processed"
+            except Exception:
+                pass
+
+        return job_ids
 
     def _extract_card_titles(self) -> dict[str, str]:
         """Extract mapping of job_id -> title from visible search result cards."""
@@ -394,26 +427,26 @@ class SearchLoopMixin:
         if not self.experience_level or set(self.experience_level) == {1, 2, 3}:
             return True
 
-        title = (self.browser.title or "").lower()
+        title = (getattr(self.browser, "title", "") or "").lower()
         senior_markers = (
-            "senior ",
-            "sr. ",
-            "sr ",
-            "lead ",
-            "principal ",
-            "staff ",
-            "director ",
-            "vp ",
+            "senior",
+            "sr",
+            "lead",
+            "principal",
+            "staff",
+            "director",
+            "vp",
             "vice president",
-            "head of ",
-            "manager ",
-            "chief ",
+            "head of",
+            "manager",
+            "chief",
             "team lead",
         )
 
         # If applying strictly to internships or entry level, block explicit senior titles
         if set(self.experience_level).issubset({1, 2}):
-            if any(marker in title for marker in senior_markers):
-                return False
+            for marker in senior_markers:
+                if re.search(rf"\b{re.escape(marker)}\b", title):
+                    return False
 
         return True

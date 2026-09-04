@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from selenium.webdriver.common.by import By
@@ -609,22 +610,50 @@ class SubmitFlowMixin:
         return False, submit_clicked
 
     def _select_matching_resume(self) -> str | None:
+        from pathlib import Path
         uploads = getattr(self.bot, "uploads", {})
-        if not uploads:
-            return None
-        if isinstance(uploads, str):
+        if isinstance(uploads, str) and uploads:
             return uploads
-        title = (getattr(self.bot.browser, "title", "") or "").lower()
-        for key, path in uploads.items():
-            k_low = str(key).lower()
-            if k_low not in ("resume", "cover letter", "cover_letter", "default") and k_low in title:
-                return str(path)
-        for default_key in ("Resume", "resume", "default", "Default"):
-            if default_key in uploads:
-                return str(uploads[default_key])
-        for v in uploads.values():
-            if str(v).lower().endswith((".pdf", ".doc", ".docx")):
-                return str(v)
+        if isinstance(uploads, dict) and uploads:
+            title = (getattr(self.bot.browser, "title", "") or "").lower()
+            for key, path in uploads.items():
+                k_low = str(key).lower()
+                if k_low not in ("resume", "cover letter", "cover_letter", "default") and k_low in title:
+                    return str(path)
+            for default_key in ("Resume", "resume", "default", "Default"):
+                if default_key in uploads:
+                    return str(uploads[default_key])
+            for v in uploads.values():
+                if str(v).lower().endswith((".pdf", ".doc", ".docx")):
+                    return str(v)
+
+        # Fallback: check resumes/ directory for resume.pdf or any available PDF
+        default_resume = Path("resumes/resume.pdf")
+        if default_resume.exists():
+            return str(default_resume)
+        resumes_dir = Path("resumes")
+        if resumes_dir.exists():
+            for pdf_file in resumes_dir.glob("*.pdf"):
+                return str(pdf_file)
+        root_resume = Path("resume.pdf")
+        if root_resume.exists():
+            return str(root_resume)
+
+        return None
+
+    def _find_file_input(self, selectors: Sequence[tuple[str, str]]):
+        for by, value in selectors:
+            try:
+                for element in self.bot.browser.find_elements(by, value):
+                    try:
+                        if element.is_enabled():
+                            return element
+                    except Exception:
+                        return element
+            except Exception:
+                continue
+        if hasattr(self.bot, "_find_clickable") and callable(self.bot._find_clickable):
+            return self.bot._find_clickable(selectors)
         return None
 
     def _try_upload_documents(self) -> None:
@@ -632,7 +661,7 @@ class SubmitFlowMixin:
         try:
             resume_path = self._select_matching_resume()
             if resume_path:
-                resume_el = self.bot._find_clickable([
+                resume_el = self._find_file_input([
                     (By.XPATH, "//*[contains(@id, 'jobs-document-upload-file-input-upload-resume')]"),
                     (By.CSS_SELECTOR, "input[type='file'][id*='upload-resume']"),
                     (By.CSS_SELECTOR, "input[type='file'][name*='file']"),
@@ -643,13 +672,18 @@ class SubmitFlowMixin:
                     if Path(full_path).exists():
                         resume_el.send_keys(full_path)
                         self.bot.log_event("document_uploaded", type="resume", path=resume_path)
+                    else:
+                        log.warning(
+                            f"Resume file configured at '{resume_path}' does not exist on disk! "
+                            f"Please ensure your PDF resume is placed at that path."
+                        )
         except Exception as exc:
             log.debug(f"Document upload failed: {exc}")
 
         try:
             cv = self.bot.uploads.get("Cover Letter") or self.bot.uploads.get("cover_letter")
             if cv:
-                cv_el = self.bot._find_clickable([
+                cv_el = self._find_file_input([
                     (By.XPATH, "//*[contains(@id, 'jobs-document-upload-file-input-upload-cover-letter')]"),
                     (By.CSS_SELECTOR, "input[type='file'][id*='upload-cover-letter']"),
                 ])
@@ -658,6 +692,10 @@ class SubmitFlowMixin:
                     if Path(full_cv_path).exists():
                         cv_el.send_keys(full_cv_path)
                         self.bot.log_event("document_uploaded", type="cover_letter", path=cv)
+                    else:
+                        log.warning(
+                            f"Cover letter configured at '{cv}' does not exist on disk."
+                        )
         except Exception as exc:
             log.debug(f"Cover letter upload failed: {exc}")
 

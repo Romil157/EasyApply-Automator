@@ -1,65 +1,89 @@
 # ─── LinkedIn Easy Apply Bot – Configuration ───
-# Credentials (you can also load them from environment variables / .env)
+# Candidate Profile: Romil Doshi (B.Tech Computer Engineering, 2027)
+# Resume Focus: Software/Backend (Python/JS/Flask), Data Scraping & Analytics,
+# Applied AI/ML & RAG, Cybersecurity (SIEM/Phishing), and IT Support.
+
+# Credentials (loaded securely from environment variables / .env)
 username: ""
 password: ""
 
 positions:
-  # --- Software & Web Development (Resume: Python, Flask, Node.js, JS, HTML/CSS, Web Dev Internship) ---
+  # ─── 1. Software & Web Development (Internships & Entry-Level) ───
+  # Matches: Python, Flask, Node.js, JavaScript, HTML/CSS, Web Dev Internship
+  - "Software Engineer Intern"
+  - "Software Developer Intern"
+  - "Python Developer Intern"
+  - "Backend Developer Intern"
+  - "Web Development Intern"
+  - "Full Stack Developer Intern"
+  - "Frontend Developer Intern"
+  - "Junior Software Engineer"
+  - "Junior Python Developer"
+  - "Junior Backend Developer"
+  - "Associate Software Engineer"
+  - "Graduate Engineer Trainee"
   - "Software Engineer"
-  - "Software Developer"
   - "Python Developer"
   - "Backend Developer"
   - "Web Developer"
-  - "Full Stack Developer"
-  - "Frontend Developer"
-  - "Node.js Developer"
-  - "Application Developer"
-  - "Junior Developer"
 
-  # --- Data Scraping, Engineering & Analytics (Resume: Data Scraping Internship, SQL, Cleaning, Excel) ---
+  # ─── 2. Data Engineering, Scraping & Analytics ───
+  # Matches: Research Intern (Data Scraping), SQL, Data Cleaning, Advanced Excel
+  - "Data Analyst Intern"
+  - "Data Science Intern"
+  - "Data Engineering Intern"
   - "Data Analyst"
   - "Data Engineer"
   - "Data Scraping"
   - "Web Scraping"
   - "ETL Developer"
-  - "Business Analyst"
   - "Research Analyst"
-  - "BI Analyst"
 
-  # --- IT Support & Systems (Resume: 2 IT Internships, SIEM, Ticket Management, Network Monitoring) ---
-  - "IT Support"
-  - "Technical Support"
-  - "IT Analyst"
-
-  # --- AI, Machine Learning & NLP (Resume: Sentinel Verify ML Pipeline, Hackathon RAG Agent) ---
-  - "AI Engineer"
-  - "Machine Learning"
-  - "NLP Engineer"
+  # ─── 3. Applied AI, Machine Learning & NLP ───
+  # Matches: Sentinel Verify ML Pipeline, HackerRank Orchestrate RAG Agent
   - "AI Intern"
-  - "Generative AI"
+  - "Machine Learning Intern"
+  - "Generative AI Intern"
+  - "AI Engineer"
+  - "Machine Learning Engineer"
+  - "NLP Engineer"
 
-  # --- Cybersecurity & Information Security (Resume: SIEM Tools, Trustos Phishing Extension) ---
+  # ─── 4. Cybersecurity & Information Security ───
+  # Matches: Trustos Extension (Wasm/Bloom filter), Sentinel Verify, SIEM Tools
+  - "Cybersecurity Intern"
+  - "Security Analyst Intern"
+  - "Information Security Intern"
   - "Cybersecurity Analyst"
   - "Security Analyst"
   - "SOC Analyst"
-  - "Information Security"
 
-  # --- Automation, QA & DevOps (Resume: Test Automation, Git, Startup Deployment) ---
+  # ─── 5. IT Support, Systems & Infrastructure ───
+  # Matches: 2 IT Internships, Network Fundamentals, Ticket Resolution, Deployment
+  - "IT Intern"
+  - "IT Support Intern"
+  - "Technical Support Intern"
+  - "IT Support Engineer"
+  - "Technical Support Engineer"
+  - "IT Analyst"
+
+  # ─── 6. Automation, QA & DevOps ───
+  # Matches: Test Automation, Git, Startup Deployment
   - "Automation Engineer"
   - "QA Engineer"
   - "DevOps Engineer"
 
-  # --- Finance & Growth Analytics (User-Requested Domain Focus) ---
+  # ─── 7. Finance & Growth Analytics ───
+  # User-Requested Domain Focus
   - "Financial Analyst"
   - "SEO Intern"
   - "SEM Specialist"
 
 locations:
-  - Remote
-  - Mumbai
-  - India
-  - Bengaluru
-  - Pune
+  - Mumbai        # Primary Location (Local / Onsite / Hybrid in home city)
+  - Remote        # Nationwide remote opportunities
+  - India         # Broad India search for top matches
+  - Bengaluru     # Primary Indian Tech Hub
+  - Pune          # Nearby Maharashtra Tech Hub
   - Hyderabad
   - Gurugram
   - Noida
@@ -74,21 +98,24 @@ workplace_types:
   - hybrid
   - onsite
 
-# job_types: full_time | contract | part_time | internship
+# job_types: internship | full_time | contract | part_time
 job_types:
   - internship
   - full_time
   - contract
+
+# Experience level mapping:
+# 1: Internship | 2: Entry level | 3: Associate | 4: Mid-Senior
+experience_level:
+  - 1  # Internship
+  - 2  # Entry level
 
 # Maximum number of applications to submit per session (0 = unlimited)
 max_applications: 0
 
 # Multi-Resume mapping (selects matching resume by job title keyword, falls back to Resume/default)
 uploads:
-  Resume: "resumes/resume.pdf"
-  # data: "resumes/data_engineer_resume.pdf"
-  # python: "resumes/python_resume.pdf"
-  # "Cover Letter": "resumes/cover_letter.pdf"
+  Resume: "resumes/resume.md"
 
 # Runtime Flags
 dry_run: false
@@ -98,7 +125,7 @@ proxy: ""
 
 max_pages_per_search: 5
 
-# Session pacing (how long the bot runs and takes breaks)
+# Session pacing (humanized pauses to protect account)
 session_duration_hours_min: 2
 session_duration_hours_max: 4
 short_break_min_seconds: 15
@@ -127,11 +154,12 @@ blacklist_titles:
   - "management trainee"
   - "executive assistant"
 
-  # Business Development, Sales & Outreach
+  # Business Development, Sales & Outreach (Common spam roles on LinkedIn)
   - "business development"
   - "bde"
   - "bda"
   - "sales intern"
+  - "sales executive"
   - "inside sales"
   - "field sales"
   - "cold call"
@@ -156,7 +184,7 @@ blacklist_titles:
   - "growth and strategy"
   - "market intelligence"
 
-  # Marketing, Content & Social Media (Unrelated)
+  # Marketing, Content & Social Media (Non-Engineering)
   - "brand face"
   - "growth intern"
   - "growth marketing"
@@ -206,7 +234,7 @@ blacklist_titles:
   - "staffing"
   - "payroll"
 
-  # Accounting, Audit, Tax & Legal (Unrelated)
+  # Accounting, Audit, Tax & Legal
   - "accountant"
   - "chartered accountant"
   - "taxation"
@@ -217,7 +245,7 @@ blacklist_titles:
   - "paralegal"
   - "real estate"
 
-  # Manual Data Entry & Annotation (Non-Engineering)
+  # Manual Data Entry & Annotation
   - "data annotator"
   - "data annotation"
   - "data labeler"
@@ -286,8 +314,3 @@ filters:
     - "mental health"
     - "diagnostic"
     - "diagnostics"
-
-experience_level:
-  - 1  # Internship
-  - 2  # Entry level
-

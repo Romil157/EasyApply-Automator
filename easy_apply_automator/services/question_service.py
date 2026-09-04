@@ -38,7 +38,7 @@ class QuestionService(ServiceBase):
         if match:
             value = match.group(0)
             try:
-                if float(value) > 0:
+                if float(value) >= 0:
                     return value
             except ValueError as exc:
                 log.debug(f"Failed to convert value '{value}' to float: {exc}")
@@ -121,24 +121,45 @@ class QuestionService(ServiceBase):
 
     def compose_long_form_answer(self, question: str) -> str:
         q = (question or "").lower()
+        templates = {}
+        if hasattr(self.bot, "auto_answer") and self.bot.auto_answer is not None:
+            cfg = getattr(self.bot.auto_answer, "cfg", None)
+            if isinstance(cfg, dict):
+                templates = cfg.get("long_form_templates", {})
+
+        render_fn = None
+        if hasattr(self.bot, "auto_answer") and self.bot.auto_answer is not None:
+            render_fn = getattr(self.bot.auto_answer, "_render", None)
+
+        def _format_tmpl(tmpl: str) -> str:
+            if callable(render_fn):
+                return render_fn(tmpl)
+            return tmpl
+
         if "mission" in q or "what about" in q or ("why " in q and "role" not in q):
+            if templates and "mission" in templates:
+                return _format_tmpl(templates["mission"])
             return (
                 "Your mission resonates with me because it focuses on building impactful, high-reliability software. "
-                "As a Computer Engineering student with hands-on experience across backend development, data pipelines, "
-                "and applied AI/ML, I am motivated by engineering teams that prioritize technical rigor, user experience, "
-                "and continuous learning."
+                "With hands-on experience across modern software systems, data pipelines, "
+                "and applied technologies, I am motivated by engineering teams that prioritize technical rigor, "
+                "user experience, and continuous learning."
             )
         if "proud" in q or "project" in q or "tell us" in q:
+            if templates and "project" in templates:
+                return _format_tmpl(templates["project"])
             return (
-                "A project I am most proud of is Sentinel Verify, an AI-powered cybersecurity platform I built using "
-                "Flask, JavaScript, and an ML/NLP pipeline to detect deceptive content and phishing in real time with "
-                "explainable risk scoring. I also engineered Trustos, a Chrome extension using WebAssembly and Bloom "
-                "filters for real-time threat detection, and built a RAG triage agent for the HackerRank Orchestrate Hackathon."
+                "A project I am most proud of is an end-to-end automation and analytics application that I built to "
+                "streamline real-time data processing, integrate web services, and significantly improve workflow efficiency "
+                "with robust error handling and observability."
             )
+        if templates and "default" in templates:
+            return _format_tmpl(templates["default"])
         return (
-            "I am excited about this role because it aligns with my technical background in Computer Engineering and "
-            "practical experience in Python, backend development, and applied AI/ML. I focus on writing clean, "
-            "maintainable code, collaborating effectively in cross-functional teams, and solving practical problems."
+            "I am excited about this role because it aligns with my technical background and "
+            "practical experience in software engineering, backend systems, and problem solving. "
+            "I focus on writing clean, maintainable code, collaborating effectively in cross-functional teams, "
+            "and delivering reliable solutions."
         )
 
     def is_long_form_prompt(self, question: str, input_type: str = "text") -> bool:

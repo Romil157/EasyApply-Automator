@@ -21,7 +21,6 @@ from easy_apply_automator.app.search_loop import SearchLoopMixin
 from easy_apply_automator.config.timing import (
     CLICK_PAUSE_SECONDS,
     MICRO_PAUSE_SECONDS,
-    MODAL_TRANSITION_PAUSE_SECONDS,
     QUESTION_LOAD_PAUSE_SECONDS,
     TYPEAHEAD_PAUSE_SECONDS,
 )
@@ -738,6 +737,19 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 continue
         return None
 
+    def _find_file_input(self, selectors: Sequence[tuple[str, str]]):
+        for by, value in selectors:
+            try:
+                for element in self.browser.find_elements(by, value):
+                    try:
+                        if element.is_enabled():
+                            return element
+                    except Exception:
+                        return element
+            except Exception:
+                continue
+        return None
+
     def _select_non_default_option(self, select_element) -> bool:
         try:
             for option in select_element.find_elements(By.TAG_NAME, "option"):
@@ -797,20 +809,6 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             smooth_scroll_to(self.browser, scroll_limit, step_size=scroll_step, pause_sec=sleep)
             smooth_scroll_to(self.browser, 0, step_size=scroll_step, pause_sec=sleep)
         return BeautifulSoup(self.browser.page_source, "lxml")
-
-    def avoid_lock(self) -> None:
-        try:
-            import pyautogui
-            x, _ = pyautogui.position()
-            pyautogui.moveTo(x + 200, pyautogui.position().y, duration=1.0)
-            pyautogui.moveTo(x, pyautogui.position().y, duration=0.5)
-            pyautogui.keyDown("ctrl")
-            pyautogui.press("esc")
-            pyautogui.keyUp("ctrl")
-            time.sleep(MODAL_TRANSITION_PAUSE_SECONDS)
-            pyautogui.press("esc")
-        except Exception:
-            pass
 
     def _human_sleep(self, base_seconds: float, variance: float = 0.2) -> None:
         time.sleep(base_seconds * random.uniform(1 - variance, 1 + variance))

@@ -107,7 +107,7 @@ class AutoAnswer:
         ctx = {
             "salary": self.salary,
             "hourly_rate": self.hourly_rate,
-            "unknown_years": str(defaults.get("unknown_years", "1")),
+            "unknown_years": str(defaults.get("unknown_years", "0")),
             "unknown_text": str(defaults.get("unknown_text", "user provided")),
             "yes": str(defaults.get(True, "Yes")),  # bare 'yes:' in YAML → Python True
             "no": str(defaults.get(False, "No")),  # bare 'no:' in YAML → Python False
@@ -270,12 +270,17 @@ class AutoAnswer:
             "current_job_title": getattr(self, "current_job_title", ""),
             "current_job_company": getattr(self, "current_job_company", ""),
         }
-        resume_file = Path("resume.md")
-        if resume_file.exists():
-            try:
-                context["resume_markdown"] = resume_file.read_text(encoding="utf-8")
-            except Exception:
-                pass
+        for resume_path in (
+            Path("resume.md"),
+            Path("resumes/resume.md"),
+            *Path("resumes").glob("*.md"),
+        ):
+            if resume_path.exists():
+                try:
+                    context["resume_markdown"] = resume_path.read_text(encoding="utf-8")
+                    break
+                except Exception:
+                    pass
         return context
 
     def _persist_learned_rule(self, question: str, answer: str) -> None:

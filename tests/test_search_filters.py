@@ -17,6 +17,7 @@ class DummySearchBot(SearchLoopMixin):
         self.stop_requested = False
         self.session_deadline = 9999999999.0
         self.appliedJobIDs = []
+        self.blacklist = []
 
 
 class TestBuildSearchUrl:
@@ -86,4 +87,58 @@ class TestMatchesSelectedExperienceLevel:
         bot.browser.find_elements.return_value = []
 
         assert bot._matches_selected_experience_level() is False
+
+
+class TestExtractJobCardIds:
+    def test_extract_job_ids_from_data_job_id(self):
+        bot = DummySearchBot()
+        bot.browser = MagicMock()
+
+        card = MagicMock()
+        card.text = "Python Engineer at Acme"
+        card.get_attribute.side_effect = lambda attr: "123456" if attr == "data-job-id" else ""
+        card.find_elements.return_value = []
+
+        bot.browser.find_elements.return_value = [card]
+
+        job_ids = bot.extract_job_card_ids()
+        assert "123456" in job_ids
+
+    def test_extract_job_ids_from_child_anchor_regex(self):
+        bot = DummySearchBot()
+        bot.browser = MagicMock()
+
+        card = MagicMock()
+        card.text = "Data Engineer"
+        card.get_attribute.return_value = ""
+
+        link = MagicMock()
+        link.get_attribute.side_effect = (
+            lambda attr: "https://www.linkedin.com/jobs/view/987654321/" if attr == "href" else ""
+        )
+        card.find_elements.return_value = [link]
+
+        bot.browser.find_elements.side_effect = lambda by, val: [card] if "li." in val else []
+
+        job_ids = bot.extract_job_card_ids()
+        assert "987654321" in job_ids
+
+    def test_skips_applied_and_blacklisted_cards(self):
+        bot = DummySearchBot()
+        bot.blacklist = ["Bad Company"]
+        bot.browser = MagicMock()
+
+        card_applied = MagicMock()
+        card_applied.text = "Software Engineer Applied"
+        card_applied.get_attribute.return_value = "111"
+
+        card_blacklisted = MagicMock()
+        card_blacklisted.text = "Bad Company"
+        card_blacklisted.get_attribute.return_value = "222"
+
+        bot.browser.find_elements.return_value = [card_applied, card_blacklisted]
+
+        job_ids = bot.extract_job_card_ids()
+        assert job_ids == {}
+
 

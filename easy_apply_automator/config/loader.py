@@ -34,16 +34,6 @@ ENV_TO_CONFIG_KEY = {
     "EASYAPPLY_CHROME_USER_DATA_DIR": "user_data_dir",
     "EASYAPPLY_PROXY": "proxy",
     "EASYAPPLY_DATE_POSTED": "date_posted",
-    # AI / LLM Auto-Answer Configuration
-    "GROQ_API_KEY": "groq_api_key",
-    "GEMINI_API_KEY": "gemini_api_key",
-    "OPENAI_API_KEY": "openai_api_key",
-    "OPENAI_BASE_URL": "openai_base_url",
-    "ANTHROPIC_API_KEY": "anthropic_api_key",
-    "OLLAMA_HOST": "ollama_host",
-    "AI_PROVIDER": "ai_provider",
-    "AI_MODEL": "ai_model",
-    "AI_AUTO_LEARN": "ai_auto_learn",
 }
 
 
@@ -51,6 +41,12 @@ def load_run_config(config_path: str | Path = "config.yaml") -> RunConfig:
     load_dotenv()
 
     path = Path(config_path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Configuration file not found: '{config_path}'. "
+            f"Please create '{config_path}' from config.example.yaml."
+        )
+
     with path.open("r", encoding="utf-8") as stream:
         parameters = yaml.safe_load(stream) or {}
 

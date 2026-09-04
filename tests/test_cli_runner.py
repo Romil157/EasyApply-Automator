@@ -45,3 +45,66 @@ class TestCliParser:
         assert args.config == "custom_config.yaml"
         assert args.proxy == "http://proxy.local:8080"
         assert args.user_data_dir == "/tmp/chrome-profile"
+
+    def test_cli_level_choices(self):
+        parser = build_cli_parser()
+        for lvl in ["1", "2", "3"]:
+            parsed = parser.parse_args(["--level", lvl])
+            assert parsed.level == lvl
+
+        import pytest
+        with pytest.raises(SystemExit):
+            parser.parse_args(["--level", "4"])
+        with pytest.raises(SystemExit):
+            parser.parse_args(["--level", "invalid"])
+
+
+class TestRunFromConfig:
+    def test_run_from_config_level_1(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from easy_apply_automator.app.runner import build_cli_parser, run_from_config
+
+        mock_bot = MagicMock()
+        monkeypatch.setattr("easy_apply_automator.app.runner.LinkedInEasyApplyOrchestrator", mock_bot)
+
+        parser = build_cli_parser()
+        args = parser.parse_args(["--level", "1"])
+        run_from_config("config.yaml", cli_args=args)
+
+        created_config = mock_bot.call_args[0][0]
+        assert created_config.experience_level == [1]
+        assert created_config.job_types == ["internship"]
+
+    def test_run_from_config_level_2(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from easy_apply_automator.app.runner import build_cli_parser, run_from_config
+
+        mock_bot = MagicMock()
+        monkeypatch.setattr("easy_apply_automator.app.runner.LinkedInEasyApplyOrchestrator", mock_bot)
+
+        parser = build_cli_parser()
+        args = parser.parse_args(["--level", "2"])
+        run_from_config("config.yaml", cli_args=args)
+
+        created_config = mock_bot.call_args[0][0]
+        assert created_config.experience_level == [2, 3]
+        assert created_config.job_types == ["full_time", "contract"]
+
+    def test_run_from_config_level_3(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from easy_apply_automator.app.runner import build_cli_parser, run_from_config
+
+        mock_bot = MagicMock()
+        monkeypatch.setattr("easy_apply_automator.app.runner.LinkedInEasyApplyOrchestrator", mock_bot)
+
+        parser = build_cli_parser()
+        args = parser.parse_args(["--level", "3"])
+        run_from_config("config.yaml", cli_args=args)
+
+        created_config = mock_bot.call_args[0][0]
+        assert created_config.experience_level == [1, 2, 3]
+        assert created_config.job_types == ["internship", "full_time", "contract"]
+

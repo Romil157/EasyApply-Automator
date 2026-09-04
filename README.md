@@ -4,7 +4,7 @@
 
 [![Python 3.12](https://img.shields.io/badge/python-3.12+-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI Tests](https://img.shields.io/badge/Tests-265%20Passed-brightgreen.svg)](tests/)
+[![CI Tests](https://img.shields.io/badge/Tests-277%2B%20Passed-brightgreen.svg)](tests/)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type Checked: Mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
 [![AI Engine: Groq / Gemini / Claude](https://img.shields.io/badge/AI%20Engine-Groq%20%7C%20Gemini%20%7C%20Claude-orange.svg)](easy_apply_automator/qa/)
@@ -26,7 +26,8 @@
 
 ## Key Features
 
-### 1. SDUI Navigation Flow & Full-Page Apply Support
+### 1. Resilient Job Discovery & SDUI Navigation Support
+* **Multi-Selector Card Discovery**: Resiliently scrapes job cards across varying LinkedIn search layouts (`data-job-id`, `data-occludable-job-id`, `div.job-card-container`, `li.jobs-search-results__list-item`, and regex `/jobs/view/(\d+)` anchor parsing) to ensure no listings are missed during DOM restructuring.
 * **Server-Driven UI (SDUI) Flow Handling**: Fully supports LinkedIn's modern SDUI navigation-based apply flow (`<a href="...?openSDUIApplyFlow=true">` and dedicated `/apply/` URLs) alongside traditional client-side modal dialogs.
 * **Post-Navigation Page Synchronization**: Detects link-triggered page transitions, awaiting DOM readiness and scrolling new application pages before engaging form controls.
 * **Resilient Multi-Strategy Fallback**: Direct `/apply/` URL navigation and collection redirect recovery when in-page modal dialogs do not render.
@@ -40,12 +41,16 @@
 * **External ATS Early Exit**: Automatically detects when an Easy Apply button redirects to external portals (Workday, Greenhouse, Lever, SmartRecruiters, Ashby, iCIMS, Taleo) within 1-2 seconds, exiting early and returning to LinkedIn without wasting 30+ seconds waiting for non-existent modals.
 * **Stealth Single-Click Dispatcher**: Uses randomized single-click strategies (`ActionChains`, direct interaction, or script execution) with humanized pause variance, eliminating synthetic multi-click patterns that trigger anti-bot protections.
 
-### 4. Smart Deduplication & Transient Failure Recovery
-* **Non-Destructive Failure Handling**: Distinguishes permanent job skips (already applied, title blacklist, medical filters, low relevance) from transient execution issues (modal timeouts, network stalls). Transient failures are recorded for the active loop but remain eligible for subsequent passes instead of being permanently locked out.
+### 4. Smart Deduplication, Session Persistence & Atomic Storage
+* **Automatic Session Persistence**: Seamlessly caches LinkedIn authentication cookies to `.auth/linkedin_cookies.json` upon successful login, eliminating the need to solve verification challenges on every session run.
+* **Atomic Storage & Self-Healing Data Recovery**: Protects `results.json` and CSV reports from truncation or sudden termination crashes using atomic write swaps (`.tmp` + rename). Automatically detects and recovers from corrupted JSON by archiving faulty state (`.corrupt_*`) and cleanly initializing.
+* **Non-Destructive Failure Handling**: Distinguishes permanent job skips (already applied, title blacklist, medical filters, low relevance) from transient execution issues (modal timeouts, network stalls). Transient failures remain eligible for subsequent passes instead of being permanently locked out.
 * **Multi-Day Cache Ingestion**: Intelligently loads prior successful submissions while preserving uncompleted applications across separate runs.
 
-### 5. AI Zero-Shot Question Answering & Job-Targeted Context
+### 5. AI Zero-Shot Question Answering & Numeric Precision
 * **Universal Multi-Provider AI Client**: Native REST client supporting **Groq** (`openai/gpt-oss-120b`, `llama-3.3-70b`), **Google Gemini Flash**, **OpenAI**, **Anthropic Claude**, and **local Ollama** without heavy third-party SDK dependencies.
+* **Numeric Answer Precision**: Accurately preserves `0` and `0.0` values for years of experience and numerical questions (preventing zero-experience candidates from being mischaracterized with 1+ years).
+* **Prompt Injection Defense & Sanitization**: Strips non-printable control characters and enforces length limits with XML boundary encapsulation on recruiter questions before sending to LLMs.
 * **Job-Specific Prompt Enrichment**: Injects the active job title, hiring company, candidate background profile, and `resume.md` into zero-shot prompts, generating customized answers for questions like "Why are you interested in this role?".
 * **Self-Learning Local Cache**: When AI resolves an unknown question, it dynamically appends the rule into your local `questions_answers.yaml` on disk. Future occurrences are resolved locally with zero API calls and zero latency.
 
@@ -135,7 +140,7 @@ flowchart TD
 * **Windows**: Double-click **`run.bat`** (or run `run.bat` in CMD / PowerShell).
 * **Linux / macOS**: Run **`./run.sh`**.
 
-The launcher provides an interactive menu:
+The launcher provides an interactive menu for operation mode and target role level:
 ```text
 ============================================
    EasyApply Automator - Control Center
@@ -146,7 +151,13 @@ Choose an option to run:
   [2] Start Live Web Dashboard
   [3] Run Pytest Suite
 
-Enter choice 1, 2, or 3 (default 1):
+Enter choice 1, 2, or 3 (default 1): 1
+
+Select Target Experience Level:
+  [1] Internship Roles Only
+  [2] Full-Time & Entry-Level Roles
+  [3] All Opportunities (Default)
+  [4] Keep config.yaml Settings
 ```
 
 ### Option 2: Manual Installation & CLI
@@ -305,6 +316,20 @@ rules:
     answer: "{require_sponsorship}"
 ```
 
+### 4. `resumes/` Directory & Multi-Resume Uploads
+Place your PDF resume files inside the `resumes/` directory. By default, `config.yaml` points to `resumes/resume.pdf`:
+
+```yaml
+uploads:
+  Resume: "resumes/resume.pdf"
+  # Target-specific resumes:
+  # data: "resumes/data_engineer_resume.pdf"
+  # python: "resumes/python_resume.pdf"
+  # "Cover Letter": "resumes/cover_letter.pdf"
+```
+
+When an Easy Apply form requests an explicit resume file upload, the bot matches the job title against your configured upload keys and uploads the corresponding file. If a file is missing from disk, a clear warning is logged without crashing the session.
+
 ---
 
 ## CLI Flags & Options
@@ -350,6 +375,34 @@ If showcasing this project in technical reviews or interviews, highlight these c
    - High-sensitivity data (credentials, phone, name, email) is isolated into `.env` and `resume.md` (gitignored), ensuring no personal data is committed to source control.
 6. **Self-Learning QA Architecture**:
    - Combines deterministic regex rules with zero-shot LLM reasoning and auto-persisting cache for efficient, cost-free answer reuse.
+7. **Atomic Persistence & Self-Healing Telemetry**:
+   - Results and reports employ atomic temp-file replace operations (`.tmp` + `replace()`), eliminating truncation risk on abrupt user cancellation (Ctrl+C) and automatically recovering corrupted logs via timestamped backups.
+8. **Resilient Multi-Selector Job Card Resolution**:
+   - Avoids single-selector layout fragility by unifying CSS containers, occludable job IDs, entity URNs, and anchor regex extraction into a fault-tolerant discovery loop.
+
+---
+
+## Troubleshooting & FAQ
+
+### 1. Chrome Version / Driver Mismatches
+* **Symptom**: `SessionNotCreatedException` or Chrome driver startup error.
+* **Resolution**: Ensure your installed Google Chrome browser is up to date (`chrome://settings/help`). The bot uses `undetected-chromedriver` which automatically retrieves the compatible driver binary. If issues persist, delete the cached chromedriver folder in your system temporary directory.
+
+### 2. Daily Easy Apply Limit Reached
+* **Symptom**: LinkedIn displays "You reached today's Easy Apply limit" or "We limit Easy Apply submissions to protect our community".
+* **Resolution**: LinkedIn imposes dynamic rolling limits on Easy Apply submissions (often 50-100 per 24 hours depending on account age and verification status). When this happens, the bot's limit detector automatically stops the session cleanly and records the event in `logs/events.jsonl`. Wait until the following day for LinkedIn to reset your quota.
+
+### 3. Login Checkpoints & Two-Factor Authentication
+* **Symptom**: LinkedIn triggers SMS verification, email code, or CAPTCHA challenge upon login.
+* **Resolution**: Run the bot in non-headless mode (without `--headless`). Complete the verification challenge directly in the opened Chrome browser window. Once logged in, the session service automatically saves authentication cookies to `.auth/linkedin_cookies.json`, enabling future sessions to authenticate without repeating verification.
+
+### 4. Resume File Missing Warning
+* **Symptom**: Warning logged: `Resume file configured at 'resumes/resume.pdf' does not exist on disk`.
+* **Resolution**: Place your PDF resume in the `resumes/` folder (default name `resumes/resume.pdf`), or update the path under `uploads` in `config.yaml` to match your resume's location.
+
+### 5. Graceful Shutdown & Cookie Preservation
+* **Symptom**: Stopping the bot with Ctrl+C.
+* **Resolution**: Pressing `Ctrl+C` once sends a graceful stop request, permitting the bot to finalize the active step and persist session cookies before quitting. Pressing `Ctrl+C` a second time forces an immediate exit.
 
 ---
 

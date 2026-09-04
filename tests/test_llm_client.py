@@ -63,6 +63,17 @@ class TestBuildPrompt:
         assert "Test User" in prompt
         assert '"python": "2"' in prompt
 
+    def test_build_prompt_includes_resume_markdown(self):
+        client = LLMClient(provider="gemini", gemini_api_key="AIzaSyDummyKey")
+        profile_context = {
+            "candidate_name": "Romil Doshi",
+            "resume_markdown": "# Romil Doshi\n## Projects\n### Sentinel Verify\nAI-powered cybersecurity platform",
+        }
+        prompt = client.build_prompt("Tell us about your background", profile_context)
+        assert "Candidate Full Resume (Markdown):" in prompt
+        assert "Sentinel Verify" in prompt
+        assert "AI-powered cybersecurity platform" in prompt
+
 
 class TestLLMAPICalls:
     @patch("urllib.request.urlopen")

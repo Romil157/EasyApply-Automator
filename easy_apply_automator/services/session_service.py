@@ -39,6 +39,7 @@ class SessionService(ServiceBase):
         try:
             if self.is_logged_in():
                 log.info("Already logged in to LinkedIn.")
+                self.save_session_cookies()
                 self.bot.log_event("login_success", method="existing_session")
                 return
 
@@ -131,6 +132,7 @@ class SessionService(ServiceBase):
                 time.sleep(poll_interval)
                 if self.is_logged_in():
                     log.info("Login successful!")
+                    self.save_session_cookies()
                     self.bot.log_event("login_success", method="manual")
                     return
 
@@ -228,8 +230,11 @@ class SessionService(ServiceBase):
         try:
             cookies = self.bot.browser.get_cookies()
             cookie_path = Path(self.bot.cookies_path)
-            with open(cookie_path, "w", encoding="utf-8") as f:
+            cookie_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp_path = cookie_path.with_suffix(".tmp")
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(cookies, f, ensure_ascii=False, indent=2)
+            tmp_path.replace(cookie_path)
             # Tighten file permissions on POSIX hosts so other users on the
             # machine cannot read the LinkedIn session cookies (which are
             # effectively a credential for the session lifetime). On Windows

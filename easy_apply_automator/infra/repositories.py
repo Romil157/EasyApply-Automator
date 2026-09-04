@@ -103,29 +103,46 @@ class ResultsRepository:
 
         existing: list[Any] = []
         if output_path.exists():
-            with open(output_path, encoding="utf-8") as f:
-                loaded = json.load(f)
-                if isinstance(loaded, list):
-                    existing = loaded
+            try:
+                with open(output_path, encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    if isinstance(loaded, list):
+                        existing = loaded
+            except (json.JSONDecodeError, OSError) as exc:
+                log.warning(
+                    f"Corrupted or unreadable results file at {output_path}: {exc}. Backing up."
+                )
+                try:
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    corrupt_backup = output_path.with_suffix(f".corrupt_{ts}")
+                    output_path.rename(corrupt_backup)
+                except Exception:
+                    pass
+                existing = []
 
         existing.append(record)
-        with open(output_path, "w", encoding="utf-8") as f:
+        tmp_json = output_path.with_suffix(".tmp")
+        with open(tmp_json, "w", encoding="utf-8") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
+        tmp_json.replace(output_path)
 
-        # Write to a CSV file (Excel-compatible UTF-8 with BOM)
+        # Write to a CSV file (Excel-compatible UTF-8 with BOM) atomically
         import csv
 
         csv_path = output_path.with_suffix(".csv")
         if existing:
-            keys = []
+            keys: list[str] = []
             for r in existing:
-                for k in r.keys():
-                    if k not in keys:
-                        keys.append(k)
-            with open(csv_path, "w", newline="", encoding="utf-8-sig") as csv_f:
+                if isinstance(r, dict):
+                    for k in r.keys():
+                        if k not in keys:
+                            keys.append(k)
+            tmp_csv = csv_path.with_suffix(".tmp")
+            with open(tmp_csv, "w", newline="", encoding="utf-8-sig") as csv_f:
                 writer = csv.DictWriter(csv_f, fieldnames=keys)
                 writer.writeheader()
                 writer.writerows(existing)
+            tmp_csv.replace(csv_path)
 
         # Generate HTML report in both the dated directory and root results directory
         try:

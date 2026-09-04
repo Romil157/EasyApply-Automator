@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -67,5 +68,10 @@ class EventLogger:
         try:
             with open(self.events_filename, "a", encoding="utf-8") as f:
                 f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except Exception:
+                    pass
         except Exception as exc:
             log.error(f"Failed to persist JSON event log: {exc}")

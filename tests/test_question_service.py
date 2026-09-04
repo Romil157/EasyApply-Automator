@@ -44,6 +44,12 @@ class TestCoerceNumericAnswer:
         assert svc.coerce_numeric_answer("software engineering years", "") == "1"
         assert svc.coerce_numeric_answer("unrelated prompt", "") == "1"
 
+    def test_zero_is_preserved(self):
+        svc = _make_service()
+        assert svc.coerce_numeric_answer("how many years of experience", "0") == "0"
+        assert svc.coerce_numeric_answer("how many years of experience", "0.0") == "0.0"
+        assert svc.coerce_numeric_answer("how many moving violations", "0") == "0"
+
 
 class TestCleanQuestionText:
     def test_basic_cleaning(self):

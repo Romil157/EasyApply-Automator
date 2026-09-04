@@ -32,13 +32,13 @@ class TestQuestionServiceLogic:
         assert service.coerce_numeric_answer("Years?", "5 years") == "5"
         assert service.coerce_numeric_answer("Years?", "$100,000") == "100000"
 
-        # Zero or negative returns fallback
-        assert service.coerce_numeric_answer("Years?", "0") == "1"
+        # Zero is preserved, negative returns fallback
+        assert service.coerce_numeric_answer("Years?", "0") == "0"
         assert service.coerce_numeric_answer("Years?", "-5") == "1"
 
         # Fallback values for unknown skills
         assert service.coerce_numeric_answer("How many years of Solidity?", "none") == "1"
-        assert service.coerce_numeric_answer("Web3 experience?", "0") == "1"
+        assert service.coerce_numeric_answer("Web3 experience?", "0") == "0"
         assert service.coerce_numeric_answer("How many years of UnknownTool?", "none") == "1"
         assert service.coerce_numeric_answer("Something else?", "none") == "1"
 
@@ -79,9 +79,23 @@ class TestQuestionServiceLogic:
         # Mission
         assert "mission resonates" in service.compose_long_form_answer("What is our mission?")
         # Project
-        assert "Sentinel Verify" in service.compose_long_form_answer("Tell us about a project")
+        assert "project I am most proud of" in service.compose_long_form_answer("Tell us about a project")
         # Default
         assert "excited about this role" in service.compose_long_form_answer("Random question")
+
+    def test_compose_long_form_answer_with_templates(self, service):
+        service.bot.auto_answer = MagicMock()
+        service.bot.auto_answer.cfg = {
+            "long_form_templates": {
+                "mission": "Custom mission text",
+                "project": "Custom project text",
+                "default": "Custom default text",
+            }
+        }
+        service.bot.auto_answer._render = lambda t: t
+        assert service.compose_long_form_answer("What is our mission?") == "Custom mission text"
+        assert service.compose_long_form_answer("Tell us about a project") == "Custom project text"
+        assert service.compose_long_form_answer("Random question") == "Custom default text"
 
     def test_humanize_free_text_answer(self, service):
         # Placeholder handling

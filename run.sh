@@ -32,6 +32,7 @@ echo "      Done."
 echo
 
 ACTION="$1"
+LEVEL="$2"
 if [ -z "$ACTION" ]; then
     echo "Choose an action to run:"
     echo " [1] Start EasyApply Bot"
@@ -44,6 +45,21 @@ if [ -z "$ACTION" ]; then
         3) ACTION="test" ;;
         *) ACTION="bot" ;;
     esac
+
+    if [ "$ACTION" = "bot" ]; then
+        echo
+        echo "Select Target Role Type:"
+        echo "  [1] Internship Roles Only"
+        echo "  [2] Full-Time & Entry-Level Roles"
+        echo "  [3] Both (Internship & Full-Time) [Default]"
+        echo
+        read -p "Enter choice [1, 2, or 3] (default 3): " LEVEL_CHOICE
+        case "$LEVEL_CHOICE" in
+            1) LEVEL="1" ;;
+            2) LEVEL="2" ;;
+            *) LEVEL="3" ;;
+        esac
+    fi
 fi
 
 echo
@@ -59,7 +75,11 @@ elif [ "$ACTION" = "test" ]; then
 else
     echo "[3/3] Starting EasyApply Bot..."
     echo "============================================"
-    ./venv/bin/python3 easy_apply_bot.py
+    if [ -n "$LEVEL" ]; then
+        ./venv/bin/python3 easy_apply_bot.py --level "$LEVEL"
+    else
+        ./venv/bin/python3 easy_apply_bot.py
+    fi
 fi
 
 echo

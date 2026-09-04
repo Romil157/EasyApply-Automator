@@ -41,3 +41,7 @@ def setup_logger(logs_dir: str | Path = "logs") -> logging.Logger:
     log.addHandler(stream_handler)
 
     return log
+
+
+# Auto-configure on import so handlers are always attached
+setup_logger()

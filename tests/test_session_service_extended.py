@@ -12,9 +12,9 @@ from easy_apply_automator.services.session_service import SessionService
 
 
 @pytest.fixture
-def service():
+def service(tmp_path):
     mock_bot = MagicMock()
-    mock_bot.cookies_path = "test_cookies.json"
+    mock_bot.cookies_path = str(tmp_path / "test_cookies.json")
     mock_bot.browser = MagicMock()
     return SessionService(mock_bot)
 
@@ -109,7 +109,8 @@ class TestSessionServiceLogic:
         service.bot.cookies_path = "/invalid/path/cookies.json"
         service.bot.browser.get_cookies.return_value = []
 
-        service.save_session_cookies()
+        with patch("builtins.open", side_effect=OSError("Disk write error")):
+            service.save_session_cookies()
         service.bot.log_event.assert_called_with(
             "cookies_save_error", cookies_path=service.bot.cookies_path, error=ANY
         )
@@ -118,6 +119,14 @@ class TestSessionServiceLogic:
         with patch.object(SessionService, "is_logged_in", return_value=True):
             service.start_linkedin("user@example.com", "secret")
             service.bot.log_event.assert_called_with("login_success", method="existing_session")
+
+    def test_start_linkedin_saves_cookies_on_login(self, service):
+        with (
+            patch.object(SessionService, "is_logged_in", return_value=True),
+            patch.object(SessionService, "save_session_cookies") as mock_save,
+        ):
+            service.start_linkedin("user@example.com", "secret")
+            mock_save.assert_called_once()
 
     def test_start_linkedin_with_credentials_and_elements(self, service):
         mock_user = MagicMock()

@@ -76,6 +76,13 @@ profile:
     nationality: ""                  # e.g. "Indian" — required by some forms
     government_id: "I do not wish to self-identify"
 
+long_form_templates:
+  # Optional custom templates for long-form / narrative answers.
+  # If omitted, professional defaults are used.
+  mission: ""
+  project: ""
+  default: ""
+
 rules:
   - id: salary
     match_any:

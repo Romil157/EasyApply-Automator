@@ -452,26 +452,41 @@
   <main>
     <!-- TAB 1: OVERVIEW -->
     <div id="tab-overview" class="tab-content active">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700;">Performance Overview</h2>
+          <p style="color: var(--text-muted); font-size: 13px;" id="overview-subtitle">Real-time statistics across all logged application runs</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <label style="font-size: 13px; color: var(--text-muted); font-weight: 500;">Filter Metrics:</label>
+          <select id="overview-date-select" onchange="onOverviewDateChange()" style="min-width: 150px;">
+            <option value="">All Time</option>
+          </select>
+          <input type="date" id="overview-date-picker" onchange="onOverviewDatePickerChange()">
+          <button class="btn btn-secondary" onclick="clearOverviewDate()" style="padding: 8px 14px; font-size: 13px;">All Time</button>
+        </div>
+      </div>
+
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">Jobs Processed</div>
           <div class="kpi-value" id="kpi-processed">0</div>
-          <div class="kpi-trend">Total scans conducted</div>
+          <div class="kpi-trend" id="kpi-processed-sub">Total scans conducted</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Applications Submitted</div>
           <div class="kpi-value" id="kpi-submitted" style="color: #34d399;">0</div>
-          <div class="kpi-trend">Successful EasyApplies</div>
+          <div class="kpi-trend" id="kpi-submitted-sub">Successful EasyApplies</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Success Rate</div>
           <div class="kpi-value" id="kpi-rate">0.0%</div>
-          <div class="kpi-trend">Submission throughput</div>
+          <div class="kpi-trend" id="kpi-rate-sub">Submission throughput</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Result Files</div>
           <div class="kpi-value" id="kpi-files">0</div>
-          <div class="kpi-trend">Historical session logs</div>
+          <div class="kpi-trend" id="kpi-files-sub">Historical session logs</div>
         </div>
       </div>
 
@@ -493,15 +508,23 @@
     <!-- TAB 2: APPLIED JOBS -->
     <div id="tab-jobs" class="tab-content">
       <div class="section-card">
-        <div class="section-header">
-          <div class="section-title">Processed Job Applications</div>
-          <div class="input-group" style="margin-bottom: 0;">
-            <input type="text" id="job-search-input" placeholder="Search by role, company, or ID..." oninput="fetchJobs()">
+        <div class="section-header" style="flex-wrap: wrap; gap: 16px;">
+          <div>
+            <div class="section-title">Processed Job Applications</div>
+            <div id="jobs-filter-badge" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Loading job records...</div>
+          </div>
+          <div class="input-group" style="margin-bottom: 0; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="job-search-input" placeholder="Search by role, company, or ID..." oninput="fetchJobs()" style="min-width: 200px;">
+            <select id="job-date-select" onchange="onQuickDateChange()" title="Quick select date">
+              <option value="">All Dates</option>
+            </select>
+            <input type="date" id="job-date-picker" onchange="onDatePickerChange()" title="Filter by calendar date">
             <select id="job-status-filter" onchange="fetchJobs()">
               <option value="">All Statuses</option>
               <option value="submitted">Submitted Only</option>
               <option value="skipped">Skipped / Failed</option>
             </select>
+            <button class="btn btn-secondary" onclick="clearDateFilter()" title="Reset date filter">Reset Date</button>
           </div>
         </div>
 
@@ -513,7 +536,7 @@
                 <th>Company</th>
                 <th>Status</th>
                 <th>Reason / Notes</th>
-                <th>Timestamp</th>
+                <th>Date & Time</th>
                 <th>Link</th>
               </tr>
             </thead>
@@ -625,6 +648,94 @@
   <script>
     let allRules = [];
     let currentSkills = {};
+    let availableDates = [];
+    let selectedDate = '';
+    let overviewSelectedDate = '';
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function fetchDates() {
+      try {
+        const res = await fetch('/api/dates');
+        const data = await res.json();
+        availableDates = data.dates || [];
+
+        const jobSelect = document.getElementById('job-date-select');
+        const overviewSelect = document.getElementById('overview-date-select');
+
+        let jobOptions = '<option value="">All Dates</option>';
+        availableDates.forEach(d => {
+          jobOptions += `<option value="${d}">${d}</option>`;
+        });
+        if (jobSelect) jobSelect.innerHTML = jobOptions;
+
+        let overviewOptions = '<option value="">All Time</option>';
+        availableDates.forEach(d => {
+          overviewOptions += `<option value="${d}">${d}</option>`;
+        });
+        if (overviewSelect) overviewSelect.innerHTML = overviewOptions;
+      } catch (err) {
+        console.error('Failed to fetch available dates:', err);
+      }
+    }
+
+    function onQuickDateChange() {
+      const select = document.getElementById('job-date-select');
+      selectedDate = select ? select.value : '';
+      const picker = document.getElementById('job-date-picker');
+      if (picker) picker.value = selectedDate;
+      fetchJobs();
+    }
+
+    function onDatePickerChange() {
+      const picker = document.getElementById('job-date-picker');
+      selectedDate = picker ? picker.value : '';
+      const select = document.getElementById('job-date-select');
+      if (select) select.value = selectedDate;
+      fetchJobs();
+    }
+
+    function clearDateFilter() {
+      selectedDate = '';
+      const picker = document.getElementById('job-date-picker');
+      const select = document.getElementById('job-date-select');
+      if (picker) picker.value = '';
+      if (select) select.value = '';
+      fetchJobs();
+    }
+
+    function onOverviewDateChange() {
+      const select = document.getElementById('overview-date-select');
+      overviewSelectedDate = select ? select.value : '';
+      const picker = document.getElementById('overview-date-picker');
+      if (picker) picker.value = overviewSelectedDate;
+      fetchStatus();
+    }
+
+    function onOverviewDatePickerChange() {
+      const picker = document.getElementById('overview-date-picker');
+      overviewSelectedDate = picker ? picker.value : '';
+      const select = document.getElementById('overview-date-select');
+      if (select) select.value = overviewSelectedDate;
+      fetchStatus();
+    }
+
+    function clearOverviewDate() {
+      overviewSelectedDate = '';
+      const picker = document.getElementById('overview-date-picker');
+      const select = document.getElementById('overview-date-select');
+      if (picker) picker.value = '';
+      if (select) select.value = '';
+      fetchStatus();
+    }
 
     function switchTab(tabId) {
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -632,6 +743,7 @@
       event.currentTarget.classList.add('active');
       document.getElementById('tab-' + tabId).classList.add('active');
 
+      if (tabId === 'overview') fetchStatus();
       if (tabId === 'jobs') fetchJobs();
       if (tabId === 'qa') fetchQA();
       if (tabId === 'profile') fetchQA();
@@ -647,12 +759,33 @@
 
     async function fetchStatus() {
       try {
-        const res = await fetch('/api/status');
+        const url = overviewSelectedDate
+          ? `/api/status?date=${encodeURIComponent(overviewSelectedDate)}`
+          : '/api/status';
+        const res = await fetch(url);
         const data = await res.json();
         document.getElementById('kpi-processed').innerText = data.total_processed || 0;
         document.getElementById('kpi-submitted').innerText = data.total_submitted || 0;
         document.getElementById('kpi-rate').innerText = (data.success_rate_pct || 0) + '%';
-        document.getElementById('kpi-files').innerText = data.result_files_count || 0;
+
+        const filesEl = document.getElementById('kpi-files');
+        const filesSub = document.getElementById('kpi-files-sub');
+        if (filesEl) {
+          if (overviewSelectedDate) {
+            filesEl.innerText = `${data.total_submitted}/${data.total_processed}`;
+            if (filesSub) filesSub.innerText = `Filtered: ${overviewSelectedDate}`;
+          } else {
+            filesEl.innerText = data.result_files_count || 0;
+            if (filesSub) filesSub.innerText = 'Historical session logs';
+          }
+        }
+
+        const subtitle = document.getElementById('overview-subtitle');
+        if (subtitle) {
+          subtitle.innerText = overviewSelectedDate
+            ? `Performance metrics for ${overviewSelectedDate} (Last activity: ${data.latest_activity || 'None logged'})`
+            : 'Real-time statistics across all logged application runs';
+        }
       } catch (err) {
         console.error('Failed to fetch status:', err);
       }
@@ -661,24 +794,47 @@
     async function fetchJobs() {
       const q = document.getElementById('job-search-input').value;
       const status = document.getElementById('job-status-filter').value;
+      const dateParam = selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : '';
       try {
-        const res = await fetch(`/api/results?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`);
+        const res = await fetch(`/api/results?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}${dateParam}`);
         const data = await res.json();
         const tbody = document.getElementById('jobs-tbody');
+        const badgeEl = document.getElementById('jobs-filter-badge');
+
+        if (badgeEl) {
+          if (data.date) {
+            const sub = data.summary ? data.summary.submitted : 0;
+            const skp = data.summary ? data.summary.skipped : 0;
+            badgeEl.innerHTML = `Showing results for <strong style="color: #38bdf8;">${escapeHtml(data.date)}</strong>: ${data.count} jobs displayed (${sub} submitted, ${skp} skipped)`;
+          } else {
+            badgeEl.innerHTML = `Showing all historical results: ${data.count} jobs displayed`;
+          }
+        }
+
         if (!data.jobs || data.jobs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No job records found.</td></tr>';
+          const dateNotice = selectedDate ? ` for date ${selectedDate}` : '';
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No job records found${dateNotice}.</td></tr>`;
           return;
         }
-        tbody.innerHTML = data.jobs.map(j => `
-          <tr>
-            <td style="font-weight: 600;">${j.title || 'Unknown Role'}</td>
-            <td>${j.company || 'Unknown Company'}</td>
-            <td><span class="badge ${j.result ? 'badge-success' : 'badge-danger'}">${j.result ? 'Submitted' : 'Skipped'}</span></td>
-            <td style="color: var(--text-muted); font-size: 13px;">${j.reason || 'N/A'}</td>
-            <td style="font-size: 12px; color: var(--text-muted);">${j.timestamp ? j.timestamp.split('T')[0] : 'N/A'}</td>
-            <td><a href="https://www.linkedin.com/jobs/view/${j.job_id}/" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 600;">View</a></td>
-          </tr>
-        `).join('');
+        tbody.innerHTML = data.jobs.map(j => {
+          const title = j.job_title || j.title || 'Unknown Role';
+          const company = j.company || 'Unknown Company';
+          const isSubmitted = !!j.result;
+          const tsFormatted = j.timestamp ? j.timestamp.replace('T', ' ').split('.')[0] : 'N/A';
+          const link = (j.metadata && j.metadata.job_link)
+            ? j.metadata.job_link
+            : `https://www.linkedin.com/jobs/view/${j.job_id}/`;
+          return `
+            <tr>
+              <td style="font-weight: 600; color: #f8fafc;">${escapeHtml(title)}</td>
+              <td style="color: #cbd5e1;">${escapeHtml(company)}</td>
+              <td><span class="badge ${isSubmitted ? 'badge-success' : 'badge-danger'}">${isSubmitted ? 'Submitted' : 'Skipped'}</span></td>
+              <td style="color: var(--text-muted); font-size: 13px;">${escapeHtml(j.reason || 'N/A')}</td>
+              <td style="font-size: 12px; color: var(--text-muted); font-family: monospace;">${escapeHtml(tsFormatted)}</td>
+              <td><a href="${link}" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none; font-weight: 600;">View &rarr;</a></td>
+            </tr>
+          `;
+        }).join('');
       } catch (err) {
         console.error('Failed to fetch jobs:', err);
       }
@@ -848,7 +1004,9 @@
     }
 
     // Initial load & periodic poll
+    fetchDates();
     fetchStatus();
+    fetchJobs();
     setInterval(fetchStatus, 5000);
   </script>
 </body>

@@ -133,7 +133,13 @@ class LLMClient:
         return False
 
     def build_prompt(self, question: str, profile_context: dict[str, Any]) -> str:
-        profile_json = json.dumps(profile_context, indent=2, ensure_ascii=False)
+        # Sanitize question: strip control characters, cap length at 500
+        clean_q = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", (question or "")).strip()[:500]
+
+        ctx = dict(profile_context)
+        resume_md = ctx.pop("resume_markdown", "")
+
+        profile_json = json.dumps(ctx, indent=2, ensure_ascii=False)
         job_target = ""
         if profile_context.get("current_job_title"):
             job_target = f"\nTarget Position: {profile_context['current_job_title']}"
@@ -141,16 +147,27 @@ class LLMClient:
                 job_target += f" at {profile_context['current_job_company']}"
             job_target += "\nTailor open-ended answers directly to this role and company when relevant.\n"
 
+        resume_section = ""
+        if resume_md:
+            resume_section = (
+                f"\nCandidate Full Resume (Markdown):\n"
+                f"--------------------------------\n"
+                f"{resume_md.strip()}\n"
+                f"--------------------------------\n"
+            )
+
         return (
             "You are an expert AI job application assistant answering a single question on a job application form on behalf of the candidate.\n\n"
             f"Candidate Profile & Data:\n{profile_json}\n"
+            f"{resume_section}"
             f"{job_target}\n"
-            f"Question on Job Form:\n\"{question}\"\n\n"
+            "Question on Job Form:\n"
+            f"<question>{clean_q}</question>\n\n"
             "Rules for answering:\n"
             "1. If the question asks for years of experience or a numeric quantity (e.g. 'How many years of Python experience?'), respond with ONLY the integer or decimal number (e.g. '2' or '0'). Do not write extra words or units.\n"
             "2. If the question is a Yes/No or confirmation question, answer ONLY 'Yes' or 'No'.\n"
-            "3. If the question is a short free-form essay or prompt (e.g. 'Why are you interested in this role?' or 'Describe a project'), provide a concise, high-impact, professional 1-2 sentence answer tailored to the candidate's background.\n"
-            "4. Never hallucinate facts outside the candidate profile. If experience with a skill is not listed, assume 0 or 1 year consistent with candidate profile.\n"
+            "3. If the question is a short free-form essay or prompt (e.g. 'Why are you interested in this role?' or 'Describe a project'), provide a concise, high-impact, professional 1-2 sentence answer tailored directly to the candidate's projects and background from the resume.\n"
+            "4. Never hallucinate facts outside the candidate profile or resume. If experience with a skill is not listed, assume 0 or 1 year consistent with candidate profile.\n"
             "5. Return ONLY the direct answer text. Do NOT include quotes, preamble, greetings, or markdown code fences."
         )
 

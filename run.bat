@@ -53,6 +53,7 @@ echo       Dependencies verified.
 echo.
 
 set "ACTION=%~1"
+set "LEVEL=%~2"
 if not "%ACTION%"=="" goto RUN_ACTION
 
 echo Choose an option to run:
@@ -63,9 +64,25 @@ echo.
 set "CHOICE=1"
 set /p "CHOICE=Enter choice 1, 2, or 3 (default 1): "
 
-if "%CHOICE%"=="2" set "ACTION=dashboard"
-if "%CHOICE%"=="3" set "ACTION=test"
-if "%ACTION%"=="" set "ACTION=bot"
+if "%CHOICE%"=="2" (
+    set "ACTION=dashboard"
+    goto RUN_ACTION
+)
+if "%CHOICE%"=="3" (
+    set "ACTION=test"
+    goto RUN_ACTION
+)
+
+set "ACTION=bot"
+echo.
+echo Select Target Role Type:
+echo   [1] Internship Roles Only
+echo   [2] Full-Time and Entry-Level Roles
+echo   [3] Both (Internship and Full-Time) [Default]
+echo.
+set "LEVEL=3"
+set /p "LEVEL=Enter choice 1, 2, or 3 (default 3): "
+if not "%LEVEL%"=="1" if not "%LEVEL%"=="2" set "LEVEL=3"
 
 :RUN_ACTION
 echo.
@@ -81,7 +98,11 @@ if /i "%ACTION%"=="dashboard" (
 ) else (
     echo [3/3] Starting EasyApply Bot
     echo ============================================
-    "%VENV_PYTHON%" easy_apply_bot.py
+    if not "%LEVEL%"=="" (
+        "%VENV_PYTHON%" easy_apply_bot.py --level %LEVEL%
+    ) else (
+        "%VENV_PYTHON%" easy_apply_bot.py
+    )
 )
 
 echo.

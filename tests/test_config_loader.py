@@ -94,7 +94,8 @@ class TestLoadRunConfigValid:
         assert rc.results_filename.startswith("results/")
         assert rc.results_filename.endswith(".json")
 
-    def test_full_config_parses_all_fields(self, tmp_path):
+    def test_full_config_parses_all_fields(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("LINKEDIN_PROFILE_URL", "")
         p = _write_yaml(FULL_VALID_YAML, tmp_path)
         rc = load_run_config(p)
         assert rc.parameters["max_pages_per_search"] == 5
