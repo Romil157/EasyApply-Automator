@@ -647,3 +647,51 @@ rules:
     match_any:
       - '(?i)what\ is\ your\ current\ or\ most\ recent\ annual\ ctc\ in\ lakhs\?\ \(in\ inr\)'
     answer: "0"
+
+  # Auto-learned by AI on 2026-09-09 12:58:00
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ agentic\ ai\ development\?'
+    answer: "1"
+
+  # Auto-learned by AI on 2026-09-09 12:58:54
+  - id: ai_we_invite_you_to_complete_this_opti
+    match_any:
+      - '(?i)we\ invite\ you\ to\ complete\ this\ optional\ survey\ to\ help\ us\ evaluate\
+  our\ diversity\ and\ inclusion\ efforts\.\ submission\ of\ the\ information\ on\
+  this\ application\ is\ strictly\ voluntary\ and\ even\ if\ you\ decide\ against\
+  participating\ in\ this\ survey,\ we\ would\ like\ to\ reassure\ you\ that\ your\
+  job\ application\ will\ be\ assessed\ purely\ based\ on\ merit\ /\ fitment\ to\
+  the\ role\.\ this\ information\ will\ be\ kept\ secure\ and\ confidential\ and\
+  will\ be\ used\ solely\ to\ evaluate\ our\ diversity\ and\ inclusion\ efforts\.\
+  question\ :\ to\ which\ gender\ do\ you\ most\ identify\?\ required\ select\ an\
+  option\ non\-binary\ woman\ man\ i\ do\ not\ wish\ to\ answer'
+    answer: "Male, Asian"
+
+  # Auto-learned by AI on 2026-09-09 12:58:59
+  - id: ai_you_declare_that_you_have_read_and_
+    match_any:
+      - '(?i)you\ declare\ that\ you\ have\ read\ and\ understand\ the\ job\ applications\
+  privacy\ notice\ of\ believe\.\ required\ i\ consent'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-09 12:58:59
+  - id: ai_you_declare_that_you_have_read_and_
+    match_any:
+      - '(?i)you\ declare\ that\ you\ have\ read\ and\ agree\ to\ the\ privacy\ notice\ of\
+  believe\ and\ agree\ to\ be\ part\ of\ communities\ for\ future\ career\ opportunities\.\
+  i\ consent'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-09 13:02:28
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ industrial\ robotics\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-09 13:02:29
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ robot\ operating\
+  system\ \(ros\)\?'
+    answer: "0"

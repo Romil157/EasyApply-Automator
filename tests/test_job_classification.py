@@ -34,7 +34,9 @@ class DummyOrchestrator:
         return None
 
     _normalize_title_text = staticmethod(LinkedInEasyApplyOrchestrator._normalize_title_text)
+    _matches_title_keyword = staticmethod(LinkedInEasyApplyOrchestrator._matches_title_keyword)
     _classify_job = LinkedInEasyApplyOrchestrator._classify_job
+    is_title_blacklisted = LinkedInEasyApplyOrchestrator.is_title_blacklisted
 
 
 class TestJobClassification:
@@ -118,3 +120,59 @@ class TestJobClassification:
             result, reason, _ = classifier._classify_job("12345", btn)
             assert result is True
             assert reason == "submitted"
+
+    def test_new_blacklist_keywords_and_word_boundaries(self):
+        blacklist = [
+            "strategy analyst",
+            "strategy",
+            "writer",
+            "lead",
+            "vp",
+            "marketing lead",
+            "founding",
+        ]
+        orchestrator = DummyOrchestrator(blacklist_titles=blacklist)
+
+        # Should be blocked
+        blocked_titles = [
+            "Strategy Analyst | Joveo | LinkedIn",
+            "Research Analyst Writer Intern | InternBuddy | LinkedIn",
+            "Founding Marketing Lead | Gravity.fast | LinkedIn",
+            "Lead Backend Engineer | Tech | LinkedIn",
+            "VP of Engineering | Tech | LinkedIn",
+        ]
+        for title in blocked_titles:
+            is_blocked, matched = orchestrator.is_title_blacklisted(title)
+            assert is_blocked is True
+            assert matched is not None
+
+        # Should NOT be blocked by word boundaries (no substring false positives)
+        allowed_titles = [
+            "Software Engineer Intern | Google | LinkedIn",
+            "Data Analyst Intern | Analytics Co | LinkedIn",
+            "DevOps Engineer | Startup | LinkedIn",
+        ]
+        for title in allowed_titles:
+            is_blocked, _ = orchestrator.is_title_blacklisted(title)
+            assert is_blocked is False
+
+    def test_is_global_search_element(self):
+        from easy_apply_automator.services._form_filler import FormFillerMixin
+
+        search_input = MagicMock()
+        search_input.get_attribute.side_effect = lambda attr: {
+            "class": "search-global-typeahead__input",
+            "id": "global-nav-typeahead",
+            "placeholder": "Search",
+            "aria-label": "Search",
+        }.get(attr, "")
+        assert FormFillerMixin._is_global_search_element(search_input) is True
+
+        form_input = MagicMock()
+        form_input.get_attribute.side_effect = lambda attr: {
+            "class": "fb-dash-form-element",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement",
+            "placeholder": "Years of experience",
+            "aria-label": "How many years of Python experience do you have?",
+        }.get(attr, "")
+        assert FormFillerMixin._is_global_search_element(form_input) is False

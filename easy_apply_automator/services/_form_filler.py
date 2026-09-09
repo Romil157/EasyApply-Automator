@@ -39,6 +39,28 @@ COUNTRY_DIAL_CODES: dict[str, list[str]] = {
 class FormFillerMixin:
     bot: LinkedInEasyApplyOrchestrator
 
+    @staticmethod
+    def _is_global_search_element(element) -> bool:
+        """Returns True if the element belongs to LinkedIn's global navigation search."""
+        try:
+            el_class = (element.get_attribute("class") or "").lower()
+            el_id = (element.get_attribute("id") or "").lower()
+            placeholder = (element.get_attribute("placeholder") or "").lower()
+            aria_label = (element.get_attribute("aria-label") or "").lower()
+            name = (element.get_attribute("name") or "").lower()
+            if (
+                "search-global" in el_class
+                or "global-nav-search" in el_id
+                or "global-search" in el_id
+                or "search-global-typeahead" in el_class
+            ):
+                return True
+            if placeholder == "search" or aria_label == "search" or name == "search":
+                return True
+        except Exception:
+            pass
+        return False
+
     def _click_element_or_label(self, group, element, el_id: str) -> bool:
         """Helper to click label associated with an input or fallback to direct element click."""
         if el_id:
@@ -115,6 +137,8 @@ class FormFillerMixin:
                 "input[aria-required='true'][type='text'], input[aria-required='true'][type='number']",
             )
             for input_el in text_inputs:
+                if self._is_global_search_element(input_el):
+                    continue
                 val = (input_el.get_attribute("value") or "").strip()
                 if val:
                     continue
@@ -325,6 +349,8 @@ class FormFillerMixin:
                 try:
                     if not input_el.is_displayed():
                         continue
+                    if self._is_global_search_element(input_el):
+                        continue
                     input_id = input_el.get_attribute("id") or ""
                     question = ""
                     if input_id:
@@ -386,6 +412,8 @@ class FormFillerMixin:
             for box in comboboxes:
                 try:
                     if not box.is_displayed():
+                        continue
+                    if self._is_global_search_element(box):
                         continue
                     tag = (box.tag_name or "").lower()
                     if tag == "input" and (box.get_attribute("value") or "").strip():

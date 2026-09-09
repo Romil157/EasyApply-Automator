@@ -399,13 +399,23 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             cleaned = cleaned.replace(char, "-")
         return f" {cleaned} "
 
+    @staticmethod
+    def _matches_title_keyword(keyword: str, normalized_title: str) -> bool:
+        kw = LinkedInEasyApplyOrchestrator._normalize_title_text(keyword).strip()
+        if not kw:
+            return False
+        prefix = r"\b" if re.match(r"^\w", kw) else ""
+        suffix = r"\b" if re.search(r"\w$", kw) else ""
+        pattern = re.compile(rf"{prefix}{re.escape(kw)}{suffix}", re.IGNORECASE)
+        return bool(pattern.search(normalized_title))
+
     def is_title_blacklisted(self, title: str) -> tuple[bool, str | None]:
         normalized = self._normalize_title_text(title)
         for word in self.blacklist_titles:
-            if self._normalize_title_text(word).strip() in normalized:
+            if self._matches_title_keyword(word, normalized):
                 return True, word
         for word in self.medical_related_keywords:
-            if word.lower() in normalized:
+            if self._matches_title_keyword(word, normalized):
                 return True, word
         return False, None
 
@@ -418,7 +428,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 self.log_event("job_skipped_medical_related", job_id=job_id, title=self.browser.title, matched_keyword=med)
                 return False, "medical_related_title", "* Medical-related role skipped"
 
-            bl = next((w for w in self.blacklist_titles if self._normalize_title_text(w).strip() in normalized_title), None)
+            bl = next((w for w in self.blacklist_titles if self._matches_title_keyword(w, normalized_title)), None)
             if bl:
                 log.info(f"Skipping: blacklisted keyword '{bl}'.")
                 self.log_event("job_skipped_title_blacklisted", job_id=job_id, title=self.browser.title, matched_keyword=bl)
