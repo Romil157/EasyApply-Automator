@@ -10,6 +10,7 @@ from collections import deque
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException
@@ -586,6 +587,26 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             (By.XPATH, "//a[contains(@aria-label, 'Easy Apply')]"),
             (By.XPATH, "//a[.//*[contains(normalize-space(), 'Easy Apply')] or contains(normalize-space(), 'Easy Apply')]"),
         ]
+
+        url = (self.browser.current_url or "").lower()
+        if "currentjobid" in url or "search" in url:
+            try:
+                for container in self.browser.find_elements(
+                    By.CSS_SELECTOR,
+                    "div.jobs-search__job-details, div.job-view-layout, div.jobs-details, main#main, section.jobs-details"
+                ):
+                    for by, value in selectors:
+                        try:
+                            for btn in container.find_elements(by, value):
+                                aria = (btn.get_attribute("aria-label") or "").lower()
+                                text = (btn.text or "").strip().lower()
+                                if ("easy apply" in aria or "easy apply" in text) and btn.is_displayed() and btn.is_enabled():
+                                    return btn
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
         candidates = []
         for by, value in selectors:
             try:
@@ -727,10 +748,20 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         except Exception:
             return False
 
-    def _find_clickable(self, selectors: Sequence[tuple[str, str]]):
+    def _find_clickable(self, selectors: Sequence[tuple[str, str]], root: Any = None):
         for by, value in selectors:
             try:
-                for element in self.browser.find_elements(by, value):
+                target_value = value
+                if root is not None:
+                    if by == By.XPATH:
+                        if value.startswith("//"):
+                            target_value = "." + value
+                        elif value.startswith("(//"):
+                            target_value = "(." + value[1:]
+                    elements = root.find_elements(by, target_value)
+                else:
+                    elements = self.browser.find_elements(by, value)
+                for element in elements:
                     if element.is_displayed() and element.is_enabled():
                         return element
             except Exception:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from selenium.webdriver.common.by import By
 
@@ -204,9 +204,7 @@ class SubmitFlowMixin:
                 (By.XPATH, "//button[contains(@aria-label, 'Submit application') or contains(@aria-label, 'Submit')]"),
                 (By.XPATH, "//button[.//span[contains(normalize-space(), 'Submit application') or normalize-space()='Submit']]"),
                 (By.CSS_SELECTOR, "button[data-control-name='submit_unify']"),
-                (By.CSS_SELECTOR, "button[type='submit']"),
-                (By.CSS_SELECTOR, "footer button.artdeco-button--primary"),
-                (By.XPATH, "//button[contains(normalize-space(.), 'Submit') or contains(normalize-space(.), 'Submit application')]"),
+                (By.XPATH, "//button[contains(normalize-space(.), 'Submit application') or normalize-space(.)='Submit']"),
             ],
             "review": [
                 (By.CSS_SELECTOR, "button[data-live-test-easy-apply-review-button]"),
@@ -215,20 +213,19 @@ class SubmitFlowMixin:
                 (By.XPATH, "//button[contains(@aria-label, 'Review your application') or contains(@aria-label, 'Review')]"),
                 (By.XPATH, "//button[.//span[contains(normalize-space(), 'Review your application') or normalize-space()='Review']]"),
                 (By.CSS_SELECTOR, "button[data-control-name='review_unify']"),
-                (By.XPATH, "//button[contains(normalize-space(.), 'Review') or contains(normalize-space(.), 'Review your application')]"),
+                (By.XPATH, "//button[contains(normalize-space(.), 'Review your application') or normalize-space(.)='Review']"),
             ],
             "next": [
                 (By.CSS_SELECTOR, "button[data-live-test-easy-apply-next-button]"),
                 (By.CSS_SELECTOR, "button[data-easy-apply-next-button]"),
-                (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']"),
-                (By.CSS_SELECTOR, "button[aria-label*='Next step']"),
-                (By.CSS_SELECTOR, "button[aria-label*='Continue']"),
-                (By.CSS_SELECTOR, "button[aria-label*='Next']"),
-                (By.XPATH, "//button[contains(@aria-label, 'Continue to next step') or contains(@aria-label, 'Next')]"),
-                (By.XPATH, "//button[.//span[contains(normalize-space(), 'Continue to next step') or normalize-space()='Next' or contains(normalize-space(), 'Next')]]"),
+                (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']:not(.artdeco-pagination__button--next)"),
+                (By.CSS_SELECTOR, "button[aria-label*='Next step']:not(.artdeco-pagination__button--next)"),
+                (By.CSS_SELECTOR, "button[aria-label*='Continue']:not(.artdeco-pagination__button--next)"),
+                (By.CSS_SELECTOR, "button[aria-label*='Next']:not(.artdeco-pagination__button--next)"),
+                (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and (contains(@aria-label, 'Continue to next step') or contains(@aria-label, 'Next'))]"),
+                (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and .//span[contains(normalize-space(), 'Continue to next step') or normalize-space()='Next' or contains(normalize-space(), 'Next')]]"),
                 (By.CSS_SELECTOR, "button[data-control-name='continue_unify']"),
-                (By.CSS_SELECTOR, "footer button.artdeco-button--primary"),
-                (By.XPATH, "//button[contains(normalize-space(.), 'Next') or contains(normalize-space(.), 'Continue')]"),
+                (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and (contains(normalize-space(.), 'Next') or contains(normalize-space(.), 'Continue'))]"),
             ],
         }
         res: list[tuple[str, str]] = []
@@ -240,6 +237,34 @@ class SubmitFlowMixin:
                 res.append(item)
         return res
 
+    def _find_action_button(self, action_name: str, container: Any = None):
+        selectors = self._get_action_selectors(action_name)
+        if container is not None:
+            try:
+                btn = self.bot._find_clickable(selectors, root=container)
+                if btn is not None:
+                    return btn
+            except TypeError:
+                pass
+            try:
+                for by, val in selectors:
+                    target_val = val
+                    if by == By.XPATH:
+                        if val.startswith("//"):
+                            target_val = "." + val
+                        elif val.startswith("(//"):
+                            target_val = "(." + val[1:]
+                    for el in container.find_elements(by, target_val):
+                        if el.is_displayed() and el.is_enabled():
+                            return el
+            except Exception:
+                pass
+            try:
+                return self.bot._find_clickable(selectors)
+            except Exception:
+                return None
+        return self.bot._find_clickable(selectors)
+
     def has_apply_controls(self) -> bool:
         if len(self.bot.browser.window_handles) > 1:
             try:
@@ -247,23 +272,9 @@ class SubmitFlowMixin:
             except Exception:
                 pass
 
-        selectors = (
-            self._get_action_selectors("next")
-            + self._get_action_selectors("review")
-            + self._get_action_selectors("submit")
-            + [
-                (By.CSS_SELECTOR, "progress.artdeco-completeness-meter-linear__progress-element"),
-                (By.CSS_SELECTOR, "div[role='region'][aria-label*='progress']"),
-                (By.CSS_SELECTOR, "div.jobs-easy-apply-form-section__grouping"),
-                (By.CSS_SELECTOR, "form.jobs-easy-apply-form-section"),
-            ]
-        )
-        for by, value in selectors:
-            try:
-                if any(e.is_displayed() for e in self.bot.browser.find_elements(by, value)):
-                    return True
-            except Exception:
-                continue
+        modal = self.find_easy_apply_modal()
+        if modal is not None:
+            return True
 
         if self._is_sdui_apply_page():
             try:
@@ -272,9 +283,29 @@ class SubmitFlowMixin:
                     return True
             except Exception:
                 pass
+            for action in ("submit", "review", "next"):
+                if self._find_action_button(action) is not None:
+                    return True
 
-        current_url = (self.bot.browser.current_url or "").lower()
-        return "/apply/" in current_url and "linkedin.com/jobs" in current_url
+        current_url = (getattr(self.bot.browser, "current_url", "") or "").lower()
+        if "/apply/" in current_url and "linkedin.com/jobs" in current_url:
+            return True
+
+        if not ("currentjobid" in current_url or "/search" in current_url):
+            structural_selectors = [
+                (By.CSS_SELECTOR, "progress.artdeco-completeness-meter-linear__progress-element"),
+                (By.CSS_SELECTOR, "div[role='region'][aria-label*='progress']"),
+                (By.CSS_SELECTOR, "div.jobs-easy-apply-form-section__grouping"),
+                (By.CSS_SELECTOR, "form.jobs-easy-apply-form-section"),
+            ]
+            for by, value in structural_selectors:
+                try:
+                    if any(e.is_displayed() for e in self.bot.browser.find_elements(by, value)):
+                        return True
+                except Exception:
+                    continue
+
+        return False
 
     def _is_external_redirect(self) -> bool:
         try:
@@ -372,27 +403,70 @@ class SubmitFlowMixin:
         return False
 
     def detect_easy_apply_state(self) -> tuple[str, dict]:
+        modal = self.find_easy_apply_modal()
+        is_sdui = self._is_sdui_apply_page()
+        current_url = (getattr(self.bot.browser, "current_url", "") or "").lower()
+        is_search_page = ("currentjobid" in current_url or "/search" in current_url)
+
+        if modal is None and not is_sdui and is_search_page:
+            details = {
+                "has_modal": False,
+                "has_submit": False,
+                "has_review": False,
+                "has_next": False,
+                "is_confirmation": False,
+            }
+            return "outside_modal", details
+
+        submit_btn = self._find_action_button("submit", container=modal)
+        review_btn = self._find_action_button("review", container=modal)
+        next_btn = self._find_action_button("next", container=modal)
+
+        has_submit = submit_btn is not None
+        if has_submit and submit_btn is not None:
+            raw_text = getattr(submit_btn, "text", "")
+            btn_text = raw_text if isinstance(raw_text, str) else ""
+            try:
+                raw_aria = submit_btn.get_attribute("aria-label")
+                aria_text = raw_aria if isinstance(raw_aria, str) else ""
+            except Exception:
+                aria_text = ""
+            s_text = f"{btn_text} {aria_text}".strip().lower()
+            if s_text and any(k in s_text for k in ("next", "continue", "review")):
+                has_submit = False
+
         details = {
-            "has_modal": self.find_easy_apply_modal() is not None,
-            "has_submit": self.bot._find_clickable(self._get_action_selectors("submit")) is not None,
-            "has_review": self.bot._find_clickable(self._get_action_selectors("review")) is not None,
-            "has_next": self.bot._find_clickable(self._get_action_selectors("next")) is not None,
+            "has_modal": modal is not None,
+            "has_submit": has_submit,
+            "has_review": review_btn is not None,
+            "has_next": next_btn is not None,
             "is_confirmation": self.is_submit_confirmation_state(),
         }
+
         if details["is_confirmation"]:
             return "done", details
+
+        progress = self.get_easy_apply_progress()
+        if progress is not None and progress < 80:
+            if details["has_next"]:
+                return "next", details
+            if details["has_review"]:
+                return "review", details
+
         if details["has_submit"]:
             return "submit", details
         if details["has_review"]:
             return "review", details
         if details["has_next"]:
             return "next", details
+
         return ("modal_no_cta" if details["has_modal"] else "outside_modal"), details
 
     def collect_apply_stall_diagnostics(self, state: str, progress: int | None, loop: int) -> dict:
+        modal = self.find_easy_apply_modal()
         visible_ctas = [
             name for name in ("next", "review", "submit")
-            if any(el.is_displayed() for by, val in self._get_action_selectors(name) for el in self.bot.browser.find_elements(by, val))
+            if self._find_action_button(name, container=modal) is not None
         ]
         empty_samples = []
         try:
@@ -413,7 +487,7 @@ class SubmitFlowMixin:
 
         return {
             "state": state, "loop": loop, "progress": progress,
-            "has_modal": self.find_easy_apply_modal() is not None,
+            "has_modal": modal is not None,
             "visible_ctas": visible_ctas,
             "required_empty_count": len(empty_samples),
             "required_empty_samples": empty_samples[:6],
@@ -512,7 +586,10 @@ class SubmitFlowMixin:
                     break
                 continue
 
-            button = self.bot._find_clickable(selectors)
+            modal = self.find_easy_apply_modal()
+            button = self._find_action_button(action, container=modal)
+            if button is None:
+                button = self.bot._find_clickable(selectors)
             if button is None or not self.bot._safe_click(button):
                 diagnostics = self.collect_apply_stall_diagnostics(state=state, progress=progress, loop=loop)
                 reason = f"{action}_button_not_found" if button is None else f"{action}_click_failed"
@@ -611,20 +688,28 @@ class SubmitFlowMixin:
 
     def _select_matching_resume(self) -> str | None:
         from pathlib import Path
+        valid_exts = (".pdf", ".doc", ".docx")
+
+        def _is_valid_resume_file(path_str: str | Path | None) -> bool:
+            if not path_str:
+                return False
+            return str(path_str).lower().strip().endswith(valid_exts)
+
         uploads = getattr(self.bot, "uploads", {})
-        if isinstance(uploads, str) and uploads:
+        if isinstance(uploads, str) and _is_valid_resume_file(uploads):
             return uploads
         if isinstance(uploads, dict) and uploads:
             title = (getattr(self.bot.browser, "title", "") or "").lower()
             for key, path in uploads.items():
                 k_low = str(key).lower()
                 if k_low not in ("resume", "cover letter", "cover_letter", "default") and k_low in title:
-                    return str(path)
+                    if _is_valid_resume_file(path):
+                        return str(path)
             for default_key in ("Resume", "resume", "default", "Default"):
-                if default_key in uploads:
+                if default_key in uploads and _is_valid_resume_file(uploads[default_key]):
                     return str(uploads[default_key])
             for v in uploads.values():
-                if str(v).lower().endswith((".pdf", ".doc", ".docx")):
+                if _is_valid_resume_file(v):
                     return str(v)
 
         # Fallback: check resumes/ directory for resume.pdf or any available PDF
@@ -659,6 +744,25 @@ class SubmitFlowMixin:
     def _try_upload_documents(self) -> None:
         from pathlib import Path
         try:
+            resume_radios = self.bot.browser.find_elements(
+                By.CSS_SELECTOR,
+                "input[type='radio'][id*='resume'], input[type='radio'][name*='resume'], "
+                "div.jobs-document-upload__resume-card input[type='radio'], "
+                "div[data-test-document-upload-resume-card] input[type='radio']"
+            )
+            if resume_radios:
+                is_selected = any(r.is_selected() for r in resume_radios if r.is_displayed())
+                if not is_selected:
+                    for r in resume_radios:
+                        if r.is_displayed() and r.is_enabled():
+                            self.bot._safe_click(r)
+                            self.bot.log_event("existing_resume_selected")
+                            break
+                return
+        except Exception as exc:
+            log.debug(f"Checking existing resume selection failed: {exc}")
+
+        try:
             resume_path = self._select_matching_resume()
             if resume_path:
                 resume_el = self._find_file_input([
@@ -677,12 +781,21 @@ class SubmitFlowMixin:
                             f"Resume file configured at '{resume_path}' does not exist on disk! "
                             f"Please ensure your PDF resume is placed at that path."
                         )
+            else:
+                uploads = getattr(self.bot, "uploads", {})
+                configured = uploads.get("Resume") if isinstance(uploads, dict) else uploads
+                if configured and str(configured).lower().endswith(".md"):
+                    log.debug(
+                        "Configured resume is a Markdown file ('resume.md'). "
+                        "LinkedIn file uploads require .pdf or .doc. "
+                        "Skipping file upload to use pre-uploaded LinkedIn profile resume."
+                    )
         except Exception as exc:
             log.debug(f"Document upload failed: {exc}")
 
         try:
             cv = self.bot.uploads.get("Cover Letter") or self.bot.uploads.get("cover_letter")
-            if cv:
+            if cv and str(cv).lower().endswith((".pdf", ".doc", ".docx")):
                 cv_el = self._find_file_input([
                     (By.XPATH, "//*[contains(@id, 'jobs-document-upload-file-input-upload-cover-letter')]"),
                     (By.CSS_SELECTOR, "input[type='file'][id*='upload-cover-letter']"),

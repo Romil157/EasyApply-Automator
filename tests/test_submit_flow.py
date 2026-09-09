@@ -33,7 +33,7 @@ def _make_submit_flow_service(
 
     click_map = clickable_returns or {}
 
-    def _find_clickable_side_effect(selectors):
+    def _find_clickable_side_effect(selectors, root=None):
         for by, val in selectors:
             if (by, val) in click_map:
                 return click_map[(by, val)]
@@ -179,4 +179,39 @@ class TestRetryOpenApplyFlowDirectFallback:
         assert ok is True
         assert "retry_direct_apply_url" in mode
         browser.get.assert_called_with("https://www.linkedin.com/jobs/view/4454749634/apply/")
+
+
+class TestFixesForSubmitFlowAndSearchPaginationLeak:
+    def test_detect_easy_apply_state_does_not_classify_next_as_submit(self):
+        next_button = MagicMock()
+        next_button.text = "Next"
+        next_button.get_attribute.return_value = "Continue to next step"
+
+        modal = MagicMock()
+        svc = _make_submit_flow_service(
+            modal=modal,
+            clickable_returns={
+                (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']:not(.artdeco-pagination__button--next)"): next_button,
+            },
+        )
+        svc.get_easy_apply_progress = MagicMock(return_value=0)
+        state, details = svc.detect_easy_apply_state()
+        assert state == "next"
+        assert details["has_submit"] is False
+        assert details["has_next"] is True
+
+    def test_search_results_page_without_modal_returns_outside_modal(self):
+        svc = _make_submit_flow_service(modal=None)
+        svc.bot.browser.current_url = "https://www.linkedin.com/jobs/search/?currentJobId=4460685517&start=25"
+        state, details = svc.detect_easy_apply_state()
+        assert state == "outside_modal"
+        assert details["has_modal"] is False
+        assert details["has_next"] is False
+        assert svc.has_apply_controls() is False
+
+    def test_select_matching_resume_ignores_markdown_file(self):
+        svc = _make_submit_flow_service()
+        svc.bot.uploads = {"Resume": "resume.md"}
+        result = svc._select_matching_resume()
+        assert result != "resume.md"
 
