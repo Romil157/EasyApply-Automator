@@ -543,155 +543,55 @@ rules:
       - "(?i)^are you\\b"
     answer: "{yes}"
 
-  # Auto-learned by AI on 2026-09-01 15:33:58
-  - id: ai_i_m_looking_for
+  # Consolidated rules for internship conditions, CTC, and candidate profile
+  - id: looking_for
     match_any:
-      - "(?i)i\u2019m\\ looking\\ for\\.\\.\\."
-    answer: "I am seeking an internship in software development, data engineering/analysis, or\
-  \ AI/ML."
+      - "(?i)looking for"
+    answer: "I am seeking an internship in software development, data engineering/analysis, or AI/ML."
 
-  # Auto-learned by AI on 2026-09-01 15:42:52
-  - id: ai_how_many_years_of_proficient_experi
+  - id: unpaid_internship
     match_any:
-      - '(?i)how\ many\ years\ of\ proficient\ experience\ you\ have\ in\ speaking\ kannada\
-  language\?'
-    answer: "0"
+      - "(?i)unpaid internship"
+      - "(?i)\\bunpaid\\b.*intern"
+    answer: "{yes}"
 
-  # Auto-learned by AI on 2026-09-02 12:26:29
-  - id: ai_we_must_fill_this_position_urgently
+  - id: internship_terms
     match_any:
-      - '(?i)we\ must\ fill\ this\ position\ urgently\.\ can\ you\ start\ immediately\?\ required\
-  select\ an\ option\ yes\ no'
-    answer: "Yes"
+      - "(?i)internship.*(agree|comfortable|okay|availability)"
+      - "(?i)(stipend|working hours|founding role).*agree"
+      - "(?i)commit.*no other project"
+    answer: "{yes}"
 
-  # Auto-learned by AI on 2026-09-02 12:26:30
-  - id: ai_over_the_next_six_months_can_you_co
+  - id: current_ctc
     match_any:
-      - '(?i)over\ the\ next\ six\ months,\ can\ you\ commit\ that\ no\ other\ project\ or\
-  initiative\ that\ you\ take\ on\ affects\ your\ ability\ to\ perform\ at\ your\
-  best\ in\ this\ internship\?\ required\ select\ an\ option\ yes\ no'
-    answer: "Yes"
+      - "(?i)current.*ctc"
+      - "(?i)recent.*ctc"
+    answer: "300000"
 
-  # Auto-learned by AI on 2026-09-02 12:34:59
-  - id: ai_current_ctc
+  - id: expected_ctc
     match_any:
-      - '(?i)current\ ctc'
-    answer: "0"
+      - "(?i)expected.*ctc"
+    answer: "600000"
 
-  # Auto-learned by AI on 2026-09-02 12:35:05
-  - id: ai_expected_ctc
+  - id: headline
     match_any:
-      - '(?i)expected\ ctc'
-    answer: "Open to discussion based on market standards and role responsibilities."
+      - "(?i)^headline\\b"
+    answer: "Forward Deployed Engineer Intern | Full-Stack & AI/ML"
 
-  # Auto-learned by AI on 2026-09-02 12:43:21
-  - id: ai_this_is_an_unpaid_internship_is_thi
+  - id: summary
     match_any:
-      - '(?i)this\ is\ an\ unpaid\ internship\ is\ this\ okay\ with\ you\?\ required\ select\
-  an\ option\ yes\ no'
-    answer: "Yes"
+      - "(?i)^summary\\b"
+    answer: "Final-year Computer Engineering student with 2 years of full-stack, data engineering, and AI/ML experience, including building an AI-powered cybersecurity SaaS platform and a Chrome phishing-detection extension, and currently interning as a Forward Deployed Engineer at Blue Machines AI."
 
-  # Auto-learned by AI on 2026-09-02 12:43:22
-  - id: ai_this_is_3_month_internship_is_this_
+  - id: privacy_consent
     match_any:
-      - '(?i)this\ is\ 3\ month\ internship\ is\ this\ okay\ with\ you\?\ required\ select\
-  an\ option\ yes\ no'
-    answer: "Yes"
+      - "(?i)privacy notice"
+      - "(?i)i consent"
+    answer: "{yes}"
 
-  # Auto-learned by AI on 2026-09-02 12:46:37
-  - id: ai_this_is_an_unpaid_internship_are_yo
+  - id: google_form
     match_any:
-      - '(?i)this\ is\ an\ unpaid\ internship\.\ are\ you\ okay\ with\ that\?\ required\ select\
-  an\ option\ yes\ no'
-    answer: "Yes"
+      - "(?i)complete.*google form"
+      - "(?i)did you submit the google form"
+    answer: "{yes}"
 
-  # Auto-learned by AI on 2026-09-02 12:46:37
-  - id: ai_this_is_a_founding_role_with_full_t
-    match_any:
-      - '(?i)this\ is\ a\ founding\ role\ with\ full\ technical\ ownership,\ no\ existing\
-  codebase\ or\ senior\ guidance\.\ you''ll\ independently\ choose\ your\ tools\ and\
-  architecture\.\ comfortable\ with\ this\ level\ of\ ownership\?\ required\ select\
-  an\ option\ yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-02 12:46:41
-  - id: ai_we_must_fill_this_position_urgently
-    match_any:
-      - '(?i)we\ must\ fill\ this\ position\ urgently\.\ can\ you\ start\ immediately\?\ required\
-  yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-02 12:47:29
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ anthropic\ claude\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-02 12:47:31
-  - id: ai_how_many_ai_tools_have_you_personal
-    match_any:
-      - '(?i)how\ many\ ai\ tools\ have\ you\ personally\ implemented\ or\ deployed\ in\ a\
-  professional\ setting\ \(e\.g\.\ make,\ zapier,\ notion\ ai,\ claude,\ chatgpt\)\?\
-  \(not\ just\ used,\ but\ set\ up\ for\ a\ team\ or\ process\)'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-02 12:47:32
-  - id: ai_how_many_process_improvement_or_aut
-    match_any:
-      - '(?i)how\ many\ process\ improvement\ or\ automation\ projects\ have\ you\ independently\
-  led\ end\-to\-end\?'
-    answer: "3"
-
-  # Auto-learned by AI on 2026-09-02 12:47:32
-  - id: ai_what_is_your_current_or_most_recent
-    match_any:
-      - '(?i)what\ is\ your\ current\ or\ most\ recent\ annual\ ctc\ in\ lakhs\?\ \(in\ inr\)'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-09 12:58:00
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ agentic\ ai\ development\?'
-    answer: "1"
-
-  # Auto-learned by AI on 2026-09-09 12:58:54
-  - id: ai_we_invite_you_to_complete_this_opti
-    match_any:
-      - '(?i)we\ invite\ you\ to\ complete\ this\ optional\ survey\ to\ help\ us\ evaluate\
-  our\ diversity\ and\ inclusion\ efforts\.\ submission\ of\ the\ information\ on\
-  this\ application\ is\ strictly\ voluntary\ and\ even\ if\ you\ decide\ against\
-  participating\ in\ this\ survey,\ we\ would\ like\ to\ reassure\ you\ that\ your\
-  job\ application\ will\ be\ assessed\ purely\ based\ on\ merit\ /\ fitment\ to\
-  the\ role\.\ this\ information\ will\ be\ kept\ secure\ and\ confidential\ and\
-  will\ be\ used\ solely\ to\ evaluate\ our\ diversity\ and\ inclusion\ efforts\.\
-  question\ :\ to\ which\ gender\ do\ you\ most\ identify\?\ required\ select\ an\
-  option\ non\-binary\ woman\ man\ i\ do\ not\ wish\ to\ answer'
-    answer: "Male, Asian"
-
-  # Auto-learned by AI on 2026-09-09 12:58:59
-  - id: ai_you_declare_that_you_have_read_and_
-    match_any:
-      - '(?i)you\ declare\ that\ you\ have\ read\ and\ understand\ the\ job\ applications\
-  privacy\ notice\ of\ believe\.\ required\ i\ consent'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-09 12:58:59
-  - id: ai_you_declare_that_you_have_read_and_
-    match_any:
-      - '(?i)you\ declare\ that\ you\ have\ read\ and\ agree\ to\ the\ privacy\ notice\ of\
-  believe\ and\ agree\ to\ be\ part\ of\ communities\ for\ future\ career\ opportunities\.\
-  i\ consent'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-09 13:02:28
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ industrial\ robotics\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-09 13:02:29
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ robot\ operating\
-  system\ \(ros\)\?'
-    answer: "0"

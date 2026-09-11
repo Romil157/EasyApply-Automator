@@ -215,3 +215,11 @@ class TestFixesForSubmitFlowAndSearchPaginationLeak:
         result = svc._select_matching_resume()
         assert result != "resume.md"
 
+    def test_next_action_selectors_include_continue_applying(self):
+        svc = _make_submit_flow_service()
+        selectors = svc._get_action_selectors("next")
+        selector_strings = [val for _, val in selectors]
+        assert any("Continue applying" in s for s in selector_strings)
+        assert any("openSDUIApplyFlow" in s for s in selector_strings)
+
+

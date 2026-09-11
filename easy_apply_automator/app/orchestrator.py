@@ -216,41 +216,41 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             log.debug(f"Error cleaning up window handles: {exc}")
         self.diagnostics.finish_job_debug_trace()
 
-    def _dump_debug_html(self, tag: str, force_dir: Path | None = None, extra: dict | None = None) -> None:
-        self.diagnostics.dump_debug_html(tag, force_dir=force_dir, extra=extra)
+    def _dump_debug_html(self, *a, **kw) -> None:
+        self.diagnostics.dump_debug_html(*a, **kw)
 
-    def _dump_failure_snapshot(self, reason: str, force_failed_root: bool = False) -> None:
-        self.diagnostics.dump_failure_snapshot(reason, force_failed_root=force_failed_root)
+    def _dump_failure_snapshot(self, *a, **kw) -> None:
+        self.diagnostics.dump_failure_snapshot(*a, **kw)
 
-    def _extract_job_metadata(self, job_id: str | None = None) -> dict:
-        return self.diagnostics.extract_job_metadata(job_id=job_id)
+    def _extract_job_metadata(self, *a, **kw) -> dict:
+        return self.diagnostics.extract_job_metadata(*a, **kw)
 
     def _medical_keyword_match(self) -> str | None:
         return self.diagnostics.medical_keyword_match()
 
-    def _coerce_numeric_answer(self, question: str, answer: str) -> str:
-        return self.questions.coerce_numeric_answer(question, answer)
+    def _coerce_numeric_answer(self, *a, **kw) -> str:
+        return self.questions.coerce_numeric_answer(*a, **kw)
 
-    def _normalize_text_answer(self, question: str, answer: str, input_id: str = "") -> str:
-        return self.questions.normalize_text_answer(question, answer, input_id)
+    def _normalize_text_answer(self, *a, **kw) -> str:
+        return self.questions.normalize_text_answer(*a, **kw)
 
-    def _clean_question_text(self, question: str) -> str:
-        return self.questions.clean_question_text(question)
+    def _clean_question_text(self, *a, **kw) -> str:
+        return self.questions.clean_question_text(*a, **kw)
 
-    def _answer_aliases(self, answer: str) -> set[str]:
-        return self.questions.answer_aliases(answer)
+    def _answer_aliases(self, *a, **kw) -> set[str]:
+        return self.questions.answer_aliases(*a, **kw)
 
-    def _radio_matches_answer(self, field, radio, answer: str) -> bool:
-        return self.questions.radio_matches_answer(field, radio, answer)
+    def _radio_matches_answer(self, *a, **kw) -> bool:
+        return self.questions.radio_matches_answer(*a, **kw)
 
-    def _derive_direct_answer(self, question: str, input_id: str = "") -> str | None:
-        return self.questions.derive_direct_answer(question, input_id)
+    def _derive_direct_answer(self, *a, **kw) -> str | None:
+        return self.questions.derive_direct_answer(*a, **kw)
 
     def process_questions(self) -> None:
         self.questions.process_questions()
 
-    def ans_question(self, question: str) -> str:
-        return self.questions.ans_question(question)
+    def ans_question(self, *a, **kw) -> str:
+        return self.questions.ans_question(*a, **kw)
 
     def _get_easy_apply_progress(self) -> int | None:
         return self.apply_flow.get_easy_apply_progress()
@@ -264,14 +264,14 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
     def _schedule_next_short_break(self) -> None:
         self.throughput.schedule_next_short_break()
 
-    def _maybe_take_short_break(self, source: str) -> None:
-        self.throughput.maybe_take_short_break(source)
+    def _maybe_take_short_break(self, *a, **kw) -> None:
+        self.throughput.maybe_take_short_break(*a, **kw)
 
-    def _update_session_throughput(self, *, reason: str, attempted: bool, result: bool) -> None:
-        self.throughput.update_session_throughput(reason=reason, attempted=attempted, result=result)
+    def _update_session_throughput(self, *a, **kw) -> None:
+        self.throughput.update_session_throughput(*a, **kw)
 
-    def start_linkedin(self, username: str, password: str) -> None:
-        self.session.start_linkedin(username, password)
+    def start_linkedin(self, *a, **kw) -> None:
+        self.session.start_linkedin(*a, **kw)
 
     def is_logged_in(self) -> bool:
         return self.session.is_logged_in()
@@ -377,6 +377,14 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             self._finish_job_debug_trace()
             return False
 
+        current_url = (self.browser.current_url or "").lower()
+        page_title = (self.browser.title or "").lower()
+        if "similar-jobs" in current_url or "/jobs/collections/" in current_url or page_title.startswith("similar jobs"):
+            log.info(f"Skipping job {job_id}: redirected to similar jobs collection.")
+            self.log_event("job_skipped_similar_jobs_redirect", job_id=job_id, url=current_url, title=self.browser.title)
+            self._finish_job_debug_trace()
+            return self._record_job_result(job_id, False, False, "similar_jobs_redirect", "* Redirected to Similar Jobs")
+
         button = self.get_easy_apply_button()
         self._dump_debug_html("easy_apply_button_detected", extra={"button_found": bool(button)})
 
@@ -420,6 +428,13 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         return False, None
 
     def _classify_job(self, job_id: str, button) -> tuple[bool, str, str]:
+        current_url = (self.browser.current_url or "").lower()
+        page_title = (self.browser.title or "").lower()
+        if "similar-jobs" in current_url or "/jobs/collections/" in current_url or page_title.startswith("similar jobs"):
+            log.info(f"Skipping job {job_id}: redirected to similar jobs collection.")
+            self.log_event("job_skipped_similar_jobs_redirect", job_id=job_id, url=current_url, title=self.browser.title)
+            return False, "similar_jobs_redirect", "* Redirected to Similar Jobs"
+
         if button is not False:
             normalized_title = self._normalize_title_text(self.browser.title)
             med = self._medical_keyword_match()
@@ -503,39 +518,22 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
     def write_to_file(
         self, button, job_id, browser_title, result, metadata: dict | None = None, reason: str | None = None
     ) -> None:
-        def re_extract(text, pattern):
-            target = re.search(pattern, text)
-            return target.group(1) if target else target
-
         timestamp = datetime.now().isoformat(timespec="seconds")
         attempted = button is not False
-        job = None
-        company = None
-        if metadata:
-            meta_title = metadata.get("job_title")
-            meta_company = metadata.get("company")
-            if meta_title and meta_title not in ("LinkedIn", "Unknown Role"):
-                job = meta_title
-            if meta_company and meta_company != "Unknown Company":
-                company = meta_company
-
-        if not job or not company:
-            title_parts = [p.strip() for p in browser_title.split(" | ")] if browser_title else []
-            if title_parts and title_parts[-1].lower() == "linkedin":
-                title_parts = title_parts[:-1]
-            if len(title_parts) >= 2:
-                company_text = title_parts[-1]
-                job_text = " | ".join(title_parts[:-1])
-            elif len(title_parts) == 1:
-                job_text = title_parts[0]
-                company_text = "Unknown Company"
+        meta = metadata or {}
+        job = meta.get("job_title")
+        company = meta.get("company")
+        if not job or job in ("LinkedIn", "Unknown Role") or not company or company == "Unknown Company":
+            parts = [p.strip() for p in (browser_title or "").split(" | ") if p.strip().lower() != "linkedin"]
+            if len(parts) >= 2:
+                company = company if company and company != "Unknown Company" else parts[-1]
+                job = job if job and job not in ("LinkedIn", "Unknown Role") else " | ".join(parts[:-1])
+            elif len(parts) == 1:
+                job = job if job and job not in ("LinkedIn", "Unknown Role") else parts[0]
+                company = company if company and company != "Unknown Company" else "Unknown Company"
             else:
-                job_text, company_text = "Unknown Role", "Unknown Company"
-
-            if not job:
-                job = re_extract(job_text, r"\(?\d?\)?\s?(\w.*)") or job_text
-            if not company:
-                company = re_extract(company_text, r"(\w.*)") or company_text
+                job = job or "Unknown Role"
+                company = company or "Unknown Company"
 
         record = {
             "timestamp": timestamp,
@@ -553,7 +551,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             if bool(result) or reason in (
                 "already_applied", "title_blacklisted", "medical_related_title",
                 "database_related_title", "not_relevant", "no_easy_apply_button",
-                "blacklisted_title", "blacklisted_company",
+                "blacklisted_title", "blacklisted_company", "similar_jobs_redirect",
             ):
                 if job_id_str not in self.appliedJobIDs:
                     self.appliedJobIDs.append(job_id_str)
@@ -566,8 +564,12 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             raise
 
     def get_job_page(self, job_id):
-        self.browser.get(f"https://www.linkedin.com/jobs/view/{job_id}")
+        target_url = f"https://www.linkedin.com/jobs/view/{job_id}"
+        self.browser.get(target_url)
         self.job_page = self.load_page(sleep=0.02, scroll_limit=500)
+        current_url = (self.browser.current_url or "").lower()
+        if "similar-jobs" in current_url or "/jobs/collections/" in current_url:
+            log.info(f"Job {job_id} redirected to similar jobs collection: {current_url}")
         return self.job_page
 
     def _is_daily_limit_reached(self) -> bool:
@@ -583,6 +585,14 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "button, a, a[role='button']")))
         except TimeoutException as exc:
             log.debug(f"Timeout waiting for Easy Apply button presence: {exc}")
+
+        def _is_match(el) -> bool:
+            try:
+                aria = (el.get_attribute("aria-label") or "").lower()
+                text = (el.text or "").strip().lower()
+                return ("easy apply" in aria or "easy apply" in text) and el.is_displayed() and el.is_enabled()
+            except Exception:
+                return False
 
         selectors = [
             (By.ID, "jobs-apply-button-id"),
@@ -606,40 +616,25 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                     "div.jobs-search__job-details, div.job-view-layout, div.jobs-details, main#main, section.jobs-details"
                 ):
                     for by, value in selectors:
-                        try:
-                            for btn in container.find_elements(by, value):
-                                aria = (btn.get_attribute("aria-label") or "").lower()
-                                text = (btn.text or "").strip().lower()
-                                if ("easy apply" in aria or "easy apply" in text) and btn.is_displayed() and btn.is_enabled():
-                                    return btn
-                        except Exception:
-                            continue
+                        for btn in container.find_elements(by, value):
+                            if _is_match(btn):
+                                return btn
             except Exception:
                 pass
 
-        candidates = []
+        seen_ids = set()
         for by, value in selectors:
             try:
-                candidates.extend(self.browser.find_elements(by, value))
-            except Exception:
-                continue
-
-        seen_ids = set()
-        for button in [c for c in candidates if c.id not in seen_ids and not seen_ids.add(c.id)]:
-            try:
-                aria = (button.get_attribute("aria-label") or "").lower()
-                text = (button.text or "").strip().lower()
-                if ("easy apply" in aria or "easy apply" in text) and button.is_displayed() and button.is_enabled():
-                    return button
+                for btn in self.browser.find_elements(by, value):
+                    if btn.id not in seen_ids and not seen_ids.add(btn.id) and _is_match(btn):
+                        return btn
             except Exception:
                 continue
 
         try:
-            for button in self.browser.find_elements(By.CSS_SELECTOR, "button, a"):
-                aria = (button.get_attribute("aria-label") or "").lower()
-                text = (button.text or "").strip().lower()
-                if ("easy apply" in aria or "easy apply" in text) and button.is_displayed() and button.is_enabled():
-                    return button
+            for btn in self.browser.find_elements(By.CSS_SELECTOR, "button, a"):
+                if _is_match(btn):
+                    return btn
         except Exception:
             pass
         return False
@@ -782,11 +777,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         for by, value in selectors:
             try:
                 for element in self.browser.find_elements(by, value):
-                    try:
-                        if element.is_enabled():
-                            return element
-                    except Exception:
-                        return element
+                    return element
             except Exception:
                 continue
         return None

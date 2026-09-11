@@ -32,16 +32,99 @@ class QuestionService(ServiceBase):
         )
         return any(marker in q for marker in numeric_markers) or "numeric" in i
 
+    @staticmethod
+    def clamp_to_field_limit(input_element, answer: str, question: str = "") -> str:
+        if not answer or input_element is None:
+            return answer
+
+        # 1. HTML attribute maxlength
+        try:
+            max_len_attr = input_element.get_attribute("maxlength")
+            if max_len_attr:
+                try:
+                    limit = int(max_len_attr)
+                    if 0 < limit < 50000:
+                        if len(answer) > limit:
+                            log.info(f"Clamping answer from {len(answer)} to maxlength {limit}")
+                            return answer[:limit].rstrip()
+                except (ValueError, TypeError):
+                    pass
+        except Exception:
+            pass
+
+        # 2. Parent container character limit counter or hint
+        try:
+            parent = input_element.find_element(
+                By.XPATH,
+                "./ancestor::div[contains(@class, 'fb-dash-form-element') or contains(@class, 'jobs-easy-apply-form-element')][1]",
+            )
+            char_counters = parent.find_elements(
+                By.CSS_SELECTOR,
+                "span[class*='character-count'], span[class*='char-count'], span[aria-live], div[class*='character-count']",
+            )
+            for counter in char_counters:
+                text = (counter.text or "").strip()
+                match = re.search(r"/\s*(\d+)", text) or re.search(r"max(?:imum)?\s*(\d+)", text, re.I)
+                if match:
+                    limit = int(match.group(1))
+                    if 0 < limit < 50000 and len(answer) > limit:
+                        log.info(f"Clamping answer from {len(answer)} to counter limit {limit}")
+                        return answer[:limit].rstrip()
+        except Exception:
+            pass
+
+        # 3. Single-line headline fields on LinkedIn commonly have strict character limits (typically 100 or 120 chars)
+        q_lower = (question or "").lower()
+        tag = ""
+        try:
+            tag = (input_element.tag_name or "").lower()
+        except Exception:
+            pass
+        if tag == "input" and "headline" in q_lower and len(answer) > 100:
+            log.info(f"Headline single-line input detected with long text ({len(answer)} chars); trimming to 100 chars")
+            truncated = answer[:100]
+            last_space = truncated.rfind(" ")
+            if last_space > 50:
+                truncated = truncated[:last_space]
+            return truncated.rstrip()
+
+        return answer
+
     def coerce_numeric_answer(self, question: str, answer: str) -> str:
+        q_lower = (question or "").lower()
         raw = re.sub(r"[,$€£]", "", (answer or "").strip())
         match = re.search(r"-?\d+(?:\.\d+)?", raw)
+        val_float: float | None = None
+        orig_val: str | None = None
         if match:
-            value = match.group(0)
+            orig_val = match.group(0)
             try:
-                if float(value) >= 0:
-                    return value
+                if float(orig_val) >= 0:
+                    val_float = float(orig_val)
             except ValueError as exc:
-                log.debug(f"Failed to convert value '{value}' to float: {exc}")
+                log.debug(f"Failed to convert value '{orig_val}' to float: {exc}")
+
+        # Check if question requires a minimum or floor value e.g. "larger than 100"
+        min_match = re.search(
+            r"(?:larger than|greater than|more than|at least|minimum(?:\s+of)?)\s*(\d+(?:\.\d+)?)",
+            q_lower,
+        )
+        if min_match:
+            try:
+                floor_val = float(min_match.group(1))
+                if val_float is None or val_float <= floor_val:
+                    if any(strict in q_lower for strict in ("larger than", "greater than", "more than")):
+                        adjusted = floor_val + 1 if floor_val.is_integer() else floor_val + 0.1
+                    else:
+                        adjusted = floor_val
+                    if "whole number" in q_lower or adjusted.is_integer():
+                        return str(int(adjusted))
+                    return str(adjusted)
+            except Exception:
+                pass
+
+        if val_float is not None and orig_val is not None:
+            return orig_val
 
         # Check if auto_answer has extracted years for this skill
         if hasattr(self.bot, "auto_answer") and self.bot.auto_answer is not None:
@@ -306,40 +389,27 @@ class QuestionService(ServiceBase):
                 radios = field.find_elements(By.CSS_SELECTOR, "input[type='radio']")
                 if radios:
                     for radio in radios:
-                        if self.radio_matches_answer(field, radio, answer):
-                            rid = radio.get_attribute("id") or ""
+                        rid = radio.get_attribute("id") or ""
+                        val = (radio.get_attribute("value") or "").strip().lower()
+                        if self.radio_matches_answer(field, radio, answer) or (val and val == (answer or "").strip().lower()):
                             label_clicked = False
                             if rid:
                                 try:
-                                    label_el = field.find_element(
-                                        By.CSS_SELECTOR, f"label[for='{rid}']"
-                                    )
+                                    label_el = field.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
                                     self.bot._safe_click(label_el)
                                     label_clicked = True
                                 except Exception:
                                     pass
                             if not label_clicked:
                                 self.bot._safe_click(radio)
-                            self.bot.log_event(
-                                "question_answered",
-                                kind="radio",
-                                question=question,
-                                answer=answer,
-                            )
+                            self.bot.log_event("question_answered", kind="radio", question=question, answer=answer)
                             answered = True
                             break
                     if not answered:
-                        labels = field.find_elements(By.TAG_NAME, "label")
-                        for label in labels:
-                            txt = (label.text or "").strip().lower()
-                            if txt in self.answer_aliases(answer):
+                        for label in field.find_elements(By.TAG_NAME, "label"):
+                            if (label.text or "").strip().lower() in self.answer_aliases(answer):
                                 self.bot._safe_click(label)
-                                self.bot.log_event(
-                                    "question_answered",
-                                    kind="radio_label",
-                                    question=question,
-                                    answer=answer,
-                                )
+                                self.bot.log_event("question_answered", kind="radio_label", question=question, answer=answer)
                                 answered = True
                                 break
                 if answered:
@@ -351,52 +421,12 @@ class QuestionService(ServiceBase):
                 selects = field.find_elements(By.TAG_NAME, "select")
                 if selects:
                     if self.bot._select_option_by_answer(selects[0], answer):
-                        self.bot.log_event(
-                            "question_answered",
-                            kind="select",
-                            question=question,
-                            answer=answer,
-                        )
-                        answered = True
+                        self.bot.log_event("question_answered", kind="select", question=question, answer=answer)
                     elif self.bot._select_non_default_option(selects[0]):
-                        self.bot.log_event(
-                            "question_answered",
-                            kind="select_fallback",
-                            question=question,
-                            answer=answer,
-                        )
-                        answered = True
-                if answered:
+                        self.bot.log_event("question_answered", kind="select_fallback", question=question, answer=answer)
                     continue
             except Exception as exc:
                 log.debug(f"Failed to process selects for question '{question}': {exc}")
-
-            try:
-                radio = field.find_element(
-                    By.CSS_SELECTOR, f"input[type='radio'][value='{answer}']"
-                )
-                rid = radio.get_attribute("id") or ""
-                label_clicked = False
-                if rid:
-                    try:
-                        label_el = field.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
-                        self.bot._safe_click(label_el)
-                        label_clicked = True
-                    except Exception as exc:
-                        log.debug(
-                            f"Failed to click label for CSS radio in question '{question}': {exc}"
-                        )
-                if not label_clicked:
-                    self.bot._safe_click(radio)
-                self.bot.log_event(
-                    "question_answered",
-                    kind="radio_css",
-                    question=question,
-                    answer=answer,
-                )
-                continue
-            except Exception as exc:
-                log.debug(f"Failed to process CSS radio value for question '{question}': {exc}")
 
             try:
                 multi = field.find_element(
@@ -424,6 +454,7 @@ class QuestionService(ServiceBase):
                     normalized_answer = self.humanize_free_text_answer(
                         question, normalized_answer, "textarea"
                     )
+                    normalized_answer = self.clamp_to_field_limit(text_area, normalized_answer, question)
                     text_area.clear()
                     text_area.send_keys(normalized_answer)
                     self.bot.log_event(
@@ -455,6 +486,7 @@ class QuestionService(ServiceBase):
                     normalized_answer = self.humanize_free_text_answer(
                         question, normalized_answer, "text"
                     )
+                    normalized_answer = self.clamp_to_field_limit(text_input, normalized_answer, question)
                     is_typeahead = text_input.get_attribute(
                         "role"
                     ) == "combobox" or text_input.get_attribute("aria-autocomplete") in ("list", "both")

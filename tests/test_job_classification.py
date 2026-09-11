@@ -93,6 +93,15 @@ class TestJobClassification:
         assert result is False
         assert reason == expected_reason
 
+    def test_similar_jobs_redirect(self, classifier):
+        classifier.browser.current_url = "https://www.linkedin.com/jobs/collections/similar-jobs/?currentJobId=12345"
+        classifier.browser.title = "Similar Jobs | LinkedIn"
+        btn = MagicMock()
+        result, reason, _ = classifier._classify_job("12345", btn)
+        assert result is False
+        assert reason == "similar_jobs_redirect"
+
+
     def test_relevant_software_and_data_jobs_not_blacklisted(self, classifier):
         # Verify that Data Engineering / SQL / Python roles are NOT skipped
         relevant_titles = [

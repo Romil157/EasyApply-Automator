@@ -195,74 +195,60 @@ class SubmitFlowMixin:
                     continue
         return None
 
+    _ACTION_SELECTORS: dict[str, list[tuple[str, str]]] = {
+        "submit": [
+            (By.CSS_SELECTOR, "button[data-live-test-easy-apply-submit-button]"),
+            (By.CSS_SELECTOR, "button[aria-label*='Submit application']"),
+            (By.CSS_SELECTOR, "button[aria-label*='Submit']"),
+            (By.XPATH, "//button[contains(@aria-label, 'Submit application') or contains(@aria-label, 'Submit')]"),
+            (By.XPATH, "//button[.//span[contains(normalize-space(), 'Submit application') or normalize-space()='Submit']]"),
+            (By.CSS_SELECTOR, "button[data-control-name='submit_unify']"),
+            (By.XPATH, "//button[contains(normalize-space(.), 'Submit application') or normalize-space(.)='Submit']"),
+        ],
+        "review": [
+            (By.CSS_SELECTOR, "button[data-live-test-easy-apply-review-button]"),
+            (By.CSS_SELECTOR, "button[aria-label*='Review your application']"),
+            (By.CSS_SELECTOR, "button[aria-label*='Review']"),
+            (By.XPATH, "//button[contains(@aria-label, 'Review your application') or contains(@aria-label, 'Review')]"),
+            (By.XPATH, "//button[.//span[contains(normalize-space(), 'Review your application') or normalize-space()='Review']]"),
+            (By.CSS_SELECTOR, "button[data-control-name='review_unify']"),
+            (By.XPATH, "//button[contains(normalize-space(.), 'Review your application') or normalize-space(.)='Review']"),
+        ],
+        "next": [
+            (By.CSS_SELECTOR, "button[data-live-test-easy-apply-next-button]"),
+            (By.CSS_SELECTOR, "button[data-easy-apply-next-button]"),
+            (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']:not(.artdeco-pagination__button--next)"),
+            (By.CSS_SELECTOR, "button[aria-label*='Next step']:not(.artdeco-pagination__button--next)"),
+            (By.CSS_SELECTOR, "button[aria-label*='Continue']:not(.artdeco-pagination__button--next)"),
+            (By.CSS_SELECTOR, "button[aria-label*='Next']:not(.artdeco-pagination__button--next)"),
+            (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and (contains(@aria-label, 'Continue to next step') or contains(@aria-label, 'Next'))]"),
+            (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and .//span[contains(normalize-space(), 'Continue to next step') or normalize-space()='Next' or contains(normalize-space(), 'Next')]]"),
+            (By.CSS_SELECTOR, "button[data-control-name='continue_unify']"),
+            (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and (contains(normalize-space(.), 'Next') or contains(normalize-space(.), 'Continue'))]"),
+            (By.CSS_SELECTOR, "a[href*='/apply/'][href*='openSDUIApplyFlow']"),
+            (By.XPATH, "//a[contains(normalize-space(.), 'Continue applying') or contains(normalize-space(.), 'Continue')]"),
+            (By.XPATH, "//button[contains(normalize-space(.), 'Continue applying')]"),
+        ],
+    }
+
     def _get_action_selectors(self, action_name: str) -> list[tuple[str, str]]:
-        fallbacks: dict[str, list[tuple[str, str]]] = {
-            "submit": [
-                (By.CSS_SELECTOR, "button[data-live-test-easy-apply-submit-button]"),
-                (By.CSS_SELECTOR, "button[aria-label*='Submit application']"),
-                (By.CSS_SELECTOR, "button[aria-label*='Submit']"),
-                (By.XPATH, "//button[contains(@aria-label, 'Submit application') or contains(@aria-label, 'Submit')]"),
-                (By.XPATH, "//button[.//span[contains(normalize-space(), 'Submit application') or normalize-space()='Submit']]"),
-                (By.CSS_SELECTOR, "button[data-control-name='submit_unify']"),
-                (By.XPATH, "//button[contains(normalize-space(.), 'Submit application') or normalize-space(.)='Submit']"),
-            ],
-            "review": [
-                (By.CSS_SELECTOR, "button[data-live-test-easy-apply-review-button]"),
-                (By.CSS_SELECTOR, "button[aria-label*='Review your application']"),
-                (By.CSS_SELECTOR, "button[aria-label*='Review']"),
-                (By.XPATH, "//button[contains(@aria-label, 'Review your application') or contains(@aria-label, 'Review')]"),
-                (By.XPATH, "//button[.//span[contains(normalize-space(), 'Review your application') or normalize-space()='Review']]"),
-                (By.CSS_SELECTOR, "button[data-control-name='review_unify']"),
-                (By.XPATH, "//button[contains(normalize-space(.), 'Review your application') or normalize-space(.)='Review']"),
-            ],
-            "next": [
-                (By.CSS_SELECTOR, "button[data-live-test-easy-apply-next-button]"),
-                (By.CSS_SELECTOR, "button[data-easy-apply-next-button]"),
-                (By.CSS_SELECTOR, "button[aria-label*='Continue to next step']:not(.artdeco-pagination__button--next)"),
-                (By.CSS_SELECTOR, "button[aria-label*='Next step']:not(.artdeco-pagination__button--next)"),
-                (By.CSS_SELECTOR, "button[aria-label*='Continue']:not(.artdeco-pagination__button--next)"),
-                (By.CSS_SELECTOR, "button[aria-label*='Next']:not(.artdeco-pagination__button--next)"),
-                (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and (contains(@aria-label, 'Continue to next step') or contains(@aria-label, 'Next'))]"),
-                (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and .//span[contains(normalize-space(), 'Continue to next step') or normalize-space()='Next' or contains(normalize-space(), 'Next')]]"),
-                (By.CSS_SELECTOR, "button[data-control-name='continue_unify']"),
-                (By.XPATH, "//button[not(contains(@class, 'artdeco-pagination')) and (contains(normalize-space(.), 'Next') or contains(normalize-space(.), 'Continue'))]"),
-            ],
-        }
         res: list[tuple[str, str]] = []
         loc = getattr(self.bot, "locator", None)
         if isinstance(loc, dict) and action_name in loc and isinstance(loc[action_name], tuple):
             res.append(loc[action_name])
-        for item in fallbacks.get(action_name, []):
+        for item in self._ACTION_SELECTORS.get(action_name, []):
             if item not in res:
                 res.append(item)
         return res
 
     def _find_action_button(self, action_name: str, container: Any = None):
         selectors = self._get_action_selectors(action_name)
-        if container is not None:
-            try:
-                btn = self.bot._find_clickable(selectors, root=container)
-                if btn is not None:
-                    return btn
-            except TypeError:
-                pass
-            try:
-                for by, val in selectors:
-                    target_val = val
-                    if by == By.XPATH:
-                        if val.startswith("//"):
-                            target_val = "." + val
-                        elif val.startswith("(//"):
-                            target_val = "(." + val[1:]
-                    for el in container.find_elements(by, target_val):
-                        if el.is_displayed() and el.is_enabled():
-                            return el
-            except Exception:
-                pass
-            try:
-                return self.bot._find_clickable(selectors)
-            except Exception:
-                return None
+        try:
+            btn = self.bot._find_clickable(selectors, root=container)
+            if btn is not None:
+                return btn
+        except Exception:
+            pass
         return self.bot._find_clickable(selectors)
 
     def has_apply_controls(self) -> bool:
@@ -353,22 +339,14 @@ class SubmitFlowMixin:
         return False, "retry_failed"
 
     def is_submit_confirmation_state(self) -> bool:
-        confirmation_phrases = (
-            "your application was sent",
-            "your application was submitted",
-            "application sent",
-            "application submitted",
-            "application has been sent",
-            "application was received",
-            "application received",
-            "thanks for applying",
-            "thank you for applying",
-            "your application went to",
-            "you applied on",
+        phrases = (
+            "your application was sent", "your application was submitted",
+            "application sent", "application submitted", "application has been sent",
+            "application was received", "application received", "thanks for applying",
+            "thank you for applying", "your application went to", "you applied on",
         )
         try:
-            page_text = (self.bot.browser.page_source or "").lower()
-            if any(phrase in page_text for phrase in confirmation_phrases):
+            if any(p in (self.bot.browser.page_source or "").lower() for p in phrases):
                 return True
         except Exception:
             pass
@@ -377,29 +355,16 @@ class SubmitFlowMixin:
         if modal is not None:
             try:
                 for attr in ("innerHTML", "outerHTML"):
-                    val = str(modal.get_attribute(attr) or "").lower()
-                    if any(phrase in val for phrase in confirmation_phrases):
+                    if any(p in str(modal.get_attribute(attr) or "").lower() for p in phrases):
                         return True
-
-                if hasattr(modal, "text") and isinstance(modal.text, str):
-                    if any(phrase in modal.text.lower() for phrase in confirmation_phrases):
-                        return True
-
+                if any(p in (getattr(modal, "text", "") or "").lower() for p in phrases):
+                    return True
                 buttons = modal.find_elements(By.TAG_NAME, "button")
-                has_done = False
-                for b in buttons:
-                    b_txt = b.text if isinstance(getattr(b, "text", None), str) else str(getattr(b, "text", ""))
-                    if b_txt.strip().lower() in ("done", "dismiss", "close"):
-                        has_done = True
-                        break
-
-                if has_done:
-                    inputs = modal.find_elements(By.CSS_SELECTOR, "input:not([type='hidden']), select, textarea")
-                    if not inputs:
+                if any((getattr(b, "text", "") or "").strip().lower() in ("done", "dismiss", "close") for b in buttons):
+                    if not modal.find_elements(By.CSS_SELECTOR, "input:not([type='hidden']), select, textarea"):
                         return True
             except Exception as exc:
                 log.debug(f"Error checking modal confirmation state: {exc}")
-
         return False
 
     def detect_easy_apply_state(self) -> tuple[str, dict]:
@@ -543,6 +508,7 @@ class SubmitFlowMixin:
         validation_recovery_attempts = 0
         submit_clicked = False
         last_state = None
+        no_action_loops = 0
 
         while loop < 20:
             stall_seconds = time.time() - last_transition_at
@@ -579,12 +545,41 @@ class SubmitFlowMixin:
             action, selectors = self._resolve_step_action(state)
 
             if action is None:
+                no_action_loops += 1
+                modal = self.find_easy_apply_modal()
+                fallback_clicked = False
+                if modal is not None:
+                    try:
+                        for btn in modal.find_elements(By.CSS_SELECTOR, "button, a[role='button'], a[href*='/apply/']"):
+                            try:
+                                if not (btn.is_displayed() and btn.is_enabled()):
+                                    continue
+                                txt = (btn.text or "").strip().lower()
+                                aria = (btn.get_attribute("aria-label") or "").strip().lower()
+                                combined = f"{txt} {aria}"
+                                if any(k in combined for k in ("continue", "next", "review", "submit", "apply")):
+                                    if self.bot._safe_click(btn):
+                                        log.info(f"Clicked fallback action button in modal: '{txt or aria}'")
+                                        fallback_clicked = True
+                                        time.sleep(MICRO_PAUSE_SECONDS)
+                                        break
+                            except Exception:
+                                continue
+                    except Exception as exc:
+                        log.debug(f"Fallback button search in modal failed: {exc}")
+
+                if fallback_clicked:
+                    last_transition_at = time.time()
+                    continue
+
                 diagnostics = self.collect_apply_stall_diagnostics(state=state, progress=progress, loop=loop)
                 self.bot.log_event("easy_apply_flow_stalled", progress=progress, loop=loop, reason="no_action_resolved", diagnostics=diagnostics)
-                if stall_seconds > max(6.0, self.bot.max_apply_seconds / 2):
+                if no_action_loops >= 3 or stall_seconds > max(6.0, self.bot.max_apply_seconds / 2):
                     self.bot._dump_failure_snapshot("no_action_resolved")
                     break
                 continue
+
+            no_action_loops = 0
 
             modal = self.find_easy_apply_modal()
             button = self._find_action_button(action, container=modal)
@@ -730,15 +725,9 @@ class SubmitFlowMixin:
         for by, value in selectors:
             try:
                 for element in self.bot.browser.find_elements(by, value):
-                    try:
-                        if element.is_enabled():
-                            return element
-                    except Exception:
-                        return element
+                    return element
             except Exception:
                 continue
-        if hasattr(self.bot, "_find_clickable") and callable(self.bot._find_clickable):
-            return self.bot._find_clickable(selectors)
         return None
 
     def _try_upload_documents(self) -> None:

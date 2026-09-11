@@ -50,6 +50,14 @@ class TestCoerceNumericAnswer:
         assert svc.coerce_numeric_answer("how many years of experience", "0.0") == "0.0"
         assert svc.coerce_numeric_answer("how many moving violations", "0") == "0"
 
+    def test_floor_constraint_applied(self):
+        svc = _make_service()
+        # Strictly larger than 100 floor
+        assert svc.coerce_numeric_answer("please enter expected ctc. Enter a whole number larger than 100", "0") == "101"
+        assert svc.coerce_numeric_answer("please enter expected ctc. Enter a whole number larger than 100", "Open to discussion") == "101"
+        # Already satisfies floor
+        assert svc.coerce_numeric_answer("please enter expected ctc. Enter a whole number larger than 100", "300000") == "300000"
+
 
 class TestCleanQuestionText:
     def test_basic_cleaning(self):
@@ -114,3 +122,28 @@ class TestDeriveDirectAnswer:
     def test_no_match(self):
         svc = _make_service()
         assert svc.derive_direct_answer("unrelated question") is None
+
+
+class TestClampToFieldLimit:
+    def test_maxlength_attribute(self):
+        el = MagicMock()
+        el.get_attribute.side_effect = lambda attr: "20" if attr == "maxlength" else None
+        res = QuestionService.clamp_to_field_limit(el, "This is a very long string exceeding twenty chars", "bio")
+        assert len(res) <= 20
+        assert res == "This is a very long"
+
+    def test_no_truncation_when_within_limit(self):
+        el = MagicMock()
+        el.get_attribute.side_effect = lambda attr: "50" if attr == "maxlength" else None
+        res = QuestionService.clamp_to_field_limit(el, "Short answer", "headline")
+        assert res == "Short answer"
+
+    def test_headline_single_line_input_clamping(self):
+        el = MagicMock()
+        el.get_attribute.return_value = None
+        el.tag_name = "input"
+        long_headline = "Forward Deployed Engineer Intern with 2 years of full-stack and AI/ML experience, specializing in security-focused applications and data pipelines."
+        res = QuestionService.clamp_to_field_limit(el, long_headline, "Headline")
+        assert len(res) <= 100
+        assert not res.endswith(" ")
+

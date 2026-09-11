@@ -183,47 +183,22 @@ class FormFillerMixin:
             answer = direct if direct is not None else self.bot.ans_question(question.lower())
             answer_aliases = self.bot._answer_aliases(answer)
 
-            # Strategy 1: Match by label text or value attribute
+            # Strategies: match by answer aliases, then yes/true, then no/false
             for radio in radios:
                 rid = radio.get_attribute("id") or ""
                 val = (radio.get_attribute("value") or "").strip().lower()
-                if self.bot._radio_matches_answer(group, radio, answer) or (val and val in answer_aliases):
-                    if self._click_element_or_label(group, radio, rid):
-                        self.bot.log_event(
-                            "question_answered",
-                            kind="required_radio_recovery",
-                            question=question,
-                            answer=answer,
-                        )
-                        return True
+                matched = self.bot._radio_matches_answer(group, radio, answer) or (val and val in answer_aliases)
+                kind = "required_radio_recovery"
+                if not matched and ({"yes", "true", "1", "y"} & answer_aliases) and val in {"true", "yes", "1"}:
+                    matched = True
+                    kind = "required_radio_yes_fallback"
+                elif not matched and ({"no", "false", "0", "n"} & answer_aliases) and val in {"false", "no", "0"}:
+                    matched = True
+                    kind = "required_radio_no_fallback"
 
-            # Strategy 2: Yes/True fallback
-            if {"yes", "true", "1", "y"} & answer_aliases:
-                for radio in radios:
-                    if (radio.get_attribute("value") or "").strip().lower() in {"true", "yes", "1"}:
-                        rid = radio.get_attribute("id") or ""
-                        if self._click_element_or_label(group, radio, rid):
-                            self.bot.log_event(
-                                "question_answered",
-                                kind="required_radio_yes_fallback",
-                                question=question,
-                                answer=answer,
-                            )
-                            return True
-
-            # Strategy 3: No/False fallback
-            if {"no", "false", "0", "n"} & answer_aliases:
-                for radio in radios:
-                    if (radio.get_attribute("value") or "").strip().lower() in {"false", "no", "0"}:
-                        rid = radio.get_attribute("id") or ""
-                        if self._click_element_or_label(group, radio, rid):
-                            self.bot.log_event(
-                                "question_answered",
-                                kind="required_radio_no_fallback",
-                                question=question,
-                                answer=answer,
-                            )
-                            return True
+                if matched and self._click_element_or_label(group, radio, rid):
+                    self.bot.log_event("question_answered", kind=kind, question=question, answer=answer)
+                    return True
 
             # Strategy 4: Fallback to first available radio option during recovery
             if fallback_to_first:
@@ -365,8 +340,12 @@ class FormFillerMixin:
                     direct = self.bot._derive_direct_answer(question, input_id)
                     answer = direct if direct is not None else self.bot.ans_question(question.lower())
                     coerced = self.bot._coerce_numeric_answer(question, answer) if "numeric" in input_id.lower() or "year" in question.lower() or "experience" in question.lower() else answer
+                    if hasattr(self.bot, "questions") and hasattr(self.bot.questions, "clamp_to_field_limit"):
+                        final_val = self.bot.questions.clamp_to_field_limit(input_el, coerced, question)
+                    else:
+                        final_val = coerced
                     input_el.clear()
-                    input_el.send_keys(coerced or "0")
+                    input_el.send_keys(final_val or "0")
                     recovered += 1
                 except Exception as exc:
                     log.debug(f"Failed to clear error field '{input_id}': {exc}")

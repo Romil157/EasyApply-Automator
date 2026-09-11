@@ -328,6 +328,24 @@ class SearchLoopMixin:
                 if self.stop_requested or time.time() >= self.session_deadline:
                     break
 
+    _DATE_MAP: dict[str, str] = {
+        "past_24h": "r86400", "24h": "r86400", "r86400": "r86400",
+        "past_week": "r604800", "week": "r604800", "r604800": "r604800",
+        "past_month": "r2592000", "month": "r2592000", "r2592000": "r2592000",
+    }
+    _WP_MAP: dict[str, str] = {
+        "onsite": "1", "on-site": "1", "1": "1",
+        "remote": "2", "2": "2",
+        "hybrid": "3", "3": "3",
+    }
+    _JT_MAP: dict[str, str] = {
+        "full_time": "F", "full-time": "F", "fulltime": "F", "f": "F",
+        "part_time": "P", "part-time": "P", "p": "P",
+        "contract": "C", "c": "C",
+        "internship": "I", "i": "I",
+        "temporary": "T", "t": "T",
+    }
+
     def build_search_url(
         self,
         position: str,
@@ -354,65 +372,17 @@ class SearchLoopMixin:
         if exp_levels:
             params["f_E"] = ",".join(map(str, exp_levels))
 
-        # Date posted filter
-        date_filter = getattr(self, "date_posted", "") or ""
-        date_map = {
-            "past_24h": "r86400",
-            "24h": "r86400",
-            "r86400": "r86400",
-            "past_week": "r604800",
-            "week": "r604800",
-            "r604800": "r604800",
-            "past_month": "r2592000",
-            "month": "r2592000",
-            "r2592000": "r2592000",
-        }
-        if date_filter.lower() in date_map:
-            params["f_TPR"] = date_map[date_filter.lower()]
+        date_filter = (getattr(self, "date_posted", "") or "").lower()
+        if date_filter in self._DATE_MAP:
+            params["f_TPR"] = self._DATE_MAP[date_filter]
 
-        # Workplace types (1=On-site, 2=Remote, 3=Hybrid)
-        wp_types = getattr(self, "workplace_types", []) or []
-        wp_codes = []
-        wp_map = {
-            "onsite": "1",
-            "on-site": "1",
-            "remote": "2",
-            "hybrid": "3",
-            "1": "1",
-            "2": "2",
-            "3": "3",
-        }
-        for w in wp_types:
-            code = wp_map.get(str(w).strip().lower())
-            if code and code not in wp_codes:
-                wp_codes.append(code)
+        wp_codes = [self._WP_MAP[str(w).strip().lower()] for w in (getattr(self, "workplace_types", []) or []) if str(w).strip().lower() in self._WP_MAP]
         if wp_codes:
-            params["f_WT"] = ",".join(wp_codes)
+            params["f_WT"] = ",".join(dict.fromkeys(wp_codes))
 
-        # Job types (F=Full-time, P=Part-time, C=Contract, T=Temporary, I=Internship)
-        job_types = getattr(self, "job_types", []) or []
-        jt_codes = []
-        jt_map = {
-            "full_time": "F",
-            "full-time": "F",
-            "fulltime": "F",
-            "f": "F",
-            "part_time": "P",
-            "part-time": "P",
-            "p": "P",
-            "contract": "C",
-            "c": "C",
-            "internship": "I",
-            "i": "I",
-            "temporary": "T",
-            "t": "T",
-        }
-        for j in job_types:
-            code = jt_map.get(str(j).strip().lower())
-            if code and code not in jt_codes:
-                jt_codes.append(code)
+        jt_codes = [self._JT_MAP[str(j).strip().lower()] for j in (getattr(self, "job_types", []) or []) if str(j).strip().lower() in self._JT_MAP]
         if jt_codes:
-            params["f_JT"] = ",".join(jt_codes)
+            params["f_JT"] = ",".join(dict.fromkeys(jt_codes))
 
         return f"https://www.linkedin.com/jobs/search/?{urllib.parse.urlencode(params)}"
 
