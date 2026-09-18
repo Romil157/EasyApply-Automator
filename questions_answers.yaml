@@ -595,3 +595,152 @@ rules:
       - "(?i)did you submit the google form"
     answer: "{yes}"
 
+
+  # Auto-learned by AI on 2026-09-15 12:10:17
+  - id: ai_its_a_work_from_office_role_are_you
+    match_any:
+      - '(?i)its\ a\ work\ from\ office\ role\.\ are\ you\ based\ out\ of\ bangalore\?'
+    answer: "No"
+
+  # Auto-learned by AI on 2026-09-15 12:37:00
+  - id: ai_how_would_you_rate_your_communicati
+    match_any:
+      - "(?i)how\\ would\\ you\\ rate\\ your\\ communication\\ and\\ articulation\\ skills\\\
+  ?\\ \\(on\\ a\\ scale\\ of\\ 1\u201310\\)"
+    answer: "9"
+
+  # Auto-learned by AI on 2026-09-15 12:37:01
+  - id: ai_how_would_you_rate_your_analytical_
+    match_any:
+      - "(?i)how\\ would\\ you\\ rate\\ your\\ analytical\\ and\\ data\\-handling\\ skills\\\
+  ?\\ \\(on\\ a\\ scale\\ of\\ 1\u201310\\)"
+    answer: "8"
+
+  # Auto-learned by AI on 2026-09-15 12:37:04
+  - id: ai_will_you_be_comfortable_working_fro
+    match_any:
+      - '(?i)will\ you\ be\ comfortable\ working\ from\ office\ based\ in\ south\ delhi\ \(panchsheel\
+  park\)\?\ required\ select\ an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-15 12:37:04
+  - id: ai_our_working_hours_are_11_00_am_to_7
+    match_any:
+      - '(?i)our\ working\ hours\ are\ 11:00\ am\ to\ 7:00\ pm,\ monday\ to\ friday\.\ would\
+  you\ be\ comfortable\ working\ these\ hours\?\ required\ select\ an\ option\ yes\
+  no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-15 12:47:01
+  - id: ai_we_must_fill_this_position_urgently
+    match_any:
+      - '(?i)we\ must\ fill\ this\ position\ urgently\.\ can\ you\ start\ immediately\?\ required\
+  yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-15 12:59:02
+  - id: ai_apply_only_if_you_are_available_for
+    match_any:
+      - '(?i)apply\ only\ if\ you\ are\ available\ for\ an\ on\-site\ setting\?\ the\ location\
+  would\ be\ noida\.\ required\ select\ an\ option\ yes\ no'
+    answer: "No"
+
+  # Auto-learned by AI on 2026-09-15 13:01:26
+  - id: ai_zip_postal_code
+    match_any:
+      - '(?i)zip/postal\ code'
+    answer: "user provided"
+
+  # Auto-learned by AI on 2026-09-15 13:18:05
+  - id: ai_how_many_years_of_marketing_experie
+    match_any:
+      - '(?i)how\ many\ years\ of\ marketing\ experience\ do\ you\ currently\ have\?'
+    answer: "1"
+
+  # Auto-learned by AI on 2026-09-15 13:29:55
+  - id: ai_rate_yourself_in_gsc_skills
+    match_any:
+      - '(?i)rate\ yourself\ in\ gsc\ skills'
+    answer: "3"
+
+  # Auto-learned by AI on 2026-09-15 13:37:39
+  - id: ai_how_many_years_of_manufacturing_exp
+    match_any:
+      - '(?i)how\ many\ years\ of\ manufacturing\ experience\ do\ you\ currently\ have\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-15 13:37:41
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ canva\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-18 12:18:13
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ social\ media\ analysis\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-18 12:18:57
+  - id: ai_byod_do_you_have_your_own_device_to
+    match_any:
+      - '(?i)byod\-\ do\ you\ have\ your\ own\ device\ to\ work\?\ required\ select\ an\ option\
+  yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-18 12:20:07
+  - id: ai_how_many_years_of_advertising_exper
+    match_any:
+      - '(?i)how\ many\ years\ of\ advertising\ experience\ do\ you\ currently\ have\?'
+    answer: "1"
+
+  # Auto-learned by AI on 2026-09-18 12:21:04
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ applied\ research\?'
+    answer: "0.2"
+
+  # Auto-learned by AI on 2026-09-18 12:25:23
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ application\ development\?'
+    answer: "1"
+
+  # Auto-learned by AI on 2026-09-18 12:45:12
+  - id: ai_based_in_maharashtra_required_selec
+    match_any:
+      - '(?i)based\ in\ maharashtra\?\ required\ select\ an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-18 12:45:13
+  - id: ai_stipend_will_be_around_15k_monthly_
+    match_any:
+      - "(?i)stipend\\ will\\ be\\ around\\ \u20B915k\\ monthly\\ \\.\\ does\\ it\\ bother\\\
+  \ you\\?\\ required\\ select\\ an\\ option\\ yes\\ no"
+    answer: "No"
+
+  # Auto-learned by AI on 2026-09-18 12:47:47
+  - id: ai_how_many_months_of_experience_do_yo
+    match_any:
+      - '(?i)how\ many\ months\ of\ experience\ do\ you\ have\ in\ ui/ux\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-18 12:47:49
+  - id: ai_you_ll_be_working_on_wix_studio_dur
+    match_any:
+      - '(?i)you''ll\ be\ working\ on\ wix\ studio\ during\ this\ internship\.\ kindly\ confirm\
+  your\ understanding\.\ required\ select\ an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-18 12:47:51
+  - id: ai_we_must_fill_this_position_urgently
+    match_any:
+      - '(?i)we\ must\ fill\ this\ position\ urgently\.\ can\ you\ start\ from\ monday,\ 21\
+  sep\ 2026\?\ required\ select\ an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-18 13:06:51
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ query\ writing\?'
+    answer: "2"

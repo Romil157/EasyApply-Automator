@@ -485,7 +485,7 @@ class SubmitFlowMixin:
 
         if not flow_ready:
             if mode == "daily_limit":
-                self.bot.request_stop("daily_easy_apply_limit_reached", job_id=str(self.bot.current_job_id or ""))
+                self.bot.request_stop("daily_easy_apply_limit_reached", job_id=self.bot.current_job_id or "")
                 self.bot._dump_failure_snapshot("daily_limit_reached")
                 return None
             retried_ok, retry_mode = self.retry_open_apply_flow()
@@ -494,7 +494,7 @@ class SubmitFlowMixin:
             if not retried_ok:
                 reason = "daily_limit_reached" if retry_mode == "daily_limit" else "apply_flow_not_detected"
                 if retry_mode == "daily_limit":
-                    self.bot.request_stop("daily_easy_apply_limit_reached", job_id=str(self.bot.current_job_id or ""))
+                    self.bot.request_stop("daily_easy_apply_limit_reached", job_id=self.bot.current_job_id or "")
                 self.bot.log_event("easy_apply_flow_stalled", progress=None, loop=loop, reason=reason)
                 self.bot._dump_failure_snapshot(reason)
                 return None
@@ -666,7 +666,7 @@ class SubmitFlowMixin:
         submit_clicked = True
         if bool(getattr(getattr(self.bot, "runtime", None), "dry_run", False)):
             log.info("[DRY RUN] Easy Apply reached submit step - simulation successful.")
-            self.bot.log_event("easy_apply_dry_run_submitted", job_id=str(self.bot.current_job_id or ""), title=self.bot.browser.title)
+            self.bot.log_event("easy_apply_dry_run_submitted", job_id=self.bot.current_job_id or "", title=self.bot.browser.title)
             self.dismiss_easy_apply_modal()
             return True, submit_clicked
 
@@ -784,7 +784,7 @@ class SubmitFlowMixin:
 
         try:
             cv = self.bot.uploads.get("Cover Letter") or self.bot.uploads.get("cover_letter")
-            if cv and str(cv).lower().endswith((".pdf", ".doc", ".docx")):
+            if cv and cv.lower().endswith((".pdf", ".doc", ".docx")):
                 cv_el = self._find_file_input([
                     (By.XPATH, "//*[contains(@id, 'jobs-document-upload-file-input-upload-cover-letter')]"),
                     (By.CSS_SELECTOR, "input[type='file'][id*='upload-cover-letter']"),

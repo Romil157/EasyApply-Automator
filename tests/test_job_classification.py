@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -35,8 +36,8 @@ class DummyOrchestrator:
 
     _normalize_title_text = staticmethod(LinkedInEasyApplyOrchestrator._normalize_title_text)
     _matches_title_keyword = staticmethod(LinkedInEasyApplyOrchestrator._matches_title_keyword)
-    _classify_job = LinkedInEasyApplyOrchestrator._classify_job
-    is_title_blacklisted = LinkedInEasyApplyOrchestrator.is_title_blacklisted
+    _classify_job: Any = LinkedInEasyApplyOrchestrator._classify_job
+    is_title_blacklisted: Any = LinkedInEasyApplyOrchestrator.is_title_blacklisted
 
 
 class TestJobClassification:
@@ -140,7 +141,7 @@ class TestJobClassification:
             "marketing lead",
             "founding",
         ]
-        orchestrator = DummyOrchestrator(blacklist_titles=blacklist)
+        orchestrator: Any = DummyOrchestrator(blacklist_titles=blacklist)
 
         # Should be blocked
         blocked_titles = [

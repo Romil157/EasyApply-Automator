@@ -265,25 +265,25 @@ class SearchLoopMixin:
                 break
 
             if job_ids[job_id] == "To be processed":
-                if str(job_id) in self.appliedJobIDs:
+                if job_id in self.appliedJobIDs:
                     self.log_event(
                         "job_skipped_seen_recently",
-                        job_id=str(job_id),
+                        job_id=job_id,
                         reason="already_in_recent_results",
                     )
                     job_ids[job_id] = "Skipped"
                     continue
 
-                if hasattr(self, "session_failed_ids") and str(job_id) in self.session_failed_ids:
+                if hasattr(self, "session_failed_ids") and job_id in self.session_failed_ids:
                     self.log_event(
                         "job_skipped_seen_recently",
-                        job_id=str(job_id),
+                        job_id=job_id,
                         reason="failed_earlier_in_session",
                     )
                     job_ids[job_id] = "Skipped"
                     continue
 
-                card_title = card_titles.get(str(job_id), "")
+                card_title = card_titles.get(job_id, "")
                 if card_title:
                     # Pre-check blacklist before loading the full job page
                     if hasattr(self, "is_title_blacklisted"):
@@ -295,7 +295,7 @@ class SearchLoopMixin:
                             )
                             self.log_event(
                                 "job_skipped_prefilter",
-                                job_id=str(job_id),
+                                job_id=job_id,
                                 title=card_title,
                                 matched_keyword=keyword,
                             )
@@ -312,7 +312,7 @@ class SearchLoopMixin:
                             )
                             self.log_event(
                                 "job_skipped_not_relevant",
-                                job_id=str(job_id),
+                                job_id=job_id,
                                 title=card_title,
                                 relevance_score=score,
                             )

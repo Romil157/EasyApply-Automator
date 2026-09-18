@@ -70,7 +70,7 @@ class FormFillerMixin:
                     return True
             except Exception:
                 pass
-        return bool(self.bot._safe_click(element))
+        return self.bot._safe_click(element)
 
     def fill_easy_apply_required_fields(self) -> None:
         self.fill_required_radios_from_context()
@@ -123,7 +123,7 @@ class FormFillerMixin:
             for phone_input in phone_inputs:
                 current = (phone_input.get_attribute("value") or "").strip()
                 if not current and self.bot.phone_number:
-                    digits = re.sub(r"[^\d]", "", str(self.bot.phone_number))
+                    digits = re.sub(r"[^\d]", "", self.bot.phone_number)
                     if digits:
                         phone_input.send_keys(digits)
         except Exception as exc:
