@@ -300,11 +300,25 @@ class SubmitFlowMixin:
         except Exception:
             return False
 
+    def _is_similar_jobs_redirect(self) -> bool:
+        try:
+            current_url = (getattr(self.bot.browser, "current_url", "") or "").lower()
+            page_title = (getattr(self.bot.browser, "title", "") or "").lower()
+            if "similar-jobs" in current_url or "/jobs/collections/" in current_url:
+                return True
+            if re.search(r"\bsimilar\s+jobs\b", page_title, re.IGNORECASE):
+                return True
+        except Exception:
+            pass
+        return False
+
     def wait_for_apply_flow_ready(self, timeout_seconds: float = 8.0) -> tuple[bool, str]:
         end = time.time() + timeout_seconds
         while time.time() < end:
             if self._is_external_redirect():
                 return False, "external_redirect"
+            if self._is_similar_jobs_redirect():
+                return False, "similar_jobs_redirect"
             limit_reached, _ = self.detect_daily_easy_apply_limit()
             if limit_reached:
                 return False, "daily_limit"
@@ -318,6 +332,8 @@ class SubmitFlowMixin:
         return False, "timeout"
 
     def retry_open_apply_flow(self) -> tuple[bool, str]:
+        if self._is_similar_jobs_redirect():
+            return False, "similar_jobs_redirect"
         current_job_id = getattr(self.bot, "current_job_id", "") or ""
         if current_job_id:
             direct_url = f"https://www.linkedin.com/jobs/view/{current_job_id}/apply/"
@@ -326,6 +342,8 @@ class SubmitFlowMixin:
                 ready, mode = self.wait_for_apply_flow_ready(timeout_seconds=4.0)
                 if ready:
                     return True, f"retry_direct_apply_url_{mode}"
+                if mode == "similar_jobs_redirect":
+                    return False, "similar_jobs_redirect"
             except Exception as exc:
                 log.debug(f"Direct apply URL fallback error: {exc}")
 
@@ -335,6 +353,8 @@ class SubmitFlowMixin:
             ready, mode = self.wait_for_apply_flow_ready(timeout_seconds=4.0)
             if ready:
                 return True, f"button_reclick_{mode}"
+            if mode == "similar_jobs_redirect":
+                return False, "similar_jobs_redirect"
 
         return False, "retry_failed"
 
@@ -488,10 +508,14 @@ class SubmitFlowMixin:
                 self.bot.request_stop("daily_easy_apply_limit_reached", job_id=self.bot.current_job_id or "")
                 self.bot._dump_failure_snapshot("daily_limit_reached")
                 return None
+            if mode == "similar_jobs_redirect":
+                return None
             retried_ok, retry_mode = self.retry_open_apply_flow()
             self.bot.log_event("easy_apply_flow_retry", success=retried_ok, mode=retry_mode)
             self.bot._dump_debug_html("easy_apply_flow_retry", extra={"success": retried_ok, "mode": retry_mode})
             if not retried_ok:
+                if retry_mode == "similar_jobs_redirect":
+                    return None
                 reason = "daily_limit_reached" if retry_mode == "daily_limit" else "apply_flow_not_detected"
                 if retry_mode == "daily_limit":
                     self.bot.request_stop("daily_easy_apply_limit_reached", job_id=self.bot.current_job_id or "")

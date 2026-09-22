@@ -38,6 +38,7 @@ class DummyOrchestrator:
     _matches_title_keyword = staticmethod(LinkedInEasyApplyOrchestrator._matches_title_keyword)
     _classify_job: Any = LinkedInEasyApplyOrchestrator._classify_job
     is_title_blacklisted: Any = LinkedInEasyApplyOrchestrator.is_title_blacklisted
+    _is_similar_jobs_redirect: Any = LinkedInEasyApplyOrchestrator._is_similar_jobs_redirect
 
 
 class TestJobClassification:
@@ -186,3 +187,56 @@ class TestJobClassification:
             "aria-label": "How many years of Python experience do you have?",
         }.get(attr, "")
         assert FormFillerMixin._is_global_search_element(form_input) is False
+
+    def test_is_similar_jobs_redirect_variations(self):
+        orchestrator: Any = DummyOrchestrator()
+
+        # Variations of page titles with notification badges
+        for title in [
+            "Similar Jobs | LinkedIn",
+            "(1) Similar Jobs | LinkedIn",
+            "(2) Similar Jobs | LinkedIn",
+            "(99+) Similar Jobs | LinkedIn",
+            "Similar Jobs",
+        ]:
+            orchestrator.browser.title = title
+            orchestrator.browser.current_url = "https://www.linkedin.com/jobs/view/12345/"
+            assert orchestrator._is_similar_jobs_redirect() is True
+
+        # Variations of URLs
+        orchestrator.browser.title = "Machine Learning Engineer | Tech | LinkedIn"
+        for url in [
+            "https://www.linkedin.com/jobs/collections/similar-jobs/?currentJobId=4469831842",
+            "https://www.linkedin.com/jobs/similar-jobs/?currentJobId=123",
+            "https://www.linkedin.com/jobs/collections/recommended/",
+        ]:
+            orchestrator.browser.current_url = url
+            assert orchestrator._is_similar_jobs_redirect() is True
+
+        # Normal job page should NOT be considered redirect
+        orchestrator.browser.title = "Software Engineer | Google | LinkedIn"
+        orchestrator.browser.current_url = "https://www.linkedin.com/jobs/view/12345/"
+        assert orchestrator._is_similar_jobs_redirect() is False
+
+    def test_classify_job_similar_jobs_after_send_resume(self):
+        orchestrator: Any = DummyOrchestrator()
+        orchestrator.browser.title = "Machine Learning Engineer | Tech | LinkedIn"
+        orchestrator.browser.current_url = "https://www.linkedin.com/jobs/view/12345/"
+
+        btn = MagicMock()
+        orchestrator._click_easy_apply = MagicMock()
+        orchestrator._dump_debug_html = MagicMock()
+        orchestrator._human_sleep = MagicMock()
+        orchestrator.fill_out_fields = MagicMock()
+
+        def fake_send_resume():
+            orchestrator.browser.title = "(1) Similar Jobs | LinkedIn"
+            orchestrator.browser.current_url = "https://www.linkedin.com/jobs/collections/similar-jobs/?currentJobId=999"
+            return False
+
+        orchestrator.send_resume = MagicMock(side_effect=fake_send_resume)
+
+        result, reason, text = orchestrator._classify_job("12345", btn)
+        assert result is False
+        assert reason == "similar_jobs_redirect"
+        assert text == "* Redirected to Similar Jobs"

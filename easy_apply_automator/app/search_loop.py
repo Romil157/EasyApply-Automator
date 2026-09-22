@@ -229,6 +229,7 @@ class SearchLoopMixin:
                             job_id = link_el[0].get_attribute("data-job-id")
                     if not job_id or str(job_id) in titles:
                         continue
+                    card_title = ""
                     for sel in (
                         "a.job-card-list__title",
                         "a.job-card-container__link",
@@ -239,10 +240,28 @@ class SearchLoopMixin:
                             el = card.find_element(By.CSS_SELECTOR, sel)
                             text = (el.text or "").strip()
                             if text and len(text) > 2:
-                                titles[str(job_id)] = text
+                                card_title = text
                                 break
                         except Exception:
                             continue
+
+                    if card_title:
+                        company = ""
+                        for comp_sel in (
+                            ".job-card-container__primary-description",
+                            ".artdeco-entity-lockup__subtitle",
+                            ".job-card-list__company-name",
+                            ".job-card-container__company-name",
+                        ):
+                            try:
+                                c_el = card.find_element(By.CSS_SELECTOR, comp_sel)
+                                c_text = (c_el.text or "").strip()
+                                if c_text:
+                                    company = c_text
+                                    break
+                            except Exception:
+                                continue
+                        titles[str(job_id)] = f"{card_title} | {company}" if company else card_title
                 except Exception:
                     continue
         except Exception as exc:
@@ -303,9 +322,10 @@ class SearchLoopMixin:
                             continue
 
                     # Pre-check relevance score before loading page
+                    role_title = card_title.split(" | ")[0] if " | " in card_title else card_title
                     if hasattr(self, "relevance_scorer") and self.relevance_scorer is not None:
-                        if not self.relevance_scorer.is_relevant(card_title):
-                            score = self.relevance_scorer.score(card_title)
+                        if not self.relevance_scorer.is_relevant(role_title):
+                            score = self.relevance_scorer.score(role_title)
                             log.info(
                                 f"Pre-filter skipping job {job_id} ('{card_title}'): "
                                 f"low relevance score ({score:.2f})."
@@ -320,11 +340,24 @@ class SearchLoopMixin:
                             continue
 
                 applied = self.apply_to_job(job_id)
+                last_reason = getattr(self, "last_job_reason", None)
                 if applied:
                     log.info(f"Applied to {job_id}")
+                    job_ids[job_id] = "Applied"
+                elif last_reason in (
+                    "similar_jobs_redirect",
+                    "title_blacklisted",
+                    "blacklisted_title",
+                    "not_relevant",
+                    "medical_related_title",
+                    "already_applied",
+                    "experience_level_mismatch",
+                ):
+                    log.info(f"Skipped {job_id} ({last_reason})")
+                    job_ids[job_id] = "Skipped"
                 else:
                     log.info(f"Failed to apply to {job_id}")
-                job_ids[job_id] = "Applied" if applied else "Failed"
+                    job_ids[job_id] = "Failed"
                 if self.stop_requested or time.time() >= self.session_deadline:
                     break
 

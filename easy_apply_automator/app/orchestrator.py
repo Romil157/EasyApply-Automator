@@ -363,6 +363,18 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         log.info("=" * 60)
         log.info("")
 
+    def _is_similar_jobs_redirect(self) -> bool:
+        try:
+            current_url = (getattr(self.browser, "current_url", "") or "").lower()
+            page_title = (getattr(self.browser, "title", "") or "").lower()
+            if "similar-jobs" in current_url or "/jobs/collections/" in current_url:
+                return True
+            if re.search(r"\bsimilar\s+jobs\b", page_title, re.IGNORECASE):
+                return True
+        except Exception:
+            pass
+        return False
+
     def apply_to_job(self, job_id: str) -> bool:
         self._start_job_debug_trace(job_id)
         self._dump_debug_html("job_open_start")
@@ -377,11 +389,9 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             self._finish_job_debug_trace()
             return False
 
-        current_url = (self.browser.current_url or "").lower()
-        page_title = (self.browser.title or "").lower()
-        if "similar-jobs" in current_url or "/jobs/collections/" in current_url or page_title.startswith("similar jobs"):
+        if self._is_similar_jobs_redirect():
             log.info(f"Skipping job {job_id}: redirected to similar jobs collection.")
-            self.log_event("job_skipped_similar_jobs_redirect", job_id=job_id, url=current_url, title=self.browser.title)
+            self.log_event("job_skipped_similar_jobs_redirect", job_id=job_id, url=self.browser.current_url, title=self.browser.title)
             self._finish_job_debug_trace()
             return self._record_job_result(job_id, False, False, "similar_jobs_redirect", "* Redirected to Similar Jobs")
 
@@ -428,11 +438,9 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         return False, None
 
     def _classify_job(self, job_id: str, button) -> tuple[bool, str, str]:
-        current_url = (self.browser.current_url or "").lower()
-        page_title = (self.browser.title or "").lower()
-        if "similar-jobs" in current_url or "/jobs/collections/" in current_url or page_title.startswith("similar jobs"):
+        if self._is_similar_jobs_redirect():
             log.info(f"Skipping job {job_id}: redirected to similar jobs collection.")
-            self.log_event("job_skipped_similar_jobs_redirect", job_id=job_id, url=current_url, title=self.browser.title)
+            self.log_event("job_skipped_similar_jobs_redirect", job_id=job_id, url=self.browser.current_url, title=self.browser.title)
             return False, "similar_jobs_redirect", "* Redirected to Similar Jobs"
 
         if button is not False:
@@ -477,6 +485,10 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 return True, "submitted", "*Applied: Sent Resume"
             if self.stop_requested and self.stop_reason == "daily_easy_apply_limit_reached":
                 return False, "daily_limit_reached", "*Stopped: LinkedIn Easy Apply daily limit reached"
+            if self._is_similar_jobs_redirect():
+                log.info(f"Skipping job {job_id}: redirected to similar jobs collection during apply flow.")
+                self.log_event("job_skipped_similar_jobs_redirect", job_id=job_id, url=self.browser.current_url, title=self.browser.title)
+                return False, "similar_jobs_redirect", "* Redirected to Similar Jobs"
 
             try:
                 if "linkedin.com" not in (self.browser.current_url or "").lower():
@@ -495,6 +507,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
 
     def _record_job_result(self, job_id: str, button, result: bool, reason: str, string_easy: str) -> bool:
         log.info(f"\nPosition {job_id}:\n {self.browser.title} \n {string_easy} \n")
+        self.last_job_reason = reason
         metadata = self._extract_job_metadata(job_id=job_id)
         self.log_event("job_processed", attempted=bool(button), result=result, reason=reason, easy_apply_button=bool(button), **metadata)
         self.write_to_file(button, job_id, self.browser.title, result, metadata, reason)
@@ -503,14 +516,29 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         if result:
             if hasattr(self, "circuit_breaker"):
                 self.circuit_breaker.record_success()
-        elif bool(button) and reason not in ("medical_related_title", "blacklisted_title", "blacklisted_company"):
+        elif bool(button) and reason not in (
+            "medical_related_title",
+            "blacklisted_title",
+            "title_blacklisted",
+            "blacklisted_company",
+            "similar_jobs_redirect",
+            "not_relevant",
+            "already_applied",
+        ):
             if hasattr(self, "circuit_breaker") and self.circuit_breaker.record_failure():
                 cooldown = self.circuit_breaker.cooldown_seconds
                 log.warning(f"Circuit breaker triggered. Anti-detection cooldown {cooldown}s...")
                 self.log_event("circuit_breaker_cooldown", duration_seconds=cooldown)
                 time.sleep(cooldown)
 
-        if not result and reason != "daily_limit_reached":
+        if not result and reason not in (
+            "daily_limit_reached",
+            "similar_jobs_redirect",
+            "title_blacklisted",
+            "blacklisted_title",
+            "not_relevant",
+            "already_applied",
+        ):
             self._dump_failure_snapshot(f"job_result_{reason}", force_failed_root=(reason == "medical_related_title"))
         self._finish_job_debug_trace()
         return result

@@ -744,3 +744,170 @@ rules:
     match_any:
       - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ query\ writing\?'
     answer: "2"
+
+  # Auto-learned by AI on 2026-09-18 19:33:47
+  - id: ai_postal_code
+    match_any:
+      - '(?i)postal\ code'
+    answer: "user provided"
+
+  # Auto-learned by AI on 2026-09-18 19:34:44
+  - id: ai_what_is_your_level_of_english_requi
+    match_any:
+      - '(?i)what\ is\ your\ level\ of\ english\?\ required\ select\ an\ option\ native\ professional\
+  proficiency\ basic\ no\ knowledge'
+    answer: "professional proficiency"
+
+  # Auto-learned by AI on 2026-09-18 19:34:46
+  - id: ai_how_many_years_of_experience_do_you
+    match_any:
+      - '(?i)how\ many\ years\ of\ experience\ do\ you\ have\?\ required\ select\ an\ option\
+  less\ than\ 3\ years\ 3\ to\ 6\ years\ more\ than\ 6\ years'
+    answer: "less than 3 years"
+
+  # Auto-learned by AI on 2026-09-18 19:34:47
+  - id: ai_what_did_you_do_during_your_last_pr
+    match_any:
+      - '(?i)what\ did\ you\ do\ during\ your\ last\ professionnal\ experience\?\ 0/1,440\
+  1440\ maximum\ characters\ allowed\.'
+    answer: "I revamped and maintained the company website, improving user experience across key\
+  \ pages, and supported business development through lead generation and client outreach,\
+  \ helping convert leads into opportunities while ensuring the site aligned with\
+  \ branding standards."
+
+  # Auto-learned by AI on 2026-09-18 19:34:49
+  - id: ai_specify_previous_experiences_releva
+    match_any:
+      - '(?i)specify\ previous\ experiences\ relevant\ for\ the\ position\ you\ are\ applying\
+  to\ 0/1,440\ 1440\ maximum\ characters\ allowed\.'
+    answer: "I have built AI-driven solutions such as the Sentinel Verify SaaS platform, which\
+  \ uses machine-learning and NLP pipelines to detect phishing and fraud in real time,\
+  \ and a terminal-based AI support triage agent created during the HackerRank Orchestrate\
+  \ Hackathon that integrates LLMs for ticket classification and retrieval-augmented\
+  \ generation. Additionally, my work as a Generative AI Engineer at Sia and my full-stack\
+  \ experience with Flask, FastAPI, and JavaScript enable me to design, implement,\
+  \ and deploy end-to-end generative AI applications."
+
+  - id: years_experience_nosql
+    match_any:
+      - '(?i)(years.*(experience|work).*nosql|nosql.*years)'
+    answer: "1"
+
+  - id: years_experience_databases
+    match_any:
+      - '(?i)(years.*(experience|work).*database|database.*years)'
+    answer: "1"
+
+  - id: years_experience_engineering
+    match_any:
+      - '(?i)(years.*engineering.*experience|engineering\s+experience.*years)'
+    answer: "1"
+
+  - id: location_currently_in_mumbai
+    match_any:
+      - '(?i)currently\s+in\s+mumbai'
+    answer: "Yes"
+
+  - id: years_experience_rest_api
+    match_any:
+      - '(?i)(years.*(experience|work).*(representational\s+state\s+transfer|\brest\b|\brestful\b)|(\brest\b|\brestful\b).*years)'
+    answer: "1"
+
+  - id: years_experience_django
+    match_any:
+      - '(?i)(years.*(experience|work).*django|django.*years)'
+    answer: "1"
+
+  - id: years_experience_tensorflow
+    match_any:
+      - '(?i)(years.*(experience|work).*tensorflow|tensorflow.*years)'
+    answer: "1"
+
+  - id: years_experience_stl
+    match_any:
+      - '(?i)(years.*(experience|work).*\bstl\b|\bstl\b.*years)'
+    answer: "1"
+
+  - id: years_experience_cpp
+    match_any:
+      - '(?i)(years.*(experience|work).*(c\+\+|cpp)|(c\+\+|cpp).*years)'
+    answer: "1"
+
+
+  # Auto-learned by AI on 2026-09-22 11:23:00
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ java\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-22 11:41:42
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ snowflake\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-22 11:45:37
+  - id: ai_i_hope_you_are_aware_this_is_an_int
+    match_any:
+      - '(?i)i\ hope\ you\ are\ aware\ this\ is\ an\ internship\ is\ for\ 3\-6\ months\?\
+  required\ select\ an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-22 11:50:43
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ azure\ data\ factory\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-22 11:55:00
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ commerce\?'
+    answer: "1"
+
+  # Auto-learned by AI on 2026-09-22 11:55:04
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ communication\?'
+    answer: "2"
+
+  # Auto-learned by AI on 2026-09-22 11:58:14
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ software\ as\ a\
+  service\ \(saas\)\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-22 12:00:17
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ google\ sheets\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-22 12:06:32
+  - id: ai_this_requirement_requires_you_to_ca
+    match_any:
+      - '(?i)this\ requirement\ requires\ you\ to\ carry\ your\ own\ laptop\.\ will\ you\
+  be\ able\ to\ carry\ your\ own\ device\?\ required\ select\ an\ option\ yes\ no'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-09-22 12:11:25
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ adobe\ creative\
+  suite\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-09-22 12:12:21
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ windows\?'
+    answer: "1"
+
+  # Auto-learned by AI on 2026-09-22 12:15:30
+  - id: ai_this_role_focuses_on_bulk_hiring_fo
+    match_any:
+      - '(?i)this\ role\ focuses\ on\ bulk\ hiring\ for\ sales\ profiles\ across\ us\ involving\
+  heavy\ calling\.\ are\ you\ comfortable\ with\ that\?\ required\ select\ an\ option\
+  yes\ no'
+    answer: "Yes"
