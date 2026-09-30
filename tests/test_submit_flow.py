@@ -223,3 +223,69 @@ class TestFixesForSubmitFlowAndSearchPaginationLeak:
         assert any("openSDUIApplyFlow" in s for s in selector_strings)
 
 
+class TestSubmitConfirmationClosedModal:
+    def test_detect_easy_apply_state_returns_done_when_page_displays_application_submitted(self):
+        # Scenario from job 4471456551: modal closed, page source has "Application status Application submitted now"
+        svc = _make_submit_flow_service(
+            page_source="<main><div>Application status Application submitted now</div></main>",
+            modal=None,
+        )
+        svc.bot.browser.current_url = "https://www.linkedin.com/jobs/view/4471456551/"
+        state, details = svc.detect_easy_apply_state()
+        assert state == "done"
+        assert details["is_confirmation"] is True
+
+
+class TestStalledStepFastFail:
+    def test_handle_stalled_step_breaks_after_multiple_unchanged_loops(self):
+        svc = _make_submit_flow_service()
+        svc.collect_apply_stall_diagnostics = MagicMock(return_value={
+            "validation_errors": ["This field is required"],
+            "required_empty_count": 0,
+            "unanswered_radios_count": 1,
+        })
+        svc.recover_validation_blockers = MagicMock(return_value=0)
+
+        # Attempt 1: recovery attempted, does not break yet
+        should_break, rec_attempts, unchanged, last_t = svc._handle_stalled_step(
+            state="review", progress=None, loop=5, recovery_attempts=0, unchanged_loops=3, last_transition=100.0
+        )
+        assert should_break is False
+
+        # Attempt 2: unchanged_loops >= 4 and recovery failed to clear it -> fast-fail!
+        should_break, rec_attempts, unchanged, last_t = svc._handle_stalled_step(
+            state="review", progress=None, loop=6, recovery_attempts=1, unchanged_loops=4, last_transition=100.0
+        )
+        assert should_break is True
+
+
+class TestCollectApplyStallDiagnostics:
+    def test_diagnostics_detects_unanswered_radios_and_sdui_errors(self):
+        svc = _make_submit_flow_service()
+        rg_mock = MagicMock()
+        rg_mock.is_displayed.return_value = True
+
+        r1 = MagicMock()
+        r1.is_selected.return_value = False
+        r1.get_attribute.return_value = "false"
+        rg_mock.find_elements.return_value = [r1]
+
+        err_mock = MagicMock()
+        err_mock.is_displayed.return_value = True
+        err_mock.text = "Please answer this question"
+
+        def browser_find_elements(by, sel):
+            if "role='radiogroup'" in sel:
+                return [rg_mock]
+            if "error-message" in sel or "alert" in sel:
+                return [err_mock]
+            return []
+
+        svc.bot.browser.find_elements.side_effect = browser_find_elements
+        diag = svc.collect_apply_stall_diagnostics(state="review", progress=None, loop=3)
+
+        assert diag["unanswered_radios_count"] == 1
+        assert "Please answer this question" in diag["validation_errors"]
+
+
+

@@ -212,61 +212,111 @@ class SearchLoopMixin:
 
         return job_ids
 
+    def _extract_title_from_card(self, card) -> str:
+        card_title = ""
+        for sel in (
+            "a.job-card-list__title",
+            "a.job-card-container__link",
+            ".job-card-list__title--link",
+            "strong",
+        ):
+            try:
+                el = card.find_element(By.CSS_SELECTOR, sel)
+                text = (el.text or "").strip()
+                if text and len(text) > 2:
+                    card_title = text
+                    break
+            except Exception:
+                continue
+
+        if not card_title:
+            return ""
+
+        company = ""
+        for comp_sel in (
+            ".job-card-container__primary-description",
+            ".artdeco-entity-lockup__subtitle",
+            ".job-card-list__company-name",
+            ".job-card-container__company-name",
+        ):
+            try:
+                c_el = card.find_element(By.CSS_SELECTOR, comp_sel)
+                c_text = (c_el.text or "").strip()
+                if c_text:
+                    company = c_text
+                    break
+            except Exception:
+                continue
+        return f"{card_title} | {company}" if (company and company != card_title) else card_title
+
     def _extract_card_titles(self) -> dict[str, str]:
         """Extract mapping of job_id -> title from visible search result cards."""
         titles: dict[str, str] = {}
         try:
             cards = self.browser.find_elements(
                 By.CSS_SELECTOR,
-                "li.jobs-search-results__list-item, div.job-card-container, div[data-job-id]",
+                "li.jobs-search-results__list-item, div.job-card-container, div[data-job-id], [data-occludable-job-id]",
             )
             for card in cards:
                 try:
-                    job_id = card.get_attribute("data-job-id")
-                    if not job_id:
-                        link_el = card.find_elements(By.CSS_SELECTOR, "a[data-job-id]")
+                    job_id = (
+                        card.get_attribute("data-job-id")
+                        or card.get_attribute("data-occludable-job-id")
+                        or card.get_attribute("data-entity-urn")
+                        or ""
+                    ).strip()
+                    if not job_id or not job_id.isdigit():
+                        link_el = card.find_elements(
+                            By.CSS_SELECTOR, "a[data-job-id], a[href*='/jobs/view/']"
+                        )
                         if link_el:
-                            job_id = link_el[0].get_attribute("data-job-id")
-                    if not job_id or str(job_id) in titles:
+                            sub_jid = link_el[0].get_attribute("data-job-id") or ""
+                            if sub_jid and sub_jid.isdigit():
+                                job_id = sub_jid
+                            else:
+                                href = link_el[0].get_attribute("href") or ""
+                                m = re.search(r"/jobs/view/(\d+)", href)
+                                if m:
+                                    job_id = m.group(1)
+                    if not job_id or not job_id.isdigit() or str(job_id) in titles:
                         continue
-                    card_title = ""
-                    for sel in (
-                        "a.job-card-list__title",
-                        "a.job-card-container__link",
-                        ".job-card-list__title--link",
-                        "strong",
-                    ):
-                        try:
-                            el = card.find_element(By.CSS_SELECTOR, sel)
-                            text = (el.text or "").strip()
-                            if text and len(text) > 2:
-                                card_title = text
-                                break
-                        except Exception:
-                            continue
-
+                    card_title = self._extract_title_from_card(card)
                     if card_title:
-                        company = ""
-                        for comp_sel in (
-                            ".job-card-container__primary-description",
-                            ".artdeco-entity-lockup__subtitle",
-                            ".job-card-list__company-name",
-                            ".job-card-container__company-name",
-                        ):
-                            try:
-                                c_el = card.find_element(By.CSS_SELECTOR, comp_sel)
-                                c_text = (c_el.text or "").strip()
-                                if c_text:
-                                    company = c_text
-                                    break
-                            except Exception:
-                                continue
-                        titles[str(job_id)] = f"{card_title} | {company}" if company else card_title
+                        titles[str(job_id)] = card_title
                 except Exception:
                     continue
         except Exception as exc:
             log.debug(f"Failed to extract card titles from search page: {exc}")
         return titles
+
+    def _lookup_card_title(self, job_id: str) -> str:
+        """Attempt to find title for a specific job_id on the search results page."""
+        try:
+            selectors = [
+                f"[data-job-id='{job_id}']",
+                f"[data-occludable-job-id='{job_id}']",
+                f"a[data-job-id='{job_id}']",
+                f"a[href*='/jobs/view/{job_id}']",
+            ]
+            for sel in selectors:
+                elements = self.browser.find_elements(By.CSS_SELECTOR, sel)
+                for el in elements:
+                    card = el
+                    try:
+                        parent = el.find_element(
+                            By.XPATH,
+                            "./ancestor-or-self::*[contains(@class, 'job-card') or contains(@class, 'jobs-search-results__list-item')][1]",
+                        )
+                        if parent:
+                            card = parent
+                    except Exception:
+                        pass
+                    title = self._extract_title_from_card(card)
+                    if title:
+                        return title
+        except Exception:
+            pass
+        return ""
 
     def apply_loop(self, job_ids: dict[str, str]) -> None:
         card_titles = self._extract_card_titles()
@@ -303,6 +353,10 @@ class SearchLoopMixin:
                     continue
 
                 card_title = card_titles.get(job_id, "")
+                if not card_title:
+                    card_title = self._lookup_card_title(job_id)
+                    if card_title:
+                        card_titles[job_id] = card_title
                 if card_title:
                     # Pre-check blacklist before loading the full job page
                     if hasattr(self, "is_title_blacklisted"):

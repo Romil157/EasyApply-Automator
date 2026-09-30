@@ -251,6 +251,10 @@ blacklist_titles:
   - "taxation"
   - "audit intern"
   - "bookkeeper"
+  - "accounts receivable"
+  - "accounts payable"
+  - "company secretary"
+  - "secretary"
   - "legal intern"
   - "law intern"
   - "paralegal"
@@ -266,6 +270,11 @@ blacklist_titles:
 
   # Operations, Supply Chain & Logistics
   - "operations intern"
+  - "academic operations"
+  - "curriculum"
+  - "menu & operations"
+  - "menu and operations"
+  - "management intern"
   - "supply chain"
   - "logistics"
   - "procurement"

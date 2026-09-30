@@ -98,11 +98,14 @@ class TestQuestionServiceLogic:
         assert service.compose_long_form_answer("Random question") == "Custom default text"
 
     def test_humanize_free_text_answer(self, service):
-        # Placeholder handling
-        assert (
-            service.humanize_free_text_answer("Question", "n/a", "text")
-            == "I enjoy solving practical engineering problems with clear user impact, and I value collaboration, ownership, and continuous improvement in how software is built and operated."
+        # Placeholder handling: textareas get composed long-form answer; text inputs do not
+        assert "excited about this role" in service.humanize_free_text_answer(
+            "Question", "n/a", "textarea"
         )
+        assert service.humanize_free_text_answer("Middle name", "n/a", "text") == ""
+        assert service.humanize_free_text_answer("Postal code", "user provided", "text") == ""
+        assert service.humanize_free_text_answer("Company", "user provided", "text") == "Student"
+        assert service.humanize_free_text_answer("Your title", "user provided", "text") == "Software Engineering Intern"
 
         # Long form prompt triggering
         assert "mission resonates" in service.humanize_free_text_answer(

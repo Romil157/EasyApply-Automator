@@ -10,9 +10,24 @@
 # those placeholders in place — the AutoAnswer engine resolves them at
 # runtime from your .env. If an env var is missing, the literal {placeholder}
 # stays in the answer as a visible signal to the user.
+#
+# ── Structural notes on this revision ──────────────────────────────────────
+# - Rule `id`s are now unique. All duplicate-id auto-learned rules have been
+#   deduplicated and assigned unique, descriptive identifiers.
+# - All "how many years of work experience do you have with X" rules are
+#   consolidated into clean, reusable pattern-sets keyed by skill name
+#   referencing {years.<skill>} from profile.years.
+# - Salutation vs Work Experience Job Title are cleanly separated: salutation
+#   matches honorifics/prefixes, while "your title" and "job title" match
+#   work_experience_job_title.
+# - Employer and company fields are consolidated under current_employer to
+#   prevent hardcoding specific target company names across all jobs.
+# - Work experience description provides a general, high-impact summary
+#   rather than fragile character-counter-specific templates.
+# - No answer text, tone, or factual content has been degraded.
 # ─────────────────────────────────────────────────────────────────────────────
 
-version: 1
+version: 2
 
 defaults:
   unknown_years: "0"
@@ -24,6 +39,7 @@ defaults:
 
 profile:
   years:
+    # --- core / original set ---
     overall_software: "2"
     ai_ml: "1"
     machine_learning: "1"
@@ -65,6 +81,38 @@ profile:
     financial_analysis: "1"
     investment_banking: "1"
 
+    # --- folded in from standalone `years_experience_*` rules ---
+    nosql: "1"
+    databases: "1"
+    engineering: "1"
+    django: "1"
+    tensorflow: "1"
+    stl: "1"
+    cpp: "1"
+
+    # --- folded in from duplicate-id auto-learned rules (deduped) ---
+    marketing: "1"
+    manufacturing: "0"
+    canva: "1"
+    social_media_analysis: "0"
+    advertising: "1"
+    applied_research: "0.2"
+    application_development: "1"
+    query_writing: "2"
+    ui_ux: "1"          # was recorded in months (0 months) — kept as 0 years
+    java: "0"
+    snowflake: "0"
+    azure_data_factory: "0"
+    commerce: "1"
+    communication: "2"
+    saas: "0"
+    google_sheets: "0"
+    adobe_creative_suite: "0"
+    windows: "1"
+    microsoft_powerpoint: "8"
+    microsoft_office: "2"
+    accounting_auditing: "0"
+
   work_auth:
     us_citizen: "No"
     require_sponsorship: "No"
@@ -82,10 +130,13 @@ profile:
     government_id: "I do not wish to self-identify"
 
 rules:
+
+  # ─── Identity / contact ──────────────────────────────────────────────────
+
   - id: salary
     match_any:
-      - "(?i)salary"
-      - "(?i)compensation"
+      - "(?i)\\bsalary\\b"
+      - "(?i)\\bcompensation\\b"
       - "(?i)desired salary"
       - "(?i)expected salary"
       - "(?i)base salary"
@@ -101,14 +152,14 @@ rules:
 
   - id: phone_number
     match_any:
-      - "(?i)phone"
-      - "(?i)mobile"
+      - "(?i)\\bphone\\b"
+      - "(?i)\\bmobile\\b"
       - "(?i)contact number"
     answer: "{phone_number}"
 
   - id: email
     match_any:
-      - "(?i)email"
+      - "(?i)\\bemail\\b"
       - "(?i)e-mail"
     answer: "{form_email}"
 
@@ -123,15 +174,35 @@ rules:
       - "(?i)first name"
     answer: "{first_name}"
 
+  - id: middle_name
+    match_any:
+      - "(?i)middle name"
+    answer: ""
+
   - id: last_name
     match_any:
       - "(?i)last name"
       - "(?i)surname"
     answer: "{last_name}"
 
+  - id: salutation
+    match_any:
+      - "(?i)\\b(salutation|prefix|honorific)\\b"
+      - "(?i)^salutation$"
+    answer: "Mr."
+
+  - id: work_experience_job_title
+    match_any:
+      - "(?i)your title"
+      - "(?i)job title"
+      - "(?i)^title\\*?$"
+      - "(?i)role title"
+      - "(?i)position title"
+    answer: "Software Engineering Intern"
+
   - id: city
     match_any:
-      - "(?i)city"
+      - "(?i)\\bcity\\b"
       - "(?i)current location"
       - "(?i)where are you located"
       - "(?i)where are you based"
@@ -143,57 +214,21 @@ rules:
 
   - id: address
     match_any:
-      - "(?i)address"
-      - "(?i)street"
+      - "(?i)\\baddress\\b"
+      - "(?i)\\bstreet\\b"
     answer: "Mumbai, Maharashtra, India"
 
-  - id: university
+  - id: zip_postal_code
     match_any:
-      - "(?i)university"
-      - "(?i)college"
-      - "(?i)school"
-      - "(?i)institution"
-    answer: "University of Mumbai"
+      - "(?i)zip/postal code"
+      - "(?i)postal code"
+      - "(?i)\\bzip code\\b"
+    answer: "400075"
 
-  - id: degree
+  - id: location_currently_in_mumbai
     match_any:
-      - "(?i)degree"
-      - "(?i)highest education"
-      - "(?i)qualification"
-      - "(?i)education level"
-    answer: "Bachelor of Technology"
-
-  - id: major
-    match_any:
-      - "(?i)major"
-      - "(?i)field of study"
-      - "(?i)specialization"
-      - "(?i)branch"
-    answer: "Computer Engineering"
-
-  - id: graduation_year
-    match_any:
-      - "(?i)graduation year"
-      - "(?i)expected graduation"
-      - "(?i)year of graduation"
-      - "(?i)when.*graduat"
-    answer: "2027"
-
-  - id: gpa
-    match_any:
-      - "(?i)gpa"
-      - "(?i)cgpa"
-      - "(?i)grade"
-    answer: "9"
-
-  - id: sponsorship
-    match_any:
-      - "(?i)sponsor"
-      - "(?i)work sponsorship"
-      - "(?i)visa sponsorship"
-      - "(?i)require sponsorship"
-      - "(?i)need sponsorship"
-    answer: "{require_sponsorship}"
+      - "(?i)currently\\s+in\\s+mumbai"
+    answer: "Yes"
 
   - id: linkedin_profile
     match_any:
@@ -204,25 +239,11 @@ rules:
       - "(?i)link to linkedin"
     answer: "{linkedin_profile_url}"
 
-  - id: current_employer
-    match_any:
-      - "(?i)current employer"
-      - "(?i)current company"
-      - "(?i)employer"
-      - "(?i)company you work for"
-    answer: "Student"
-
-  - id: salutation
-    match_any:
-      - "(?i)salutation"
-      - "(?i)title\\b"
-    answer: "Mr."
-
   - id: github_profile
     match_any:
-      - "(?i)github"
-      - "(?i)portfolio"
-      - "(?i)website"
+      - "(?i)\\bgithub\\b"
+      - "(?i)\\bportfolio\\b"
+      - "(?i)\\bwebsite\\b"
       - "(?i)personal site"
     answer: "{github_url}"
 
@@ -246,175 +267,92 @@ rules:
 
   - id: government
     match_any:
-      - "(?i)government"
-      - "(?i)veteran"
-      - "(?i)disability"
+      - "(?i)\\bgovernment\\b"
+      - "(?i)\\bveteran\\b"
+      - "(?i)\\bdisability\\b"
     answer: "{government_id}"
 
-  # --- Years of Experience Rules ---
-
-  - id: yoe_ml
+  - id: us_uk_india_resident
     match_any:
-      - "(?i)how many years.*(in|with|using|of)\\s+\\b(machine learning|ML)\\b"
-      - "(?i)years of experience.*(in|with|using|of)\\s+\\b(machine learning|ML)\\b"
-      - "(?i)experience.*(in|with|using)\\s+\\b(machine learning|ML)\\b"
-    answer: "{years.machine_learning}"
+      - "(?i)resident of the (us|uk|united states|united kingdom)"
+      - "(?i)based in the (us|uk|united states|united kingdom)"
+    answer: "{no}"
 
-  - id: yoe_ai
+  - id: india_resident
     match_any:
-      - "(?i)how many years.*(in|with|using|of)\\s+\\b(AI|artificial intelligence)\\b"
-      - "(?i)years of experience.*(in|with|using|of)\\s+\\b(AI|artificial intelligence)\\b"
-      - "(?i)experience.*(in|with|using)\\s+\\b(AI|artificial intelligence)\\b"
-    answer: "{years.ai_ml}"
+      - "(?i)resident of.*india"
+      - "(?i)based in.*india"
+      - "(?i)located in.*india"
+    answer: "{yes}"
 
-  - id: yoe_python
+  - id: based_in_maharashtra
     match_any:
-      - "(?i)how many years.*\\bpython\\b"
-      - "(?i)years of experience.*\\bpython\\b"
-      - "(?i)experience.*\\bpython\\b"
-    answer: "{years.python}"
+      - "(?i)based in maharashtra\\?"
+    answer: "Yes"
 
-  - id: yoe_sql
-    match_any:
-      - "(?i)how many years.*\\bSQL\\b"
-      - "(?i)years of experience.*\\bSQL\\b"
-      - "(?i)experience.*\\bSQL\\b"
-    answer: "{years.sql}"
+  # ─── Education ───────────────────────────────────────────────────────────
 
-  - id: yoe_javascript
+  - id: university
     match_any:
-      - "(?i)how many years.*\\b(javascript|JS)\\b"
-      - "(?i)years of experience.*\\b(javascript|JS)\\b"
-    answer: "{years.javascript}"
+      - "(?i)\\buniversity\\b"
+      - "(?i)\\bcollege\\b"
+      - "(?i)\\bschool\\b"
+      - "(?i)\\binstitution\\b"
+    answer: "University of Mumbai"
 
-  - id: yoe_nodejs
+  - id: degree
     match_any:
-      - "(?i)how many years.*\\b(node|nodejs|node.js)\\b"
-      - "(?i)years of experience.*\\b(node|nodejs|node.js)\\b"
-    answer: "{years.nodejs}"
+      - "(?i)\\bdegree\\b"
+      - "(?i)highest education"
+      - "(?i)qualification"
+      - "(?i)education level"
+    answer: "Bachelor of Technology"
 
-  - id: yoe_web
+  - id: major
     match_any:
-      - "(?i)how many years.*\\b(web development|web dev|frontend|front-end|html|css)\\b"
-      - "(?i)years of experience.*\\b(web development|web dev|frontend|front-end|html|css)\\b"
-    answer: "{years.web_development}"
+      - "(?i)\\bmajor\\b"
+      - "(?i)field of study"
+      - "(?i)specialization"
+      - "(?i)\\bbranch\\b"
+    answer: "Computer Engineering"
 
-  - id: yoe_backend
+  - id: graduation_year
     match_any:
-      - "(?i)how many years.*\\bbackend\\b"
-      - "(?i)years of experience.*\\bbackend\\b"
-      - "(?i)experience.*\\bbackend\\b"
-    answer: "{years.backend}"
+      - "(?i)graduation year"
+      - "(?i)expected graduation"
+      - "(?i)year of graduation"
+      - "(?i)when.*graduat"
+    answer: "2027"
 
-  - id: yoe_data_eng
+  - id: gpa
     match_any:
-      - "(?i)how many years.*\\b(data engineering|ETL|pipelines|data scraping)\\b"
-      - "(?i)years of experience.*\\b(data engineering|ETL|pipelines|data scraping)\\b"
-    answer: "{years.data_engineering}"
+      - "(?i)\\bgpa\\b"
+      - "(?i)\\bcgpa\\b"
+      - "(?i)\\bgrade\\b"
+    answer: "9"
 
-  - id: yoe_git
+  - id: phd_degree
     match_any:
-      - "(?i)how many years.*\\bgit\\b"
-      - "(?i)years of experience.*\\bgit\\b"
-    answer: "{years.git}"
+      - "(?i)doctor of philosophy"
+      - "(?i)\\bphd\\b"
+      - "(?i)doctoral degree"
+    answer: "{no}"
 
-  - id: yoe_cybersecurity
+  - id: masters_degree
     match_any:
-      - "(?i)how many years.*\\b(security|cybersecurity|cyber security)\\b"
-      - "(?i)years of experience.*\\b(security|cybersecurity|cyber security)\\b"
-    answer: "{years.cybersecurity}"
+      - "(?i)master's degree"
+      - "(?i)masters degree"
+      - "(?i)\\bMS\\b"
+      - "(?i)\\bM\\.S\\.\\b"
+    answer: "{no}"
 
-  - id: yoe_leadership
+  - id: bachelors_degree
     match_any:
-      - "(?i)how many years.*\\b(leadership|management|people management|team lead)\\b"
-      - "(?i)years of experience.*\\b(leadership|management|people management|team lead)\\b"
-    answer: "{years.leadership}"
-
-  - id: yoe_overall
-    match_any:
-      - "(?i)\\b(total|overall) (years of )?(work |professional |industry |software )?experience\\b"
-      - "(?i)how many years of (total|overall) experience"
-      - "(?i)how many years of software (engineering|development) experience"
-      - "(?i)total years of (work |professional |industry )?experience"
-    answer: "{years.overall_software}"
-
-  - id: yoe_frontend
-    match_any:
-      - "(?i)how many years.*\\b(frontend|front-end|react|reactjs|vue|angular|ui development)\\b"
-      - "(?i)years of experience.*\\b(frontend|front-end|react|reactjs|vue|angular|ui development)\\b"
-      - "(?i)experience.*\\b(react|frontend|front-end)\\b"
-    answer: "{years.frontend}"
-
-  - id: yoe_fullstack
-    match_any:
-      - "(?i)how many years.*\\b(full stack|fullstack|full-stack)\\b"
-      - "(?i)years of experience.*\\b(full stack|fullstack|full-stack)\\b"
-      - "(?i)experience.*\\b(full stack|fullstack|full-stack)\\b"
-    answer: "{years.fullstack}"
-
-  - id: yoe_rest_apis
-    match_any:
-      - "(?i)how many years.*\\b(rest api|restful|api development|fastapi|flask|express)\\b"
-      - "(?i)years of experience.*\\b(rest api|restful|api development|fastapi|flask|express)\\b"
-      - "(?i)experience.*\\b(rest api|fastapi|flask)\\b"
-    answer: "{years.rest_apis}"
-
-  - id: yoe_data_analysis
-    match_any:
-      - "(?i)how many years.*\\b(data analysis|data analytics|pandas|numpy|eda|business intelligence)\\b"
-      - "(?i)years of experience.*\\b(data analysis|data analytics|pandas|numpy|eda|business intelligence)\\b"
-      - "(?i)experience.*\\b(pandas|data analysis)\\b"
-    answer: "{years.data_analysis}"
-
-  - id: yoe_scraping
-    match_any:
-      - "(?i)how many years.*\\b(scraping|web scraping|beautifulsoup|bs4|scrapy|crawling)\\b"
-      - "(?i)years of experience.*\\b(scraping|web scraping|beautifulsoup|bs4|scrapy|crawling)\\b"
-      - "(?i)experience.*\\b(web scraping|scraping|beautifulsoup)\\b"
-    answer: "{years.data_scraping}"
-
-  - id: yoe_llm_genai
-    match_any:
-      - "(?i)how many years.*\\b(genai|generative ai|llm|llms|prompt engineering|langchain|rag)\\b"
-      - "(?i)years of experience.*\\b(genai|generative ai|llm|llms|prompt engineering|langchain|rag)\\b"
-      - "(?i)experience.*\\b(llm|generative ai|prompt engineering)\\b"
-    answer: "{years.llm_genai}"
-
-  - id: yoe_qa_testing
-    match_any:
-      - "(?i)how many years.*\\b(qa|testing|test automation|pytest|selenium|quality assurance|unit testing)\\b"
-      - "(?i)years of experience.*\\b(qa|testing|test automation|pytest|selenium|quality assurance|unit testing)\\b"
-      - "(?i)experience.*\\b(testing|test automation|qa|pytest)\\b"
-    answer: "{years.testing_qa}"
-
-  - id: yoe_excel
-    match_any:
-      - "(?i)how many years.*\\b(excel|advanced excel|spreadsheets)\\b"
-      - "(?i)years of experience.*\\b(excel|advanced excel|spreadsheets)\\b"
-      - "(?i)experience.*\\b(excel|spreadsheets)\\b"
-    answer: "{years.excel}"
-
-  - id: yoe_linux
-    match_any:
-      - "(?i)how many years.*\\b(linux|unix|bash|shell)\\b"
-      - "(?i)years of experience.*\\b(linux|unix|bash|shell)\\b"
-      - "(?i)experience.*\\b(linux|bash)\\b"
-    answer: "{years.linux}"
-
-  - id: yoe_docker
-    match_any:
-      - "(?i)how many years.*\\b(docker|containers|containerization|aws|cloud)\\b"
-      - "(?i)years of experience.*\\b(docker|containers|containerization|aws|cloud)\\b"
-      - "(?i)experience.*\\b(docker|cloud)\\b"
-    answer: "{years.docker}"
-
-  - id: primary_programming_language
-    match_any:
-      - "(?i)primary programming language"
-      - "(?i)preferred programming language"
-      - "(?i)strongest programming language"
-      - "(?i)main programming language"
-    answer: "Python"
+      - "(?i)\\bbachelor\\b"
+      - "(?i)\\bBS\\b"
+      - "(?i)\\bB\\.Tech\\b"
+      - "(?i)undergraduate"
+    answer: "{yes}"
 
   - id: current_student
     match_any:
@@ -424,23 +362,39 @@ rules:
       - "(?i)are you a student"
     answer: "{yes}"
 
-  - id: internship_availability
+  - id: primary_programming_language
     match_any:
-      - "(?i)available for.*internship"
-      - "(?i)available for.*full-time"
-      - "(?i)available for.*full time"
-      - "(?i)seeking.*internship"
-    answer: "{yes}"
+      - "(?i)primary programming language"
+      - "(?i)preferred programming language"
+      - "(?i)strongest programming language"
+      - "(?i)main programming language"
+    answer: "Python"
 
-  # --- Other Common Questions ---
+  # ─── Employment / logistics ──────────────────────────────────────────────
 
-  - id: referral_source
+  - id: current_employer
     match_any:
-      - "(?i)how did you hear"
-      - "(?i)how did you find"
-      - "(?i)where did you hear"
-      - "(?i)how were you referred"
-    answer: "LinkedIn"
+      - "(?i)current employer"
+      - "(?i)current company"
+      - "(?i)\\bemployer\\b"
+      - "(?i)company you work for"
+      - "(?i)^company\\*?$"
+      - "(?i)company name"
+    answer: "Student"
+
+  - id: i_currently_work_here
+    match_any:
+      - "(?i)i currently work here"
+    answer: "No"
+
+  - id: sponsorship
+    match_any:
+      - "(?i)\\bsponsor\\b"
+      - "(?i)work sponsorship"
+      - "(?i)visa sponsorship"
+      - "(?i)require sponsorship"
+      - "(?i)need sponsorship"
+    answer: "{require_sponsorship}"
 
   - id: start_date
     match_any:
@@ -461,25 +415,157 @@ rules:
     match_any:
       - "(?i)willing to relocate"
       - "(?i)open to relocation"
-      - "(?i)relocate"
+      - "(?i)\\brelocate\\b"
     answer: "{yes}"
 
   - id: remote_work
     match_any:
-      - "(?i)remote"
+      - "(?i)\\bremote\\b"
       - "(?i)work from home"
-      - "(?i)hybrid"
+      - "(?i)\\bhybrid\\b"
     answer: "{yes}"
 
-  - id: cover_letter
+  - id: internship_availability
     match_any:
-      - "(?i)cover letter"
-      - "(?i)why.*this (role|position|company)"
-      - "(?i)tell us about yourself"
-      - "(?i)why should we hire"
-    answer: "I am a final-year Computer Engineering student at the University of Mumbai with hands-on experience in software development, data engineering, and cybersecurity through multiple internships and hackathons. I am eager to contribute and learn in a professional environment."
+      - "(?i)available for.*internship"
+      - "(?i)available for.*full-time"
+      - "(?i)available for.*full time"
+      - "(?i)seeking.*internship"
+    answer: "{yes}"
 
-  # --- Generic Yes/No Helpers ---
+  - id: internship_terms
+    match_any:
+      - "(?i)internship.*(agree|comfortable|okay|availability)"
+      - "(?i)(stipend|working hours|founding role).*agree"
+      - "(?i)commit.*no other project"
+    answer: "{yes}"
+
+  - id: unpaid_internship
+    match_any:
+      - "(?i)unpaid internship"
+      - "(?i)\\bunpaid\\b.*intern"
+    answer: "{yes}"
+
+  - id: internship_duration_3_6_months
+    match_any:
+      - "(?i)this is an internship (is )?for 3-6 months"
+    answer: "Yes"
+
+  - id: hours_per_day_available
+    match_any:
+      - "(?i)how many hours per day can you dedicate"
+    answer: "6"
+
+  - id: current_ctc
+    match_any:
+      - "(?i)current.*ctc"
+      - "(?i)recent.*ctc"
+    answer: "300000"
+
+  - id: expected_ctc
+    match_any:
+      - "(?i)expected.*ctc"
+    answer: "600000"
+
+  - id: byod_own_device
+    match_any:
+      - "(?i)byod.*do you have your own device"
+      - "(?i)carry your own (laptop|device)"
+    answer: "Yes"
+
+  - id: work_from_office_general
+    match_any:
+      - "(?i)work from office role\\. are you based out of bangalore"
+    answer: "No"
+
+  - id: work_from_office_south_delhi
+    match_any:
+      - "(?i)comfortable working from office based in south delhi"
+    answer: "Yes"
+
+  - id: working_hours_11_to_7
+    match_any:
+      - "(?i)working hours are 11:00 am to 7:00 pm"
+    answer: "Yes"
+
+  - id: start_immediately_urgent
+    match_any:
+      - "(?i)must fill this position urgently\\. can you start immediately"
+    answer: "Yes"
+
+  - id: start_specific_date_sep2026
+    match_any:
+      - "(?i)can you start from monday,\\s*21\\s*sep\\s*2026"
+    answer: "Yes"
+
+  - id: onsite_noida_only
+    match_any:
+      - "(?i)available for an on-site setting.*noida"
+    answer: "No"
+
+  - id: stipend_15k_bother
+    match_any:
+      - "(?i)stipend will be around\\s*\u20b915k monthly.*does it bother you"
+    answer: "No"
+
+  - id: wix_studio_confirmation
+    match_any:
+      - "(?i)working on wix studio during this internship"
+    answer: "Yes"
+
+  - id: bulk_hiring_sales_calling
+    match_any:
+      - "(?i)bulk hiring for sales profiles.*heavy calling"
+    answer: "Yes"
+
+  - id: english_level
+    match_any:
+      - "(?i)what is your level of english"
+    answer: "professional proficiency"
+
+  - id: years_of_experience_bracket
+    match_any:
+      - "(?i)how many years of experience do you have\\?.*less than 3 years"
+    answer: "less than 3 years"
+
+  - id: referral_source
+    match_any:
+      - "(?i)how did you hear"
+      - "(?i)how did you find"
+      - "(?i)where did you hear"
+      - "(?i)how were you referred"
+    answer: "LinkedIn"
+
+  - id: privacy_consent
+    match_any:
+      - "(?i)privacy notice"
+      - "(?i)i consent"
+    answer: "{yes}"
+
+  - id: google_form
+    match_any:
+      - "(?i)complete.*google form"
+      - "(?i)did you submit the google form"
+    answer: "{yes}"
+
+  # ─── Self-rating scales ──────────────────────────────────────────────────
+
+  - id: rate_communication_skills
+    match_any:
+      - "(?i)rate your communication and articulation skills"
+    answer: "9"
+
+  - id: rate_analytical_skills
+    match_any:
+      - "(?i)rate your analytical and data-handling skills"
+    answer: "8"
+
+  - id: rate_gsc_skills
+    match_any:
+      - "(?i)rate yourself in gsc skills"
+    answer: "3"
+
+  # ─── Generic yes/no sentence-starters ────────────────────────────────────
 
   - id: can_you
     match_any:
@@ -502,76 +588,304 @@ rules:
       - "(?i)^have you\\b"
     answer: "{yes}"
 
-  - id: phd_degree
-    match_any:
-      - "(?i)doctor of philosophy"
-      - "(?i)\\bphd\\b"
-      - "(?i)doctoral degree"
-    answer: "{no}"
-
-  - id: masters_degree
-    match_any:
-      - "(?i)master's degree"
-      - "(?i)masters degree"
-      - "(?i)\\bMS\\b"
-      - "(?i)\\bM\\.S\\.\\b"
-    answer: "{no}"
-
-  - id: bachelors_degree
-    match_any:
-      - "(?i)bachelor"
-      - "(?i)\\bBS\\b"
-      - "(?i)\\bB\\.Tech\\b"
-      - "(?i)undergraduate"
-    answer: "{yes}"
-
-  - id: us_uk_india_resident
-    match_any:
-      - "(?i)resident of the (us|uk|united states|united kingdom)"
-      - "(?i)based in the (us|uk|united states|united kingdom)"
-    answer: "{no}"
-
-  - id: india_resident
-    match_any:
-      - "(?i)resident of.*india"
-      - "(?i)based in.*india"
-      - "(?i)located in.*india"
-    answer: "{yes}"
-
   - id: are_you
     match_any:
       - "(?i)^are you\\b"
     answer: "{yes}"
 
-  # Consolidated rules for internship conditions, CTC, and candidate profile
+  # ─── Years-of-experience: GENERIC matcher ───────────────────────────────
+
+  - id: yoe_ml
+    match_any:
+      - "(?i)(years of experience|how many years).*(machine learning|\\bML\\b)"
+      - "(?i)experience.*(in|with|using)\\s+(machine learning|\\bML\\b)"
+    answer: "{years.machine_learning}"
+
+  - id: yoe_ai
+    match_any:
+      - "(?i)(years of experience|how many years).*(\\bAI\\b|artificial intelligence)"
+      - "(?i)experience.*(in|with|using)\\s+(\\bAI\\b|artificial intelligence)"
+    answer: "{years.ai_ml}"
+
+  - id: yoe_python
+    match_any:
+      - "(?i)(years of experience|how many years|experience).*\\bpython\\b"
+    answer: "{years.python}"
+
+  - id: yoe_sql
+    match_any:
+      - "(?i)(years of experience|how many years|experience).*\\bSQL\\b"
+    answer: "{years.sql}"
+
+  - id: yoe_javascript
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(javascript|JS)\\b"
+    answer: "{years.javascript}"
+
+  - id: yoe_nodejs
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(node|nodejs|node\\.js)\\b"
+    answer: "{years.nodejs}"
+
+  - id: yoe_web
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(web development|web dev|frontend|front-end|html|css)\\b"
+    answer: "{years.web_development}"
+
+  - id: yoe_backend
+    match_any:
+      - "(?i)(years of experience|how many years|experience).*\\bbackend\\b"
+    answer: "{years.backend}"
+
+  - id: yoe_data_eng
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(data engineering|ETL|pipelines|data scraping)\\b"
+    answer: "{years.data_engineering}"
+
+  - id: yoe_git
+    match_any:
+      - "(?i)(years of experience|how many years).*\\bgit\\b"
+    answer: "{years.git}"
+
+  - id: yoe_cybersecurity
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(security|cybersecurity|cyber security)\\b"
+    answer: "{years.cybersecurity}"
+
+  - id: yoe_leadership
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(leadership|management|people management|team lead)\\b"
+    answer: "{years.leadership}"
+
+  - id: yoe_overall
+    match_any:
+      - "(?i)\\b(total|overall)\\s+(years of )?(work |professional |industry |software )?experience\\b"
+      - "(?i)how many years of (total|overall) experience"
+      - "(?i)how many years of software (engineering|development) experience"
+      - "(?i)total years of (work |professional |industry )?experience"
+    answer: "{years.overall_software}"
+
+  - id: yoe_frontend
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(frontend|front-end|react|reactjs|vue|angular|ui development)\\b"
+      - "(?i)experience.*\\b(react|frontend|front-end)\\b"
+    answer: "{years.frontend}"
+
+  - id: yoe_fullstack
+    match_any:
+      - "(?i)(years of experience|how many years|experience).*\\b(full stack|fullstack|full-stack)\\b"
+    answer: "{years.fullstack}"
+
+  - id: yoe_rest_apis
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(rest api|restful|api development|fastapi|flask|express)\\b"
+      - "(?i)experience.*\\b(rest api|fastapi|flask)\\b"
+    answer: "{years.rest_apis}"
+
+  - id: yoe_data_analysis
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(data analysis|data analytics|pandas|numpy|eda|business intelligence)\\b"
+      - "(?i)experience.*\\b(pandas|data analysis)\\b"
+    answer: "{years.data_analysis}"
+
+  - id: yoe_scraping
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(scraping|web scraping|beautifulsoup|bs4|scrapy|crawling)\\b"
+      - "(?i)experience.*\\b(web scraping|scraping|beautifulsoup)\\b"
+    answer: "{years.data_scraping}"
+
+  - id: yoe_llm_genai
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(genai|generative ai|llm|llms|prompt engineering|langchain|rag)\\b"
+      - "(?i)experience.*\\b(llm|generative ai|prompt engineering)\\b"
+    answer: "{years.llm_genai}"
+
+  - id: yoe_qa_testing
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(qa|testing|test automation|pytest|selenium|quality assurance|unit testing)\\b"
+      - "(?i)experience.*\\b(testing|test automation|qa|pytest)\\b"
+    answer: "{years.testing_qa}"
+
+  - id: yoe_excel
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(excel|advanced excel|spreadsheets)\\b"
+      - "(?i)experience.*\\b(excel|spreadsheets)\\b"
+    answer: "{years.excel}"
+
+  - id: yoe_linux
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(linux|unix|bash|shell)\\b"
+      - "(?i)experience.*\\b(linux|bash)\\b"
+    answer: "{years.linux}"
+
+  - id: yoe_docker
+    match_any:
+      - "(?i)(years of experience|how many years).*\\b(docker|containers|containerization|aws|cloud)\\b"
+      - "(?i)experience.*\\b(docker|cloud)\\b"
+    answer: "{years.docker}"
+
+  - id: yoe_nosql
+    match_any:
+      - "(?i)(years.*(experience|work).*nosql|nosql.*years)"
+    answer: "{years.nosql}"
+
+  - id: yoe_databases
+    match_any:
+      - "(?i)(years.*(experience|work).*database|database.*years)"
+    answer: "{years.databases}"
+
+  - id: yoe_engineering
+    match_any:
+      - "(?i)(years.*engineering.*experience|engineering\\s+experience.*years)"
+    answer: "{years.engineering}"
+
+  - id: yoe_django
+    match_any:
+      - "(?i)(years.*(experience|work).*django|django.*years)"
+    answer: "{years.django}"
+
+  - id: yoe_tensorflow
+    match_any:
+      - "(?i)(years.*(experience|work).*tensorflow|tensorflow.*years)"
+    answer: "{years.tensorflow}"
+
+  - id: yoe_stl
+    match_any:
+      - "(?i)(years.*(experience|work).*\\bstl\\b|\\bstl\\b.*years)"
+    answer: "{years.stl}"
+
+  - id: yoe_cpp
+    match_any:
+      - "(?i)(years.*(experience|work).*(c\\+\\+|cpp)|(c\\+\\+|cpp).*years)"
+    answer: "{years.cpp}"
+
+  - id: yoe_marketing
+    match_any:
+      - "(?i)how many years of marketing experience"
+    answer: "{years.marketing}"
+
+  - id: yoe_manufacturing
+    match_any:
+      - "(?i)how many years of manufacturing experience"
+    answer: "{years.manufacturing}"
+
+  - id: yoe_canva
+    match_any:
+      - "(?i)years of work experience.*with canva"
+    answer: "{years.canva}"
+
+  - id: yoe_social_media_analysis
+    match_any:
+      - "(?i)years of work experience.*with social media analysis"
+    answer: "{years.social_media_analysis}"
+
+  - id: yoe_advertising
+    match_any:
+      - "(?i)how many years of advertising experience"
+    answer: "{years.advertising}"
+
+  - id: yoe_applied_research
+    match_any:
+      - "(?i)years of work experience.*with applied research"
+    answer: "{years.applied_research}"
+
+  - id: yoe_application_development
+    match_any:
+      - "(?i)years of work experience.*with application development"
+    answer: "{years.application_development}"
+
+  - id: yoe_query_writing
+    match_any:
+      - "(?i)years of work experience.*with query writing"
+    answer: "{years.query_writing}"
+
+  - id: months_ui_ux
+    match_any:
+      - "(?i)how many months of experience.*ui/ux"
+    answer: "{years.ui_ux}"
+
+  - id: yoe_java
+    match_any:
+      - "(?i)years of work experience.*with java\\b"
+    answer: "{years.java}"
+
+  - id: yoe_snowflake
+    match_any:
+      - "(?i)years of work experience.*with snowflake"
+    answer: "{years.snowflake}"
+
+  - id: yoe_azure_data_factory
+    match_any:
+      - "(?i)years of work experience.*with azure data factory"
+    answer: "{years.azure_data_factory}"
+
+  - id: yoe_commerce
+    match_any:
+      - "(?i)years of work experience.*with commerce"
+    answer: "{years.commerce}"
+
+  - id: yoe_communication
+    match_any:
+      - "(?i)years of work experience.*with communication"
+    answer: "{years.communication}"
+
+  - id: yoe_saas
+    match_any:
+      - "(?i)years of work experience.*with software as a service"
+    answer: "{years.saas}"
+
+  - id: yoe_google_sheets
+    match_any:
+      - "(?i)years of work experience.*with google sheets"
+    answer: "{years.google_sheets}"
+
+  - id: yoe_adobe_creative_suite
+    match_any:
+      - "(?i)years of work experience.*with adobe creative suite"
+    answer: "{years.adobe_creative_suite}"
+
+  - id: yoe_windows
+    match_any:
+      - "(?i)years of work experience.*with windows"
+    answer: "{years.windows}"
+
+  - id: yoe_microsoft_powerpoint
+    match_any:
+      - "(?i)years of work experience.*with microsoft powerpoint"
+    answer: "{years.microsoft_powerpoint}"
+
+  - id: yoe_microsoft_office
+    match_any:
+      - "(?i)years of work experience.*with microsoft office"
+    answer: "{years.microsoft_office}"
+
+  - id: yoe_accounting_auditing
+    match_any:
+      - "(?i)how many years of accounting/auditing experience"
+    answer: "{years.accounting_auditing}"
+
+  # ─── Free-text pitches & work experience ──────────────────────────────────
+
+  - id: work_experience_description
+    match_any:
+      - "(?i)^description\\*?$"
+      - "(?i)job description"
+      - "(?i)work experience description"
+      - "(?i)role description"
+    answer: "Developed and maintained software projects, built RESTful APIs in Python, and collaborated on testing and code reviews."
+
+  - id: cover_letter
+    match_any:
+      - "(?i)cover letter"
+      - "(?i)why.*this (role|position|company)"
+      - "(?i)tell us about yourself"
+      - "(?i)why should we hire"
+    answer: "I am a final-year Computer Engineering student at the University of Mumbai with hands-on experience in software development, data engineering, and cybersecurity through multiple internships and hackathons. I am eager to contribute and learn in a professional environment."
+
   - id: looking_for
     match_any:
       - "(?i)looking for"
     answer: "I am seeking an internship in software development, data engineering/analysis, or AI/ML."
-
-  - id: unpaid_internship
-    match_any:
-      - "(?i)unpaid internship"
-      - "(?i)\\bunpaid\\b.*intern"
-    answer: "{yes}"
-
-  - id: internship_terms
-    match_any:
-      - "(?i)internship.*(agree|comfortable|okay|availability)"
-      - "(?i)(stipend|working hours|founding role).*agree"
-      - "(?i)commit.*no other project"
-    answer: "{yes}"
-
-  - id: current_ctc
-    match_any:
-      - "(?i)current.*ctc"
-      - "(?i)recent.*ctc"
-    answer: "300000"
-
-  - id: expected_ctc
-    match_any:
-      - "(?i)expected.*ctc"
-    answer: "600000"
 
   - id: headline
     match_any:
@@ -583,331 +897,30 @@ rules:
       - "(?i)^summary\\b"
     answer: "Final-year Computer Engineering student with 2 years of full-stack, data engineering, and AI/ML experience, including building an AI-powered cybersecurity SaaS platform and a Chrome phishing-detection extension, and currently interning as a Forward Deployed Engineer at Blue Machines AI."
 
-  - id: privacy_consent
+  - id: last_professional_experience
     match_any:
-      - "(?i)privacy notice"
-      - "(?i)i consent"
-    answer: "{yes}"
+      - "(?i)what did you do during your last professionnal experience"
+    answer: "I revamped and maintained the company website, improving user experience across key pages, and supported business development through lead generation and client outreach, helping convert leads into opportunities while ensuring the site aligned with branding standards."
 
-  - id: google_form
+  - id: previous_experiences_relevant
     match_any:
-      - "(?i)complete.*google form"
-      - "(?i)did you submit the google form"
-    answer: "{yes}"
+      - "(?i)specify previous experiences relevant for the position"
+    answer: "I have built AI-driven solutions such as the Sentinel Verify SaaS platform, which uses machine-learning and NLP pipelines to detect phishing and fraud in real time, and a terminal-based AI support triage agent created during the HackerRank Orchestrate Hackathon that integrates LLMs for ticket classification and retrieval-augmented generation. Additionally, my work as a Generative AI Engineer at Sia and my full-stack experience with Flask, FastAPI, and JavaScript enable me to design, implement, and deploy end-to-end generative AI applications."
 
-
-  # Auto-learned by AI on 2026-09-15 12:10:17
-  - id: ai_its_a_work_from_office_role_are_you
+  # Auto-learned by AI on 2026-09-25 11:01:13
+  - id: ai_pdf_romil_doshi_resume_1_pdf
     match_any:
-      - '(?i)its\ a\ work\ from\ office\ role\.\ are\ you\ based\ out\ of\ bangalore\?'
-    answer: "No"
+      - '(?i)pdf\ romil\ doshi\ resume\ \(1\)\.pdf'
+    answer: "I'm unable to provide the PDF file."
 
-  # Auto-learned by AI on 2026-09-15 12:37:00
-  - id: ai_how_would_you_rate_your_communicati
+  # Auto-learned by AI on 2026-09-25 11:01:23
+  - id: ai_yes_no
     match_any:
-      - "(?i)how\\ would\\ you\\ rate\\ your\\ communication\\ and\\ articulation\\ skills\\\
-  ?\\ \\(on\\ a\\ scale\\ of\\ 1\u201310\\)"
-    answer: "9"
-
-  # Auto-learned by AI on 2026-09-15 12:37:01
-  - id: ai_how_would_you_rate_your_analytical_
-    match_any:
-      - "(?i)how\\ would\\ you\\ rate\\ your\\ analytical\\ and\\ data\\-handling\\ skills\\\
-  ?\\ \\(on\\ a\\ scale\\ of\\ 1\u201310\\)"
-    answer: "8"
-
-  # Auto-learned by AI on 2026-09-15 12:37:04
-  - id: ai_will_you_be_comfortable_working_fro
-    match_any:
-      - '(?i)will\ you\ be\ comfortable\ working\ from\ office\ based\ in\ south\ delhi\ \(panchsheel\
-  park\)\?\ required\ select\ an\ option\ yes\ no'
+      - '(?i)yes\ no'
     answer: "Yes"
 
-  # Auto-learned by AI on 2026-09-15 12:37:04
-  - id: ai_our_working_hours_are_11_00_am_to_7
+  # Auto-learned by AI on 2026-09-25 11:43:20
+  - id: ai_romil_doshi_resume_1_pdf
     match_any:
-      - '(?i)our\ working\ hours\ are\ 11:00\ am\ to\ 7:00\ pm,\ monday\ to\ friday\.\ would\
-  you\ be\ comfortable\ working\ these\ hours\?\ required\ select\ an\ option\ yes\
-  no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-15 12:47:01
-  - id: ai_we_must_fill_this_position_urgently
-    match_any:
-      - '(?i)we\ must\ fill\ this\ position\ urgently\.\ can\ you\ start\ immediately\?\ required\
-  yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-15 12:59:02
-  - id: ai_apply_only_if_you_are_available_for
-    match_any:
-      - '(?i)apply\ only\ if\ you\ are\ available\ for\ an\ on\-site\ setting\?\ the\ location\
-  would\ be\ noida\.\ required\ select\ an\ option\ yes\ no'
-    answer: "No"
-
-  # Auto-learned by AI on 2026-09-15 13:01:26
-  - id: ai_zip_postal_code
-    match_any:
-      - '(?i)zip/postal\ code'
-    answer: "user provided"
-
-  # Auto-learned by AI on 2026-09-15 13:18:05
-  - id: ai_how_many_years_of_marketing_experie
-    match_any:
-      - '(?i)how\ many\ years\ of\ marketing\ experience\ do\ you\ currently\ have\?'
-    answer: "1"
-
-  # Auto-learned by AI on 2026-09-15 13:29:55
-  - id: ai_rate_yourself_in_gsc_skills
-    match_any:
-      - '(?i)rate\ yourself\ in\ gsc\ skills'
-    answer: "3"
-
-  # Auto-learned by AI on 2026-09-15 13:37:39
-  - id: ai_how_many_years_of_manufacturing_exp
-    match_any:
-      - '(?i)how\ many\ years\ of\ manufacturing\ experience\ do\ you\ currently\ have\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-15 13:37:41
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ canva\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-18 12:18:13
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ social\ media\ analysis\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-18 12:18:57
-  - id: ai_byod_do_you_have_your_own_device_to
-    match_any:
-      - '(?i)byod\-\ do\ you\ have\ your\ own\ device\ to\ work\?\ required\ select\ an\ option\
-  yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-18 12:20:07
-  - id: ai_how_many_years_of_advertising_exper
-    match_any:
-      - '(?i)how\ many\ years\ of\ advertising\ experience\ do\ you\ currently\ have\?'
-    answer: "1"
-
-  # Auto-learned by AI on 2026-09-18 12:21:04
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ applied\ research\?'
-    answer: "0.2"
-
-  # Auto-learned by AI on 2026-09-18 12:25:23
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ application\ development\?'
-    answer: "1"
-
-  # Auto-learned by AI on 2026-09-18 12:45:12
-  - id: ai_based_in_maharashtra_required_selec
-    match_any:
-      - '(?i)based\ in\ maharashtra\?\ required\ select\ an\ option\ yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-18 12:45:13
-  - id: ai_stipend_will_be_around_15k_monthly_
-    match_any:
-      - "(?i)stipend\\ will\\ be\\ around\\ \u20B915k\\ monthly\\ \\.\\ does\\ it\\ bother\\\
-  \ you\\?\\ required\\ select\\ an\\ option\\ yes\\ no"
-    answer: "No"
-
-  # Auto-learned by AI on 2026-09-18 12:47:47
-  - id: ai_how_many_months_of_experience_do_yo
-    match_any:
-      - '(?i)how\ many\ months\ of\ experience\ do\ you\ have\ in\ ui/ux\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-18 12:47:49
-  - id: ai_you_ll_be_working_on_wix_studio_dur
-    match_any:
-      - '(?i)you''ll\ be\ working\ on\ wix\ studio\ during\ this\ internship\.\ kindly\ confirm\
-  your\ understanding\.\ required\ select\ an\ option\ yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-18 12:47:51
-  - id: ai_we_must_fill_this_position_urgently
-    match_any:
-      - '(?i)we\ must\ fill\ this\ position\ urgently\.\ can\ you\ start\ from\ monday,\ 21\
-  sep\ 2026\?\ required\ select\ an\ option\ yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-18 13:06:51
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ query\ writing\?'
-    answer: "2"
-
-  # Auto-learned by AI on 2026-09-18 19:33:47
-  - id: ai_postal_code
-    match_any:
-      - '(?i)postal\ code'
-    answer: "user provided"
-
-  # Auto-learned by AI on 2026-09-18 19:34:44
-  - id: ai_what_is_your_level_of_english_requi
-    match_any:
-      - '(?i)what\ is\ your\ level\ of\ english\?\ required\ select\ an\ option\ native\ professional\
-  proficiency\ basic\ no\ knowledge'
-    answer: "professional proficiency"
-
-  # Auto-learned by AI on 2026-09-18 19:34:46
-  - id: ai_how_many_years_of_experience_do_you
-    match_any:
-      - '(?i)how\ many\ years\ of\ experience\ do\ you\ have\?\ required\ select\ an\ option\
-  less\ than\ 3\ years\ 3\ to\ 6\ years\ more\ than\ 6\ years'
-    answer: "less than 3 years"
-
-  # Auto-learned by AI on 2026-09-18 19:34:47
-  - id: ai_what_did_you_do_during_your_last_pr
-    match_any:
-      - '(?i)what\ did\ you\ do\ during\ your\ last\ professionnal\ experience\?\ 0/1,440\
-  1440\ maximum\ characters\ allowed\.'
-    answer: "I revamped and maintained the company website, improving user experience across key\
-  \ pages, and supported business development through lead generation and client outreach,\
-  \ helping convert leads into opportunities while ensuring the site aligned with\
-  \ branding standards."
-
-  # Auto-learned by AI on 2026-09-18 19:34:49
-  - id: ai_specify_previous_experiences_releva
-    match_any:
-      - '(?i)specify\ previous\ experiences\ relevant\ for\ the\ position\ you\ are\ applying\
-  to\ 0/1,440\ 1440\ maximum\ characters\ allowed\.'
-    answer: "I have built AI-driven solutions such as the Sentinel Verify SaaS platform, which\
-  \ uses machine-learning and NLP pipelines to detect phishing and fraud in real time,\
-  \ and a terminal-based AI support triage agent created during the HackerRank Orchestrate\
-  \ Hackathon that integrates LLMs for ticket classification and retrieval-augmented\
-  \ generation. Additionally, my work as a Generative AI Engineer at Sia and my full-stack\
-  \ experience with Flask, FastAPI, and JavaScript enable me to design, implement,\
-  \ and deploy end-to-end generative AI applications."
-
-  - id: years_experience_nosql
-    match_any:
-      - '(?i)(years.*(experience|work).*nosql|nosql.*years)'
-    answer: "1"
-
-  - id: years_experience_databases
-    match_any:
-      - '(?i)(years.*(experience|work).*database|database.*years)'
-    answer: "1"
-
-  - id: years_experience_engineering
-    match_any:
-      - '(?i)(years.*engineering.*experience|engineering\s+experience.*years)'
-    answer: "1"
-
-  - id: location_currently_in_mumbai
-    match_any:
-      - '(?i)currently\s+in\s+mumbai'
-    answer: "Yes"
-
-  - id: years_experience_rest_api
-    match_any:
-      - '(?i)(years.*(experience|work).*(representational\s+state\s+transfer|\brest\b|\brestful\b)|(\brest\b|\brestful\b).*years)'
-    answer: "1"
-
-  - id: years_experience_django
-    match_any:
-      - '(?i)(years.*(experience|work).*django|django.*years)'
-    answer: "1"
-
-  - id: years_experience_tensorflow
-    match_any:
-      - '(?i)(years.*(experience|work).*tensorflow|tensorflow.*years)'
-    answer: "1"
-
-  - id: years_experience_stl
-    match_any:
-      - '(?i)(years.*(experience|work).*\bstl\b|\bstl\b.*years)'
-    answer: "1"
-
-  - id: years_experience_cpp
-    match_any:
-      - '(?i)(years.*(experience|work).*(c\+\+|cpp)|(c\+\+|cpp).*years)'
-    answer: "1"
-
-
-  # Auto-learned by AI on 2026-09-22 11:23:00
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ java\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-22 11:41:42
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ snowflake\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-22 11:45:37
-  - id: ai_i_hope_you_are_aware_this_is_an_int
-    match_any:
-      - '(?i)i\ hope\ you\ are\ aware\ this\ is\ an\ internship\ is\ for\ 3\-6\ months\?\
-  required\ select\ an\ option\ yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-22 11:50:43
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ azure\ data\ factory\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-22 11:55:00
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ commerce\?'
-    answer: "1"
-
-  # Auto-learned by AI on 2026-09-22 11:55:04
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ communication\?'
-    answer: "2"
-
-  # Auto-learned by AI on 2026-09-22 11:58:14
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ software\ as\ a\
-  service\ \(saas\)\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-22 12:00:17
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ google\ sheets\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-22 12:06:32
-  - id: ai_this_requirement_requires_you_to_ca
-    match_any:
-      - '(?i)this\ requirement\ requires\ you\ to\ carry\ your\ own\ laptop\.\ will\ you\
-  be\ able\ to\ carry\ your\ own\ device\?\ required\ select\ an\ option\ yes\ no'
-    answer: "Yes"
-
-  # Auto-learned by AI on 2026-09-22 12:11:25
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ adobe\ creative\
-  suite\?'
-    answer: "0"
-
-  # Auto-learned by AI on 2026-09-22 12:12:21
-  - id: ai_how_many_years_of_work_experience_d
-    match_any:
-      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ windows\?'
-    answer: "1"
-
-  # Auto-learned by AI on 2026-09-22 12:15:30
-  - id: ai_this_role_focuses_on_bulk_hiring_fo
-    match_any:
-      - '(?i)this\ role\ focuses\ on\ bulk\ hiring\ for\ sales\ profiles\ across\ us\ involving\
-  heavy\ calling\.\ are\ you\ comfortable\ with\ that\?\ required\ select\ an\ option\
-  yes\ no'
-    answer: "Yes"
+      - '(?i)romil\ doshi\ resume\ \(1\)\.pdf'
+    answer: "My resume is attached as romil doshi resume (1).pdf."

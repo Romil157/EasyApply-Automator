@@ -240,3 +240,22 @@ class TestJobClassification:
         assert result is False
         assert reason == "similar_jobs_redirect"
         assert text == "* Redirected to Similar Jobs"
+
+    def test_new_blacklist_titles_filter_non_tech_roles(self):
+        import yaml
+        with open("config.yaml", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+        blacklist = cfg.get("blacklist_titles", [])
+
+        orchestrator: Any = DummyOrchestrator(blacklist_titles=blacklist)
+        spam_titles = [
+            "Accounts Receivable Intern | SmartQ | LinkedIn",
+            "Company Secretary Intern | Lexicon | LinkedIn",
+            "Academic Operations Intern | EdTech | LinkedIn",
+            "Menu & Operations Intern | Foodie | LinkedIn",
+            "Management Intern | NIIT Limited | LinkedIn",
+        ]
+        for title in spam_titles:
+            is_blocked, _ = orchestrator.is_title_blacklisted(title)
+            assert is_blocked is True, f"Expected {title} to be blacklisted"
+

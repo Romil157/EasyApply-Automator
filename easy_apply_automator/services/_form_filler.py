@@ -66,11 +66,24 @@ class FormFillerMixin:
         if el_id:
             try:
                 label_el = group.find_element(By.CSS_SELECTOR, f"label[for='{el_id}']")
-                if self.bot._safe_click(label_el):
+                if label_el.is_displayed() and self.bot._safe_click(label_el):
                     return True
             except Exception:
                 pass
-        return self.bot._safe_click(element)
+        try:
+            container = element.find_element(By.XPATH, "./ancestor::*[@role='radio'][1]")
+            if container.is_displayed() and self.bot._safe_click(container):
+                return True
+        except Exception:
+            pass
+        if self.bot._safe_click(element):
+            return True
+        try:
+            self.bot.browser.execute_script("arguments[0].click();", element)
+            return True
+        except Exception:
+            pass
+        return False
 
     def fill_easy_apply_required_fields(self) -> None:
         self.fill_required_radios_from_context()
@@ -170,13 +183,24 @@ class FormFillerMixin:
     ) -> bool:
         """Evaluates a single radio group and clicks the best matching option."""
         try:
-            radios = group.find_elements(By.CSS_SELECTOR, "input[type='radio']")
-            if not radios or any(r.is_selected() for r in radios):
+            radios = group.find_elements(By.CSS_SELECTOR, "input[type='radio'], div[role='radio']")
+            if not radios:
                 return False
 
-            raw_question = group.text or ""
-            question = self.bot._clean_question_text(raw_question)
+            has_checked = any(
+                r.is_selected() or (r.get_attribute("aria-checked") == "true")
+                for r in radios
+            )
+            if has_checked:
+                return False
+
+            question = ""
+            if hasattr(self.bot, "questions") and hasattr(self.bot.questions, "get_field_question_text"):
+                question = self.bot.questions.get_field_question_text(group)
             if not question:
+                raw_question = group.text or ""
+                question = self.bot._clean_question_text(raw_question)
+            if not question or question.lower() in ("yes no", "yes", "no"):
                 return False
 
             direct = self.bot._derive_direct_answer(question)
@@ -221,7 +245,9 @@ class FormFillerMixin:
         try:
             groups = self.bot.browser.find_elements(
                 By.CSS_SELECTOR,
-                ".jobs-easy-apply-form-section__grouping, fieldset, .fb-form-element, .fb-dash-form-element, .jobs-easy-apply-form-element, div[data-test-form-element]",
+                ".jobs-easy-apply-form-section__grouping, fieldset, div[role='radiogroup'], "
+                "div[componentkey*='easyApply'], .fb-form-element, .fb-dash-form-element, "
+                ".jobs-easy-apply-form-element, div[data-test-form-element]",
             )
             for group in groups:
                 self._process_radio_group(group, fallback_to_first=False)
@@ -233,7 +259,9 @@ class FormFillerMixin:
         try:
             groups = self.bot.browser.find_elements(
                 By.CSS_SELECTOR,
-                ".jobs-easy-apply-form-section__grouping, fieldset, .fb-form-element, .fb-dash-form-element, .jobs-easy-apply-form-element, div[data-test-form-element]",
+                ".jobs-easy-apply-form-section__grouping, fieldset, div[role='radiogroup'], "
+                "div[componentkey*='easyApply'], .fb-form-element, .fb-dash-form-element, "
+                ".jobs-easy-apply-form-element, div[data-test-form-element]",
             )
             for group in groups:
                 if group.is_displayed() and self._process_radio_group(group, fallback_to_first=True):

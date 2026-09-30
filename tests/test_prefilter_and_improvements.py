@@ -128,3 +128,74 @@ class TestDebugSnapshotCleanup:
             orchestrator._cleanup_old_debug_snapshots(max_keep=4)
             remaining = [d for d in failed_root.iterdir() if d.is_dir()]
             assert len(remaining) == 4
+
+
+class TestSearchLoopCardTitleExtraction:
+    """Test search result card title and company extraction."""
+
+    def test_extract_card_titles_with_occludable_id(self) -> None:
+        from easy_apply_automator.app.search_loop import SearchLoopMixin
+
+        class DummySearchBot(SearchLoopMixin):
+            def __init__(self):
+                self.browser = MagicMock()
+                self.appliedJobIDs = []
+                self.blacklist = []
+                self.stop_requested = False
+                self.session_deadline = float("inf")
+
+        bot = DummySearchBot()
+        card = MagicMock()
+        card.get_attribute.side_effect = lambda attr: "4465597726" if attr == "data-occludable-job-id" else None
+
+        title_el = MagicMock()
+        title_el.text = "Software Engineer Intern"
+        comp_el = MagicMock()
+        comp_el.text = "Clearwater Analytics"
+
+        def find_element_side_effect(by, sel):
+            if "title" in sel or sel == "strong":
+                return title_el
+            if "company" in sel or "description" in sel or "subtitle" in sel:
+                return comp_el
+            raise Exception("not found")
+
+        card.find_element.side_effect = find_element_side_effect
+        bot.browser.find_elements.return_value = [card]
+
+        titles = bot._extract_card_titles()
+        assert "4465597726" in titles
+        assert titles["4465597726"] == "Software Engineer Intern | Clearwater Analytics"
+
+    def test_lookup_card_title_on_demand(self) -> None:
+        from easy_apply_automator.app.search_loop import SearchLoopMixin
+
+        class DummySearchBot(SearchLoopMixin):
+            def __init__(self):
+                self.browser = MagicMock()
+                self.appliedJobIDs = []
+                self.blacklist = []
+                self.stop_requested = False
+                self.session_deadline = float("inf")
+
+        bot = DummySearchBot()
+        card = MagicMock()
+        title_el = MagicMock()
+        title_el.text = "DevOps Engineer Intern"
+
+        def find_element_side_effect(by, sel):
+            if "title" in sel:
+                return title_el
+            raise Exception("not found")
+
+        card.find_element.side_effect = find_element_side_effect
+
+        def browser_find_elements_side_effect(by, sel):
+            if "4469845856" in sel:
+                return [card]
+            return []
+
+        bot.browser.find_elements.side_effect = browser_find_elements_side_effect
+        title = bot._lookup_card_title("4469845856")
+        assert title == "DevOps Engineer Intern"
+

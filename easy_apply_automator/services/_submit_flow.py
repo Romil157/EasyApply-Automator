@@ -111,12 +111,14 @@ class SubmitFlowMixin:
 
     def is_already_applied_job_page(self) -> bool:
         try:
-            if any(self.bot.is_present(loc) for loc in (
+            for loc in (
                 (By.CSS_SELECTOR, "span.artdeco-inline-feedback__message"),
                 (By.CSS_SELECTOR, ".jobs-s-apply__applied-date"),
                 (By.CSS_SELECTOR, "div.jobs-applied-banner"),
-            )):
-                return True
+            ):
+                present = self.bot.is_present(loc) if hasattr(self.bot, "is_present") else False
+                if present is True:
+                    return True
             for span in self.bot.browser.find_elements(By.CSS_SELECTOR, "span, p, div"):
                 t = (span.text or "").strip().lower()
                 if t.startswith("applied ") or t.startswith("applied on ") or t == "applied":
@@ -168,6 +170,8 @@ class SubmitFlowMixin:
                         except Exception:
                             pass
                         if "jobdetails" in sdui_screen.lower():
+                            continue
+                        if sel == "div[data-sdui-screen]" and not any(k in sdui_screen.lower() for k in ("apply", "dialog", "modal", "form")):
                             continue
                         return modal
             except Exception:
@@ -445,6 +449,10 @@ class SubmitFlowMixin:
         if details["has_next"]:
             return "next", details
 
+        if modal is None and not is_search_page and self.is_already_applied_job_page():
+            details["is_confirmation"] = True
+            return "done", details
+
         return ("modal_no_cta" if details["has_modal"] else "outside_modal"), details
 
     def collect_apply_stall_diagnostics(self, state: str, progress: int | None, loop: int) -> dict:
@@ -462,9 +470,26 @@ class SubmitFlowMixin:
         except Exception:
             pass
 
+        unanswered_radios_count = 0
+        try:
+            radiogroups = self.bot.browser.find_elements(
+                By.CSS_SELECTOR, "fieldset[role='radiogroup'], div[role='radiogroup'], fieldset"
+            )
+            for rg in radiogroups:
+                if not rg.is_displayed():
+                    continue
+                r_items = rg.find_elements(By.CSS_SELECTOR, "input[type='radio'], div[role='radio']")
+                if r_items and not any(r.is_selected() or (r.get_attribute("aria-checked") == "true") for r in r_items):
+                    unanswered_radios_count += 1
+        except Exception:
+            pass
+
         errors = []
         try:
-            for n in self.bot.browser.find_elements(By.CSS_SELECTOR, ".artdeco-inline-feedback__message, .jobs-easy-apply-form-error, [role='alert']"):
+            for n in self.bot.browser.find_elements(
+                By.CSS_SELECTOR,
+                ".artdeco-inline-feedback__message, .jobs-easy-apply-form-error, [role='alert'], [id^='error-message-'], [aria-describedby*='error']",
+            ):
                 if n.is_displayed() and (n.text or "").strip():
                     errors.append(n.text.strip())
         except Exception:
@@ -475,6 +500,7 @@ class SubmitFlowMixin:
             "has_modal": modal is not None,
             "visible_ctas": visible_ctas,
             "required_empty_count": len(empty_samples),
+            "unanswered_radios_count": unanswered_radios_count,
             "required_empty_samples": empty_samples[:6],
             "validation_errors": errors[:6],
         }
@@ -610,6 +636,10 @@ class SubmitFlowMixin:
             if button is None:
                 button = self.bot._find_clickable(selectors)
             if button is None or not self.bot._safe_click(button):
+                if self.is_submit_confirmation_state() or self.is_already_applied_job_page():
+                    submitted = True
+                    self.bot.log_event("easy_apply_flow_done", status="submitted", mode="confirmation_detected_on_missing_button")
+                    break
                 diagnostics = self.collect_apply_stall_diagnostics(state=state, progress=progress, loop=loop)
                 reason = f"{action}_button_not_found" if button is None else f"{action}_click_failed"
                 self.bot.log_event("easy_apply_flow_stalled", progress=progress, loop=loop, reason=reason, diagnostics=diagnostics)
@@ -625,7 +655,6 @@ class SubmitFlowMixin:
             if next_progress is not None and next_progress != progress:
                 last_progress, last_transition_at, unchanged_progress_loops = next_progress, time.time(), 0
             elif action in ("next", "review"):
-                last_transition_at = time.time()
                 unchanged_progress_loops += 1
             elif progress is not None and progress != last_progress:
                 last_progress, last_transition_at, unchanged_progress_loops = progress, time.time(), 0
@@ -652,15 +681,22 @@ class SubmitFlowMixin:
         self, state: str, progress: int | None, loop: int, recovery_attempts: int, unchanged_loops: int, last_transition: float
     ) -> tuple[bool, int, int, float]:
         diagnostics = self.collect_apply_stall_diagnostics(state=state, progress=progress, loop=loop)
-        if diagnostics.get("validation_errors") or int(diagnostics.get("required_empty_count", 0)) > 0:
+        has_blockers = (
+            bool(diagnostics.get("validation_errors"))
+            or int(diagnostics.get("required_empty_count", 0)) > 0
+            or int(diagnostics.get("unanswered_radios_count", 0)) > 0
+            or unchanged_loops >= 3
+        )
+        if has_blockers:
             if recovery_attempts < 2:
                 recovered_blockers = self.recover_validation_blockers()
                 if recovered_blockers:
                     self.bot.log_event("validation_block_recovery", recovered_fields=recovered_blockers, progress=progress, loop=loop, attempt=recovery_attempts + 1, diagnostics=diagnostics)
                     return False, recovery_attempts + 1, 0, time.time()
-            self.bot.log_event("easy_apply_flow_stalled", progress=progress, loop=loop, reason="validation_blocked", diagnostics=diagnostics)
-            self.bot._dump_failure_snapshot("validation_blocked")
-            return True, recovery_attempts, unchanged_loops, last_transition
+            if unchanged_loops >= 4 or recovery_attempts >= 2:
+                self.bot.log_event("easy_apply_flow_stalled", progress=progress, loop=loop, reason="validation_blocked", diagnostics=diagnostics)
+                self.bot._dump_failure_snapshot("validation_blocked")
+                return True, recovery_attempts, unchanged_loops, last_transition
         return False, recovery_attempts, unchanged_loops, last_transition
 
     def dismiss_easy_apply_modal(self) -> bool:
