@@ -123,7 +123,7 @@ class AdaptiveCircuitBreaker:
 
     def __init__(
         self,
-        failure_threshold: int = 5,
+        failure_threshold: int = 3,
         cooldown_seconds: float = 60.0,
         escalation_factor: float = 1.5,
         max_cooldown_seconds: float = 300.0,

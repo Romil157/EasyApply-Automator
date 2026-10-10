@@ -80,6 +80,12 @@ class SubmitFlowMixin:
                 recovered += fn()
         return recovered
 
+    def fill_step_form_fields(self) -> None:
+        """Single-pass field fill for standard progression steps without expensive recovery loops."""
+        if hasattr(self, "fill_easy_apply_required_fields"):
+            self.fill_easy_apply_required_fields()
+        self.bot.process_questions()
+
     def get_easy_apply_progress(self) -> int | None:
         try:
             progress = self.bot.browser.find_element(By.CSS_SELECTOR, "progress.artdeco-completeness-meter-linear__progress-element")
@@ -89,23 +95,53 @@ class SubmitFlowMixin:
         except Exception:
             pass
         try:
+            for pb in self.bot.browser.find_elements(By.CSS_SELECTOR, "[role='progressbar'][aria-valuenow]"):
+                val = pb.get_attribute("aria-valuenow")
+                if val is not None and str(val).isdigit():
+                    return int(val)
+        except Exception:
+            pass
+        try:
             region = self.bot.browser.find_element(By.CSS_SELECTOR, "div[role='region'][aria-label*='progress']")
             match = re.search(r"(\d+)\s*percent", (region.get_attribute("aria-label") or "").lower())
             if match:
                 return int(match.group(1))
         except Exception:
             pass
+        try:
+            modal = self.find_easy_apply_modal()
+            if modal is not None:
+                txt = modal.text or ""
+                match = re.search(r"(\d+)\s*percent", txt, re.IGNORECASE)
+                if match:
+                    return int(match.group(1))
+                page_match = re.search(r"(\d+)\s*/\s*(\d+)\s*pages", txt, re.IGNORECASE)
+                if page_match:
+                    cur, total = int(page_match.group(1)), int(page_match.group(2))
+                    if total > 0:
+                        return round((cur / total) * 100)
+        except Exception:
+            pass
         return None
 
     def wait_for_progress_change(self, previous_progress: int | None, timeout_seconds: float = 8.0) -> int | None:
         end = time.time() + timeout_seconds
+        poll_count = 0
         while time.time() < end:
             current = self.get_easy_apply_progress()
             if (previous_progress is None and current is not None) or (current is not None and current != previous_progress):
                 return current
-            page_text = (self.bot.browser.page_source or "").lower()
-            if "application was sent" in page_text or "application submitted" in page_text:
-                return current
+            poll_count += 1
+            if poll_count % 5 == 0:
+                modal = self.find_easy_apply_modal()
+                if modal is not None:
+                    txt = (getattr(modal, "text", "") or "").lower()
+                    if "application was sent" in txt or "application submitted" in txt:
+                        return current
+                else:
+                    page_text = (getattr(self.bot.browser, "page_source", "") or "").lower()
+                    if "application was sent" in page_text or "application submitted" in page_text:
+                        return current
             time.sleep(POLL_INTERVAL_SECONDS)
         return self.get_easy_apply_progress()
 
@@ -338,6 +374,19 @@ class SubmitFlowMixin:
     def retry_open_apply_flow(self) -> tuple[bool, str]:
         if self._is_similar_jobs_redirect():
             return False, "similar_jobs_redirect"
+
+        button = self.bot.get_easy_apply_button()
+        if button:
+            try:
+                self.bot._click_easy_apply(button)
+            except Exception as exc:
+                log.debug(f"Button reclick error: {exc}")
+            ready, mode = self.wait_for_apply_flow_ready(timeout_seconds=4.0)
+            if ready:
+                return True, f"button_reclick_{mode}"
+            if mode == "similar_jobs_redirect":
+                return False, "similar_jobs_redirect"
+
         current_job_id = getattr(self.bot, "current_job_id", "") or ""
         if current_job_id:
             direct_url = f"https://www.linkedin.com/jobs/view/{current_job_id}/apply/"
@@ -350,15 +399,6 @@ class SubmitFlowMixin:
                     return False, "similar_jobs_redirect"
             except Exception as exc:
                 log.debug(f"Direct apply URL fallback error: {exc}")
-
-        button = self.bot.get_easy_apply_button()
-        if button:
-            self.bot._click_easy_apply(button)
-            ready, mode = self.wait_for_apply_flow_ready(timeout_seconds=4.0)
-            if ready:
-                return True, f"button_reclick_{mode}"
-            if mode == "similar_jobs_redirect":
-                return False, "similar_jobs_redirect"
 
         return False, "retry_failed"
 
@@ -398,7 +438,7 @@ class SubmitFlowMixin:
         is_search_page = ("currentjobid" in current_url or "/search" in current_url)
 
         if modal is None and not is_sdui and is_search_page:
-            details = {
+            details: dict[str, Any] = {
                 "has_modal": False,
                 "has_submit": False,
                 "has_review": False,
@@ -432,27 +472,41 @@ class SubmitFlowMixin:
             "is_confirmation": self.is_submit_confirmation_state(),
         }
 
+        btn_map = {
+            "submit": submit_btn if has_submit else None,
+            "review": review_btn,
+            "next": next_btn,
+        }
+
         if details["is_confirmation"]:
+            details["action_button"] = None
             return "done", details
 
         progress = self.get_easy_apply_progress()
         if progress is not None and progress < 80:
             if details["has_next"]:
+                details["action_button"] = btn_map["next"]
                 return "next", details
             if details["has_review"]:
+                details["action_button"] = btn_map["review"]
                 return "review", details
 
         if details["has_submit"]:
+            details["action_button"] = btn_map["submit"]
             return "submit", details
         if details["has_review"]:
+            details["action_button"] = btn_map["review"]
             return "review", details
         if details["has_next"]:
+            details["action_button"] = btn_map["next"]
             return "next", details
 
         if modal is None and not is_search_page and self.is_already_applied_job_page():
             details["is_confirmation"] = True
+            details["action_button"] = None
             return "done", details
 
+        details["action_button"] = None
         return ("modal_no_cta" if details["has_modal"] else "outside_modal"), details
 
     def collect_apply_stall_diagnostics(self, state: str, progress: int | None, loop: int) -> dict:
@@ -586,10 +640,13 @@ class SubmitFlowMixin:
                 self.bot._dump_debug_html("state_machine_done", extra={"state": state, "details": state_details})
                 break
 
-            recovered_count = self.recover_validation_blockers()
-            if recovered_count:
-                self.bot.log_event("validation_recovery", recovered_fields=recovered_count, progress=progress, loop=loop)
-                self.bot._dump_debug_html(f"validation_recovery_loop_{loop}", extra={"progress": progress, "recovered_fields": recovered_count})
+            if unchanged_progress_loops > 0:
+                recovered_count = self.recover_validation_blockers()
+                if recovered_count:
+                    self.bot.log_event("validation_recovery", recovered_fields=recovered_count, progress=progress, loop=loop)
+                    self.bot._dump_debug_html(f"validation_recovery_loop_{loop}", extra={"progress": progress, "recovered_fields": recovered_count})
+            else:
+                self.fill_step_form_fields()
 
             self._try_upload_documents()
             action, selectors = self._resolve_step_action(state)
@@ -631,8 +688,33 @@ class SubmitFlowMixin:
 
             no_action_loops = 0
 
+            if action == "submit":
+                require_follow = getattr(getattr(self.bot, "config", None), "follow_company_required", True)
+                gate_ok, violations, diagnostics = self.validate_final_submission_invariants(
+                    require_follow_checkbox=require_follow
+                )
+                if not gate_ok:
+                    log.error(f"Centralized submission gate BLOCKED submission: {violations}")
+                    self.bot.log_event(
+                        "submission_invariant_failed",
+                        violations=violations,
+                        diagnostics=diagnostics,
+                        progress=progress,
+                        loop=loop,
+                    )
+                    self.bot._dump_failure_snapshot("submission_invariant_violation")
+                    break
+
             modal = self.find_easy_apply_modal()
-            button = self._find_action_button(action, container=modal)
+            button = state_details.get("action_button")
+            try:
+                if button is not None and not (button.is_displayed() and button.is_enabled()):
+                    button = None
+            except Exception:
+                button = None
+
+            if button is None:
+                button = self._find_action_button(action, container=modal)
             if button is None:
                 button = self.bot._find_clickable(selectors)
             if button is None or not self.bot._safe_click(button):
@@ -656,6 +738,7 @@ class SubmitFlowMixin:
                 last_progress, last_transition_at, unchanged_progress_loops = next_progress, time.time(), 0
             elif action in ("next", "review"):
                 unchanged_progress_loops += 1
+                last_transition_at = time.time()
             elif progress is not None and progress != last_progress:
                 last_progress, last_transition_at, unchanged_progress_loops = progress, time.time(), 0
 
@@ -721,6 +804,97 @@ class SubmitFlowMixin:
         except Exception as exc:
             log.debug(f"Error dismissing modal: {exc}")
         return False
+
+    def validate_final_submission_invariants(
+        self, require_follow_checkbox: bool = True
+    ) -> tuple[bool, list[str], dict[str, Any]]:
+        """Centralized submission gate validating all critical invariants before final submission.
+
+        Critical Invariants:
+        1. follow_company == False (strictly verified in DOM)
+        2. required fields are complete (no empty required inputs, radios, or comboboxes)
+        3. required uploads are attached (resume attached if required)
+        4. no unresolved validation errors (no active .artdeco-inline-feedback--error)
+        5. application page/modal is in an expected state with an active submit button
+
+        Returns (is_valid, list_of_violations, diagnostics_dict).
+        """
+        violations: list[str] = []
+        diagnostics = self.collect_apply_stall_diagnostics(state="submit", progress=100, loop=0)
+        modal = self.find_easy_apply_modal()
+        root = modal if modal is not None else self.bot.browser
+
+        # 1. Invariant: follow_company == False
+        desired_follow = getattr(getattr(self.bot, "config", None), "follow_company", False)
+        if hasattr(self, "set_follow_company_state"):
+            follow_res = self.set_follow_company_state(
+                desired_state=desired_follow, require_present=require_follow_checkbox
+            )
+            if not follow_res.success:
+                violations.append(f"follow_company_invariant_failed: {follow_res.status} - {follow_res.error}")
+            elif follow_res.found and follow_res.final_state is True and not desired_follow:
+                violations.append("follow_company_invariant_failed: follow checkbox remains checked")
+            elif follow_res.found and follow_res.final_state is None:
+                violations.append("follow_company_invariant_failed: final checkbox state is unknown")
+        elif hasattr(self, "uncheck_follow_company"):
+            self.uncheck_follow_company()
+
+        # 2. Invariant: no unresolved validation errors
+        visible_errors: list[str] = []
+        try:
+            error_elems = root.find_elements(
+                By.CSS_SELECTOR,
+                ".artdeco-inline-feedback--error, [data-test-form-element-error-messages], .artdeco-inline-feedback__message"
+            )
+            for err in error_elems:
+                try:
+                    if err.is_displayed():
+                        txt = (err.text or "").strip()
+                        if txt and txt.lower() not in ("please enter a valid answer", ""):
+                            visible_errors.append(txt)
+                except Exception:
+                    continue
+        except Exception as exc:
+            log.debug(f"Error checking validation feedback elements: {exc}")
+
+        if visible_errors:
+            violations.append(f"unresolved_validation_errors: {visible_errors}")
+
+        # 3. Invariant: required fields complete
+        required_empty = int(diagnostics.get("required_empty_count", 0))
+        unanswered_radios = int(diagnostics.get("unanswered_radios_count", 0))
+        if required_empty > 0:
+            violations.append(f"required_fields_empty: {required_empty} fields incomplete")
+        if unanswered_radios > 0:
+            violations.append(f"unanswered_required_radios: {unanswered_radios} radio groups incomplete")
+
+        # 4. Invariant: required uploads attached
+        if any("resume" in err.lower() or "upload" in err.lower() for err in visible_errors):
+            violations.append("required_upload_missing: resume or document upload error present")
+
+        # 5. Invariant: application page / submit button ready
+        submit_btn = self._find_action_button("submit", container=modal)
+        if submit_btn is None:
+            submit_selectors = self._get_action_selectors("submit")
+            submit_btn = self.bot._find_clickable(submit_selectors)
+        if submit_btn is None:
+            violations.append("application_page_unexpected_state: submit button not found")
+        else:
+            try:
+                if not submit_btn.is_enabled():
+                    violations.append("application_page_unexpected_state: submit button is disabled")
+            except Exception:
+                pass
+
+        diagnostics["visible_errors"] = visible_errors
+        diagnostics["violations"] = violations
+
+        if violations:
+            log.warning(f"Final submission gate failed {len(violations)} invariants: {violations}")
+            return False, violations, diagnostics
+
+        log.info("Final submission gate passed all critical invariants.")
+        return True, [], diagnostics
 
     def _handle_submit_action(self, submit_clicked: bool) -> tuple[bool, bool]:
         submit_clicked = True
@@ -863,7 +1037,9 @@ class SubmitFlowMixin:
 
     def _resolve_step_action(self, state: str) -> tuple[str | None, list[tuple[str, str]]]:
         if state == "submit":
-            if hasattr(self, "uncheck_follow_company"):
+            if hasattr(self, "set_follow_company_state"):
+                self.set_follow_company_state(desired_state=False, require_present=False)
+            elif hasattr(self, "uncheck_follow_company"):
                 self.uncheck_follow_company()
             return "submit", self._get_action_selectors("submit")
         if state == "review":

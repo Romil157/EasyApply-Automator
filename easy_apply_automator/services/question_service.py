@@ -168,11 +168,14 @@ class QuestionService(ServiceBase):
         q = (question or "").strip()
         q = re.sub(r"(?i)\bplease enter a valid answer\b", "", q)
         q = re.sub(r"\b\d+[\d,]*\s*/\s*[\d,]+(?:\s*characters?)?\b", "", q)
+        q = re.sub(r"\b\d+[\d,]*\s+of\s+[\d,]+(?:\s*characters?)?\b", "", q, flags=re.I)
         q = re.sub(r"/\s*[\d,]+(?:\s*characters?)?", "", q)
         q = re.sub(r"\b[\d,]+\s*max(?:imum)?\s*(?:characters?)?(?:\s*allowed)?\.?", "", q, flags=re.I)
         q = re.sub(r"\bmax(?:imum)?\s*[\d,]+\s*(?:characters?)?(?:\s*allowed)?\.?", "", q, flags=re.I)
         q = re.sub(r"(.{10,})\s*\1+", r"\1", q)
         q = re.sub(r"\s+", " ", q).strip()
+        if re.match(r"^[\s\d/ofcharacters,.-]*$", q, flags=re.I):
+            return ""
         return q
 
     @staticmethod
@@ -404,8 +407,26 @@ class QuestionService(ServiceBase):
 
     def get_field_question_text(self, field) -> str:
         """Extracts and cleans the question text from a form element or group."""
+        try:
+            cls = (field.get_attribute("class") or "").lower()
+            fid = (field.get_attribute("id") or "").lower()
+            ckey = (field.get_attribute("componentkey") or "").lower()
+            if any(k in cls or k in fid or k in ckey for k in ("resume-card", "document-upload", "upload-resume")):
+                return ""
+        except Exception:
+            pass
+
         raw_text = getattr(field, "text", "") or ""
         cleaned = self.clean_question_text(raw_text)
+
+        if re.search(r"\.(pdf|docx?|txt|rtf)\b", cleaned, re.IGNORECASE):
+            non_file_lines = [
+                ln.strip() for ln in raw_text.splitlines()
+                if ln.strip() and not re.search(r"\.(pdf|docx?|txt|rtf)\b", ln, re.IGNORECASE)
+                and not any(k in ln.lower() for k in ("uploaded", "bytes", "mb", "kb", "selected", "format", "last used"))
+            ]
+            if not non_file_lines:
+                return ""
 
         cleaned_low = cleaned.strip().lower()
         is_option_only = cleaned_low in (
@@ -543,6 +564,8 @@ class QuestionService(ServiceBase):
             question = self.get_field_question_text(field)
             if not question:
                 continue
+            if re.search(r"\.(pdf|docx?|txt|rtf)\b", question, re.IGNORECASE):
+                continue
             direct = self.derive_direct_answer(question)
             answer = direct if direct is not None else self.ans_question(question.lower())
             answered = False
@@ -565,6 +588,37 @@ class QuestionService(ServiceBase):
                                 self.bot.log_event("question_answered", kind="radio_label", question=question, answer=answer)
                                 answered = True
                                 break
+                    if not answered:
+                        radio_labels = []
+                        for r in radios:
+                            rid = r.get_attribute("id") or ""
+                            rtxt = ""
+                            if rid:
+                                try:
+                                    lbl = field.find_element(By.CSS_SELECTOR, f"label[for='{rid}']")
+                                    rtxt = (lbl.text or "").strip().lower()
+                                except Exception:
+                                    pass
+                            if not rtxt:
+                                try:
+                                    container = r.find_element(By.XPATH, "./ancestor::*[@role='radio'][1] | ./parent::*")
+                                    rtxt = (container.text or "").strip().lower()
+                                except Exception:
+                                    pass
+                            if not rtxt:
+                                rtxt = (r.get_attribute("value") or "").strip().lower()
+                            radio_labels.append((r, rid, rtxt))
+
+                        all_labels = {lbl for _, _, lbl in radio_labels if lbl}
+                        is_yes_no_group = all_labels and all_labels.issubset({"yes", "no", "true", "false", "1", "0"})
+                        if is_yes_no_group:
+                            target = "no" if (answer or "").strip().lower() in ("no", "false", "0") else "yes"
+                            for r, rid, rtxt in radio_labels:
+                                if rtxt in self.answer_aliases(target):
+                                    if self._select_radio_element(field, r, rid):
+                                        self.bot.log_event("question_answered", kind="radio_binary_fallback", question=question, answer=target)
+                                        answered = True
+                                        break
                 if answered:
                     continue
             except Exception as exc:
