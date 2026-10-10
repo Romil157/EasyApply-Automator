@@ -123,6 +123,14 @@ headless: false
 user_data_dir: ""
 proxy: ""
 
+# High-Throughput & Performance Mode
+performance_mode:
+  enabled: true
+  fast_qa_cache: true
+  batch_dom_extraction: true
+  skip_non_easy_apply_cards: true
+  streamlined_waits: true
+
 max_pages_per_search: 5
 
 # Session pacing (humanized pauses to protect account)

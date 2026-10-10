@@ -25,7 +25,7 @@ from easy_apply_automator.config.timing import (
     QUESTION_LOAD_PAUSE_SECONDS,
     TYPEAHEAD_PAUSE_SECONDS,
 )
-from easy_apply_automator.domain.models import AppConfig
+from easy_apply_automator.domain.models import AppConfig, PerformanceModeConfig
 from easy_apply_automator.infra.browser_factory import (
     build_browser_options,
     build_webdriver,
@@ -59,6 +59,10 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self._init_services(config)
 
     def _init_config(self, config: AppConfig) -> None:
+        self.config: AppConfig = config
+        self.performance_mode: PerformanceModeConfig = (
+            getattr(config, "performance_mode", None) or PerformanceModeConfig()
+        )
         self.runtime = config.runtime
         self.uploads = config.uploads
         self.salary = config.salary
@@ -119,7 +123,7 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.session_jobs_processed = 0
         self.session_jobs_submitted = 0
         self.session_jobs_attempted = 0
-        self.circuit_breaker = AdaptiveCircuitBreaker(failure_threshold=5, cooldown_seconds=60.0)
+        self.circuit_breaker = AdaptiveCircuitBreaker(failure_threshold=3, cooldown_seconds=60.0)
         self.session_jobs_failed_attempts = 0
         self.session_jobs_failed_medical = 0
         self.submitted_timestamps: deque[float] = deque(maxlen=1000)
@@ -376,9 +380,13 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         return False
 
     def apply_to_job(self, job_id: str) -> bool:
+        job_start = time.time()
+        self._current_job_timings = {"start_time": job_start, "navigation_ms": 0.0, "form_fill_ms": 0.0}
         self._start_job_debug_trace(job_id)
         self._dump_debug_html("job_open_start")
+        t_nav = time.time()
         self.get_job_page(job_id)
+        self._current_job_timings["navigation_ms"] = round((time.time() - t_nav) * 1000, 2)
         self._dump_debug_html("job_page_loaded")
         reading_pause(min_seconds=0.8, max_seconds=1.8)
         self._human_sleep(MICRO_PAUSE_SECONDS)
@@ -475,12 +483,15 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             if hasattr(self, "auto_answer") and self.auto_answer is not None and hasattr(self.auto_answer, "set_current_job"):
                 self.auto_answer.set_current_job(job_title=metadata.get("job_title", ""), company=metadata.get("company", ""))
 
+            t_form = time.time()
             log.info("Clicking the EASY apply button")
             self._click_easy_apply(button)
             self._dump_debug_html("easy_apply_clicked")
             self._human_sleep(QUESTION_LOAD_PAUSE_SECONDS)
             self.fill_out_fields()
             result = self.send_resume()
+            if hasattr(self, "_current_job_timings"):
+                self._current_job_timings["form_fill_ms"] = round((time.time() - t_form) * 1000, 2)
             if result:
                 return True, "submitted", "*Applied: Sent Resume"
             if self.stop_requested and self.stop_reason == "daily_easy_apply_limit_reached":
@@ -510,6 +521,23 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
         self.last_job_reason = reason
         metadata = self._extract_job_metadata(job_id=job_id)
         self.log_event("job_processed", attempted=bool(button), result=result, reason=reason, easy_apply_button=bool(button), **metadata)
+
+        timings = getattr(self, "_current_job_timings", {})
+        total_latency_ms = round((time.time() - timings.get("start_time", time.time())) * 1000, 2) if timings else 0.0
+        qa_metrics = getattr(getattr(self, "auto_answer", None), "metrics", {})
+        llm_metrics = getattr(getattr(self, "llm_client", None), "metrics", {})
+        self.log_event(
+            "application_completed",
+            job_id=job_id,
+            result=result,
+            reason=reason,
+            total_latency_ms=total_latency_ms,
+            navigation_ms=timings.get("navigation_ms", 0.0),
+            form_fill_ms=timings.get("form_fill_ms", 0.0),
+            qa_ms=round(qa_metrics.get("qa_resolution_ms", 0.0), 2),
+            llm_ms=round(llm_metrics.get("llm_latency_ms", 0.0), 2),
+        )
+
         self.write_to_file(button, job_id, self.browser.title, result, metadata, reason)
         self._update_session_throughput(reason=reason, attempted=bool(button), result=result)
 
@@ -525,11 +553,18 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             "not_relevant",
             "already_applied",
         ):
-            if hasattr(self, "circuit_breaker") and self.circuit_breaker.record_failure():
-                cooldown = self.circuit_breaker.cooldown_seconds
-                log.warning(f"Circuit breaker triggered. Anti-detection cooldown {cooldown}s...")
-                self.log_event("circuit_breaker_cooldown", duration_seconds=cooldown)
-                time.sleep(cooldown)
+            if hasattr(self, "circuit_breaker"):
+                tripped = self.circuit_breaker.record_failure()
+                consec = getattr(self.circuit_breaker, "consecutive_failures", 0)
+                thresh = getattr(self.circuit_breaker, "failure_threshold", 3)
+                if tripped:
+                    log.info(f"Circuit breaker failure recorded: {thresh}/{thresh} consecutive failures.")
+                    cooldown = self.circuit_breaker.cooldown_seconds
+                    log.warning(f"Circuit breaker triggered. Anti-detection cooldown {cooldown}s...")
+                    self.log_event("circuit_breaker_cooldown", duration_seconds=cooldown)
+                    time.sleep(cooldown)
+                else:
+                    log.info(f"Circuit breaker failure recorded: {consec}/{thresh} consecutive failures.")
 
         if not result and reason not in (
             "daily_limit_reached",
@@ -593,8 +628,19 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
 
     def get_job_page(self, job_id):
         target_url = f"https://www.linkedin.com/jobs/view/{job_id}"
-        self.browser.get(target_url)
-        self.job_page = self.load_page(sleep=0.02, scroll_limit=500)
+        current_url = (self.browser.current_url or "").lower()
+        if f"/jobs/view/{job_id}" not in current_url:
+            self.log_event("navigation_start", job_id=job_id, target_url=target_url)
+            t0 = time.time()
+            self.browser.get(target_url)
+            self.log_event("navigation_ready", job_id=job_id, elapsed_ms=round((time.time() - t0) * 1000, 2))
+
+        perf_mode = getattr(self, "performance_mode", None) or getattr(getattr(self, "config", None), "performance_mode", None)
+        if perf_mode and getattr(perf_mode, "enabled", False):
+            self.job_page = None
+        else:
+            self.job_page = self.load_page(sleep=0.02, scroll_limit=500)
+
         current_url = (self.browser.current_url or "").lower()
         if "similar-jobs" in current_url or "/jobs/collections/" in current_url:
             log.info(f"Job {job_id} redirected to similar jobs collection: {current_url}")
@@ -686,26 +732,43 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             pass
         time.sleep(CLICK_PAUSE_SECONDS * random.uniform(1.0, 1.8))
 
-        strategies = ["action", "direct", "js"]
-        random.shuffle(strategies)
-        for strategy in strategies:
+        clicked = False
+        try:
+            element.click()
+            clicked = True
+        except Exception as exc:
+            log.debug(f"Direct click on Easy Apply button failed: {exc}")
+
+        if not clicked:
             try:
-                if strategy == "action":
-                    from selenium.webdriver.common.action_chains import ActionChains
-                    ActionChains(self.browser).move_to_element(element).pause(random.uniform(0.06, 0.16)).click().perform()
-                elif strategy == "direct":
-                    element.click()
-                else:
-                    self.browser.execute_script("arguments[0].click();", element)
-                break
+                self.browser.execute_script("arguments[0].click();", element)
+                clicked = True
             except Exception as exc:
-                log.debug(f"Click strategy '{strategy}' failed: {exc}")
+                log.debug(f"JS click on Easy Apply button failed: {exc}")
+
+        if not clicked:
+            try:
+                from selenium.webdriver.common.action_chains import ActionChains
+
+                ActionChains(self.browser).move_to_element(element).pause(random.uniform(0.06, 0.16)).click().perform()
+                clicked = True
+            except Exception as exc:
+                log.debug(f"ActionChains click on Easy Apply button failed: {exc}")
 
         try:
             if len(self.browser.window_handles) > 1:
                 self.browser.switch_to.window(self.browser.window_handles[-1])
         except Exception:
             pass
+
+        if not is_link:
+            try:
+                modal = self.apply_flow.find_easy_apply_modal() if hasattr(self, "apply_flow") else None
+                if modal is None:
+                    # Backup click via direct JS dispatch to guarantee DOM event trigger
+                    self.browser.execute_script("arguments[0].click();", element)
+            except Exception:
+                pass
 
         if is_link:
             try:
@@ -810,14 +873,37 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
                 continue
         return None
 
+    def _apply_select_option(self, select_element, option) -> bool:
+        clicked = False
+        try:
+            option.click()
+            clicked = True
+        except Exception:
+            pass
+        try:
+            val = option.get_attribute("value")
+            self.browser.execute_script(
+                """
+                var sel = arguments[0];
+                var val = arguments[1];
+                sel.value = val;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                sel.dispatchEvent(new Event('input', { bubbles: true }));
+                """,
+                select_element,
+                val,
+            )
+            return True
+        except Exception:
+            return clicked
+
     def _select_non_default_option(self, select_element) -> bool:
         try:
             for option in select_element.find_elements(By.TAG_NAME, "option"):
                 text = (option.text or "").strip().lower()
                 value = (option.get_attribute("value") or "").strip().lower()
                 if text and "select an option" not in text and value not in ("", "select an option"):
-                    option.click()
-                    return True
+                    return self._apply_select_option(select_element, option)
         except Exception:
             pass
         return False
@@ -831,13 +917,11 @@ class LinkedInEasyApplyOrchestrator(SearchLoopMixin):
             for option in options:
                 t, v = (option.text or "").strip().lower(), (option.get_attribute("value") or "").strip().lower()
                 if t == ans_norm or v == ans_norm:
-                    option.click()
-                    return True
+                    return self._apply_select_option(select_element, option)
             for option in options:
                 t, v = (option.text or "").strip().lower(), (option.get_attribute("value") or "").strip().lower()
-                if ans_norm in t or ans_norm in v:
-                    option.click()
-                    return True
+                if (ans_norm in t and "select an option" not in t) or (ans_norm in v and "select an option" not in v):
+                    return self._apply_select_option(select_element, option)
         except Exception:
             pass
         return False

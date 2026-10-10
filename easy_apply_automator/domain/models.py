@@ -37,6 +37,22 @@ class RuntimeConfig:
     headless: bool = False
     user_data_dir: str = ""
     proxy: str = ""
+    performance_mode: bool = True
+    fast_qa_cache: bool = True
+    batch_dom_extraction: bool = True
+    skip_non_easy_apply_cards: bool = True
+    streamlined_waits: bool = True
+
+
+@dataclass(slots=True)
+class PerformanceModeConfig:
+    """Configures high-throughput execution flags and optimizations."""
+
+    enabled: bool = True
+    fast_qa_cache: bool = True
+    batch_dom_extraction: bool = True
+    skip_non_easy_apply_cards: bool = True
+    streamlined_waits: bool = True
 
 
 @dataclass(slots=True)
@@ -73,6 +89,7 @@ class AppConfig:
     results_filename: str = "results.json"
     events_filename: str = "logs/events.jsonl"
     cookies_path: str = ".auth/linkedin_cookies.json"
+    performance_mode: PerformanceModeConfig = field(default_factory=PerformanceModeConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
 
     @classmethod
@@ -87,6 +104,20 @@ class AppConfig:
             if isinstance(val, bool):
                 return val
             return str(val).strip().lower() in ("true", "1", "yes", "y")
+
+        perf_cfg = parameters.get("performance_mode", {})
+        if isinstance(perf_cfg, dict):
+            perf_enabled = _to_bool(perf_cfg.get("enabled", True), default=True)
+            fast_qa = _to_bool(perf_cfg.get("fast_qa_cache", True), default=True)
+            batch_dom = _to_bool(perf_cfg.get("batch_dom_extraction", True), default=True)
+            skip_non_ea = _to_bool(perf_cfg.get("skip_non_easy_apply_cards", True), default=True)
+            streamlined_w = _to_bool(perf_cfg.get("streamlined_waits", True), default=True)
+        else:
+            perf_enabled = _to_bool(perf_cfg, default=True)
+            fast_qa = perf_enabled
+            batch_dom = perf_enabled
+            skip_non_ea = perf_enabled
+            streamlined_w = perf_enabled
 
         runtime = RuntimeConfig(
             max_pages_per_search=int(parameters.get("max_pages_per_search", 3)),
@@ -104,7 +135,13 @@ class AppConfig:
             headless=_to_bool(parameters.get("headless", False)),
             user_data_dir=str(parameters.get("user_data_dir", "")).strip(),
             proxy=str(parameters.get("proxy", "")).strip(),
+            performance_mode=perf_enabled,
+            fast_qa_cache=fast_qa,
+            batch_dom_extraction=batch_dom,
+            skip_non_easy_apply_cards=skip_non_ea,
+            streamlined_waits=streamlined_w,
         )
+
 
         experience_level = []
         for v in parameters.get("experience_level", []):
@@ -113,6 +150,14 @@ class AppConfig:
 
         workplace_types = [str(w) for w in parameters.get("workplace_types", []) if w]
         job_types = [str(j) for j in parameters.get("job_types", []) if j]
+
+        perf_mode = PerformanceModeConfig(
+            enabled=perf_enabled,
+            fast_qa_cache=fast_qa,
+            batch_dom_extraction=batch_dom,
+            skip_non_easy_apply_cards=skip_non_ea,
+            streamlined_waits=streamlined_w,
+        )
 
         return cls(
             username=str(parameters.get("username", "")),
@@ -156,5 +201,6 @@ class AppConfig:
             cookies_path=str(
                 Path(parameters.get("cookies_path", ".auth/linkedin_cookies.json")).expanduser()
             ),
+            performance_mode=perf_mode,
             runtime=runtime,
         )

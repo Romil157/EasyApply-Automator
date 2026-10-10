@@ -20,6 +20,7 @@ class SearchLoopMixin:
     blacklist: list[str]
     appliedJobIDs: list[str]
     locator: dict[str, tuple[str, str]]
+    _seen_session_job_ids: set[str]
 
     def _maybe_take_short_break(self, source: str) -> None:
         pass
@@ -84,17 +85,29 @@ class SearchLoopMixin:
 
                 if self.is_present(self.locator["search"]):
                     scroll_results = self.get_elements("search")
-                    for i in range(300, 3000, 100):
-                        self.browser.execute_script(
-                            f"arguments[0].scrollTo(0, {i})", scroll_results[0]
-                        )
+                    if scroll_results:
+                        try:
+                            self.browser.execute_script(
+                                "if (arguments[0]) { for (let i = 300; i <= 3000; i += 200) { arguments[0].scrollTo(0, i); } }",
+                                scroll_results[0],
+                            )
+                        except Exception:
+                            for i in range(300, 3000, 200):
+                                self.browser.execute_script(
+                                    f"arguments[0].scrollTo(0, {i})", scroll_results[0]
+                                )
 
-                job_ids = self.extract_job_card_ids()
-                if job_ids:
+                cards_batch = self.extract_job_cards_batch()
+                if cards_batch:
                     consecutive_empty_pages = 0
-                    self.apply_loop(job_ids)
+                    self.apply_loop_batch(cards_batch)
                 else:
-                    consecutive_empty_pages += 1
+                    job_ids = self.extract_job_card_ids()
+                    if job_ids:
+                        consecutive_empty_pages = 0
+                        self.apply_loop(job_ids)
+                    else:
+                        consecutive_empty_pages += 1
 
                 pages_processed += 1
                 if consecutive_empty_pages >= 2:
@@ -318,7 +331,178 @@ class SearchLoopMixin:
             pass
         return ""
 
+    def extract_job_cards_batch(self) -> list[dict[str, Any]]:
+        """Extracts job card metadata (id, title, company, applied, easy_apply) in a single JS call."""
+        try:
+            raw_cards = self.browser.execute_script(
+                """
+                return (function() {
+                    const cards = document.querySelectorAll(
+                        "li.jobs-search-results__list-item, div.job-card-container, div[data-job-id], [data-occludable-job-id], div.job-card-list"
+                    );
+                    const results = [];
+                    const seen = new Set();
+                    for (let i = 0; i < cards.length; i++) {
+                        const card = cards[i];
+                        let jid = (
+                            card.getAttribute("data-job-id") ||
+                            card.getAttribute("data-occludable-job-id") ||
+                            card.getAttribute("data-entity-urn") ||
+                            ""
+                        ).trim();
+                        if (!jid || !/^\\d+$/.test(jid)) {
+                            const link = card.querySelector("a[data-job-id], a[href*='/jobs/view/']");
+                            if (link) {
+                                const subJid = (link.getAttribute("data-job-id") || "").trim();
+                                if (/^\\d+$/.test(subJid)) {
+                                    jid = subJid;
+                                } else {
+                                    const href = link.getAttribute("href") || "";
+                                    const m = href.match(/\\/jobs\\/view\\/(\\d+)/);
+                                    if (m) jid = m[1];
+                                }
+                            }
+                        }
+                        if (!jid || !/^\\d+$/.test(jid) || seen.has(jid)) continue;
+                        seen.add(jid);
+
+                        let title = "";
+                        const titleEl = card.querySelector("a.job-card-list__title, a.job-card-container__link, .job-card-list__title--link, strong");
+                        if (titleEl) {
+                            title = (titleEl.innerText || titleEl.textContent || "").trim();
+                        }
+
+                        let company = "";
+                        const compEl = card.querySelector(".job-card-container__primary-description, .artdeco-entity-lockup__subtitle, .job-card-list__company-name, .job-card-container__company-name");
+                        if (compEl) {
+                            company = (compEl.innerText || compEl.textContent || "").trim();
+                        }
+
+                        const text = (card.innerText || card.textContent || "").trim();
+                        const applied = text.includes("Applied");
+                        const hasEasyApply = text.includes("Easy Apply") || !!card.querySelector("[aria-label*='Easy Apply'], .job-card-container__apply-method");
+
+                        results.push({
+                            job_id: jid,
+                            title: title,
+                            company: company,
+                            applied: applied,
+                            has_easy_apply: hasEasyApply
+                        });
+                    }
+                    return results;
+                })();
+                """
+            )
+            if isinstance(raw_cards, list) and raw_cards:
+                return raw_cards
+        except Exception as exc:
+            log.debug(f"Batch job card extraction via JS failed or unsupported: {exc}")
+        return []
+
+    def apply_loop_batch(self, cards: list[dict[str, Any]]) -> None:
+        """High-throughput apply loop processing pre-extracted job cards with zero extra DOM queries."""
+        if not hasattr(self, "_seen_session_job_ids"):
+            self._seen_session_job_ids = set()
+
+        perf_mode = (
+            getattr(getattr(self, "config", None), "performance_mode", None)
+            or getattr(self, "performance_mode", None)
+        )
+        skip_non_easy_apply = getattr(perf_mode, "skip_non_easy_apply_cards", True) if perf_mode else True
+
+        for card in cards:
+            if self.stop_requested or time.time() >= self.session_deadline:
+                break
+
+            max_apps = getattr(self, "max_applications", 0)
+            submitted_count = getattr(self, "session_jobs_submitted", 0)
+            if max_apps > 0 and submitted_count >= max_apps:
+                log.info(f"Target application cap of {max_apps} reached. Ending session.")
+                if hasattr(self, "request_stop"):
+                    self.request_stop("max_applications_reached", max_applications=max_apps)
+                break
+
+            job_id = card.get("job_id", "")
+            if not job_id:
+                continue
+
+            # In-memory session deduplication
+            if job_id in self._seen_session_job_ids:
+                log.debug(f"Job {job_id} already processed in current session. Skipping.")
+                continue
+            self._seen_session_job_ids.add(job_id)
+
+            if card.get("applied", False):
+                self.log_event("job_skipped_seen_recently", job_id=job_id, reason="card_shows_applied")
+                continue
+
+            if job_id in self.appliedJobIDs:
+                self.log_event("job_skipped_seen_recently", job_id=job_id, reason="already_in_recent_results")
+                continue
+
+            if hasattr(self, "session_failed_ids") and job_id in self.session_failed_ids:
+                self.log_event("job_skipped_seen_recently", job_id=job_id, reason="failed_earlier_in_session")
+                continue
+
+            title = card.get("title", "")
+            company = card.get("company", "")
+            card_title = f"{title} | {company}" if (company and company != title) else title
+
+            # Check blacklist for company or raw title text
+            if title and title in self.blacklist:
+                self.log_event("job_skipped_seen_recently", job_id=job_id, reason="title_in_blacklist")
+                continue
+            if company and company in self.blacklist:
+                self.log_event("job_skipped_seen_recently", job_id=job_id, reason="company_in_blacklist")
+                continue
+
+            # Check non-easy-apply prefilter
+            if skip_non_easy_apply and not card.get("has_easy_apply", True) and card_title:
+                log.info(f"Pre-filter skipping job {job_id} ('{card_title}'): card does not show Easy Apply badge.")
+                self.log_event("job_skipped_prefilter", job_id=job_id, title=card_title, reason="not_easy_apply")
+                continue
+
+            if card_title:
+                if hasattr(self, "is_title_blacklisted"):
+                    is_blocked, keyword = self.is_title_blacklisted(card_title)
+                    if is_blocked:
+                        log.info(f"Pre-filter skipping job {job_id} ('{card_title}'): matched blacklist keyword '{keyword}'.")
+                        self.log_event("job_skipped_prefilter", job_id=job_id, title=card_title, matched_keyword=keyword)
+                        continue
+
+                role_title = card_title.split(" | ")[0] if " | " in card_title else card_title
+                if hasattr(self, "relevance_scorer") and self.relevance_scorer is not None:
+                    if not self.relevance_scorer.is_relevant(role_title):
+                        score = self.relevance_scorer.score(role_title)
+                        log.info(f"Pre-filter skipping job {job_id} ('{card_title}'): low relevance score ({score:.2f}).")
+                        self.log_event("job_skipped_not_relevant", job_id=job_id, title=card_title, relevance_score=score)
+                        continue
+
+            applied = self.apply_to_job(job_id)
+            last_reason = getattr(self, "last_job_reason", None)
+            if applied:
+                log.info(f"Applied to {job_id}")
+            elif last_reason in (
+                "similar_jobs_redirect",
+                "title_blacklisted",
+                "blacklisted_title",
+                "not_relevant",
+                "medical_related_title",
+                "already_applied",
+                "experience_level_mismatch",
+            ):
+                log.info(f"Skipped {job_id} ({last_reason})")
+            else:
+                log.info(f"Failed to apply to {job_id}")
+
+            if self.stop_requested or time.time() >= self.session_deadline:
+                break
+
     def apply_loop(self, job_ids: dict[str, str]) -> None:
+        if not hasattr(self, "_seen_session_job_ids"):
+            self._seen_session_job_ids = set()
+
         card_titles = self._extract_card_titles()
 
         for job_id in job_ids:
@@ -334,6 +518,12 @@ class SearchLoopMixin:
                 break
 
             if job_ids[job_id] == "To be processed":
+                if job_id in self._seen_session_job_ids:
+                    log.debug(f"Job {job_id} already processed in current session. Skipping.")
+                    job_ids[job_id] = "Skipped"
+                    continue
+                self._seen_session_job_ids.add(job_id)
+
                 if job_id in self.appliedJobIDs:
                     self.log_event(
                         "job_skipped_seen_recently",

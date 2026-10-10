@@ -25,7 +25,12 @@ class DiagnosticsService(ServiceBase):
         self.bot.current_job_debug_step = 0
         self.bot.current_job_failure_count = 0
         self.bot.current_job_first_try_dir = None
-        if not self.bot.first_job_debug_done:
+        perf_mode = (
+            getattr(getattr(self.bot, "config", None), "performance_mode", None)
+            or getattr(self.bot, "performance_mode", None)
+        )
+        enable_first_job_html = not (perf_mode and getattr(perf_mode, "enabled", False))
+        if not self.bot.first_job_debug_done and enable_first_job_html:
             ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             self.bot.current_job_debug_dir = (
                 self.bot.debug_root / f"first_job_{self.sanitize_for_path(str(job_id))}_{ts}"
@@ -119,6 +124,12 @@ class DiagnosticsService(ServiceBase):
         self.bot.log_event("debug_failure_snapshot", reason=reason, job_id=self.bot.current_job_id, debug_dir=str(failure_dir))
 
     def extract_job_metadata(self, job_id: str | None = None) -> dict:
+        jid = str(job_id or self.bot.current_job_id or "")
+        if jid and getattr(self.bot, "_cached_job_metadata_id", None) == jid:
+            cached = getattr(self.bot, "_cached_job_metadata", None)
+            if cached is not None:
+                return dict(cached)
+
         page_title = self.bot.browser.title or ""
         current_url = self.bot.browser.current_url or ""
         soup = BeautifulSoup(self.bot.browser.page_source or "", "lxml")
@@ -220,7 +231,7 @@ class DiagnosticsService(ServiceBase):
         else:
             fallback_company, fallback_title = None, None
 
-        return {
+        metadata = {
             "job_id": derived_job_id,
             "job_link": current_url,
             "job_title": title_from_page or fallback_title or "Unknown Role",
@@ -229,6 +240,10 @@ class DiagnosticsService(ServiceBase):
             "salary": salary_snippet,
             "page_title": page_title,
         }
+        if jid:
+            setattr(self.bot, "_cached_job_metadata_id", jid)
+            setattr(self.bot, "_cached_job_metadata", dict(metadata))
+        return metadata
 
     def medical_keyword_match(self) -> str | None:
         def norm(val: str) -> str:
