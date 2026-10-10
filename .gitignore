@@ -28,6 +28,7 @@ resumes/
 logs/
 debug/
 results/
+scratch/
 *.log
 
 # OS
