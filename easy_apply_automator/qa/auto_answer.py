@@ -55,6 +55,44 @@ class AutoAnswer:
         self.current_job_company = ""
         self.cfg = self._load_yaml(self.ans_yaml_path) if self.ans_yaml_path else {}
         self.llm_client = llm_client or LLMClient.from_env_or_config(self.cfg, log=self.log)
+        self._compiled_rules: list[tuple[str, list[re.Pattern], str]] = []
+        self._question_cache: dict[str, str] = {}
+        self._cached_resume_markdown: str | None = None
+        self.qa_metrics: dict[str, Any] = {
+            "questions_resolved": 0,
+            "cache_hits": 0,
+            "cache_misses": 0,
+            "deterministic_hits": 0,
+            "skill_year_hits": 0,
+            "heuristic_hits": 0,
+            "llm_hits": 0,
+            "fallback_hits": 0,
+            "qa_resolution_ms": 0.0,
+        }
+        self._compile_rules()
+
+    def _compile_rules(self) -> None:
+        """Pre-compiles all regular expressions in YAML rules for C-speed matching."""
+        self._compiled_rules = []
+        for rule in getattr(self, "cfg", {}).get("rules", []):
+            if not isinstance(rule, dict):
+                continue
+            rule_id = str(rule.get("id", "unknown"))
+            patterns: list[re.Pattern] = []
+            for pat in rule.get("match_any", []):
+                try:
+                    patterns.append(re.compile(pat))
+                except re.error as exc:
+                    self.log.warning(f"Invalid regex in answer rule '{rule_id}': {exc}")
+            if patterns:
+                self._compiled_rules.append((rule_id, patterns, str(rule.get("answer", ""))))
+
+    @staticmethod
+    def _normalize_question_key(question: str) -> str:
+        """Produces a canonical whitespace/case normalized key for question caching."""
+        q = (question or "").strip().lower()
+        q = re.sub(r"[\s*]+$", "", q)
+        return re.sub(r"\s+", " ", q)
 
     def set_current_job(self, job_title: str = "", company: str = "") -> None:
         """Set the active job title and company context to tailor LLM responses."""
@@ -171,6 +209,12 @@ class AutoAnswer:
             "ml": "machine_learning",
             "software development": "overall_software",
             "software engineering": "overall_software",
+            "work experience": "overall_software",
+            "professional experience": "overall_software",
+            "it services": "it_services",
+            "it consulting": "it_consulting",
+            "it services and it consulting": "it_services",
+            "it services & it consulting": "it_services",
         }
         if s in aliases:
             return aliases[s]
@@ -222,12 +266,13 @@ class AutoAnswer:
                 "how soon can you start",
                 "available start date",
                 "earliest start date",
+                "how soon can you join",
             )
         ):
             return "Immediately"
-        if any(w in q for w in ("willing to relocate", "relocation")):
+        if any(w in q for w in ("relocate", "relocating", "relocation")):
             return "Yes"
-        if any(w in q for w in ("willing to commute", "commute to", "commute daily")):
+        if any(w in q for w in ("commute", "commuting")):
             return "Yes"
         if any(w in q for w in ("driver's license", "drivers license", "valid driver")):
             return "Yes"
@@ -237,16 +282,37 @@ class AutoAnswer:
             return str(work_auth.get("legally_authorized", defaults.get(True, "Yes")))
         if any(w in q for w in ("require sponsorship", "need visa sponsorship", "require visa")):
             return str(work_auth.get("require_sponsorship", defaults.get(False, "No")))
+        if any(w in q for w in ("have you completed", "completed your graduation", "completed the following level")):
+            return "Yes"
         if any(
             w in q for w in ("highest level of education", "degree completed", "highest degree")
         ):
             return "Bachelor's Degree"
         if any(w in q for w in ("gpa", "cgpa", "grade point average")):
             return "9.0"
-        if any(w in q for w in ("english proficiency", "english level", "proficiency in english")):
+        if any(w in q for w in ("english proficiency", "english level", "proficiency in english", "level of proficiency in english")):
             return "Professional"
-        if any(w in q for w in ("hybrid schedule", "onsite work", "in-person attendance")):
+        if any(w in q for w in ("hybrid", "onsite", "in-person", "remote setting")):
             return "Yes"
+        if any(w in q for w in ("us shift", "night shift", "shift (", "work timings")):
+            return "Yes"
+        if any(w in q for w in ("laptop", "stable internet", "reliable internet")):
+            return "Yes"
+        if any(w in q for w in ("unpaid internship", "full time internship", "commit", "comfortable with that")):
+            return "Yes"
+        if any(
+            w in q
+            for w in (
+                "years of work experience",
+                "years of professional experience",
+                "years of total experience",
+                "total years of experience",
+                "years of relevant experience",
+                "how many years of experience",
+                "years of experience do you",
+            )
+        ):
+            return str(profile.get("years", {}).get("overall_software", "1"))
         return None
 
     def _build_profile_context(self) -> dict[str, Any]:
@@ -270,24 +336,42 @@ class AutoAnswer:
             "current_job_title": getattr(self, "current_job_title", ""),
             "current_job_company": getattr(self, "current_job_company", ""),
         }
-        for resume_path in (
-            Path("resume.md"),
-            Path("resumes/resume.md"),
-            *Path("resumes").glob("*.md"),
-        ):
-            if resume_path.exists():
-                try:
-                    context["resume_markdown"] = resume_path.read_text(encoding="utf-8")
-                    break
-                except Exception:
-                    pass
+        if self._cached_resume_markdown is None:
+            self._cached_resume_markdown = ""
+            for resume_path in (
+                Path("resume.md"),
+                Path("resumes/resume.md"),
+                *Path("resumes").glob("*.md"),
+            ):
+                if resume_path.exists():
+                    try:
+                        self._cached_resume_markdown = resume_path.read_text(encoding="utf-8")
+                        break
+                    except Exception:
+                        pass
+        if self._cached_resume_markdown:
+            context["resume_markdown"] = self._cached_resume_markdown
         return context
 
     def _persist_learned_rule(self, question: str, answer: str) -> None:
         """Appends an AI-resolved answer into local questions_answers.yaml for zero-cost reuse."""
         try:
             q_clean = question.strip()
+            if not q_clean or len(q_clean) < 3:
+                return
+            if re.search(r"\b\d+\s*(?:of|/)\s*\d+\s*characters?\b", q_clean, re.I):
+                return
+            if re.search(r"\.(pdf|docx?|txt|rtf)\b", q_clean, re.I):
+                return
+            if not answer or not answer.strip():
+                return
+
             safe_id = "ai_" + re.sub(r"[^a-zA-Z0-9_]+", "_", q_clean).strip("_")[:35].lower()
+            base_id = safe_id.removeprefix("ai_")
+            existing_ids = {r.get("id") for r in self.cfg.get("rules", []) if isinstance(r, dict)}
+            if safe_id in existing_ids or base_id in existing_ids:
+                return
+
             escaped_pattern = f"(?i){re.escape(q_clean)}"
             new_rule = {
                 "id": safe_id,
@@ -297,6 +381,12 @@ class AutoAnswer:
             if "rules" not in self.cfg or not isinstance(self.cfg["rules"], list):
                 self.cfg["rules"] = []
             self.cfg["rules"].append(new_rule)
+            try:
+                compiled_pat = re.compile(escaped_pattern)
+                self._compiled_rules.append((safe_id, [compiled_pat], answer))
+            except Exception:
+                pass
+            self._question_cache[self._normalize_question_key(q_clean)] = answer
 
             if self.ans_yaml_path and Path(self.ans_yaml_path).exists():
                 pattern_dump = yaml.dump(escaped_pattern, default_style="'").strip()
@@ -317,30 +407,79 @@ class AutoAnswer:
 
     def ans_question(self, question: str) -> str:
         q = (question or "").strip()
+        if not q:
+            return getattr(self, "cfg", {}).get("defaults", {}).get("unknown_text", "user provided")
+
+        if not hasattr(self, "qa_metrics") or self.qa_metrics is None:
+            self.qa_metrics = {
+                "questions_resolved": 0,
+                "cache_hits": 0,
+                "cache_misses": 0,
+                "deterministic_hits": 0,
+                "skill_year_hits": 0,
+                "heuristic_hits": 0,
+                "llm_hits": 0,
+                "qa_resolution_ms": 0.0,
+            }
+        if not hasattr(self, "_question_cache") or self._question_cache is None:
+            self._question_cache = {}
+        if not hasattr(self, "_compiled_rules") or self._compiled_rules is None:
+            self._compile_rules()
+
+        self.qa_metrics["questions_resolved"] += 1
+        q_norm = self._normalize_question_key(q)
+
+        # 1. In-memory question cache (instant O(1) resolution)
+        if q_norm in self._question_cache:
+            self.qa_metrics["cache_hits"] += 1
+            return self._question_cache[q_norm]
+
+        if q in self.answers:
+            self.qa_metrics["cache_hits"] += 1
+            ans = self.answers[q]
+            self._question_cache[q_norm] = ans
+            return ans
+
+        self.qa_metrics["cache_misses"] += 1
         answer = None
 
-        for rule in self.cfg.get("rules", []):
-            for pattern in rule.get("match_any", []):
-                try:
-                    if re.search(pattern, q):
-                        answer = self._render(str(rule.get("answer", "")))
-                        break
-                except re.error as exc:
-                    self.log.warning(
-                        f"Invalid regex in answer rule '{rule.get('id', 'unknown')}': {exc}"
-                    )
+        # 2. Deterministic pre-compiled rules
+        for _rule_id, patterns, template in self._compiled_rules:
+            for pattern in patterns:
+                if pattern.search(q):
+                    answer = self._render(template)
+                    self.qa_metrics["deterministic_hits"] += 1
+                    break
             if answer is not None:
                 break
+
+        # 3. Fallback to raw cfg rules if compiled rules didn't match (safety net)
+        if answer is None:
+            for rule in self.cfg.get("rules", []):
+                for pattern in rule.get("match_any", []):
+                    try:
+                        if re.search(pattern, q):
+                            answer = self._render(str(rule.get("answer", "")))
+                            self.qa_metrics["deterministic_hits"] += 1
+                            break
+                    except re.error as exc:
+                        self.log.warning(
+                            f"Invalid regex in answer rule '{rule.get('id', 'unknown')}': {exc}"
+                        )
+                if answer is not None:
+                    break
 
         if answer is None:
             extracted_years = self._extract_skill_years(q)
             if extracted_years is not None:
                 answer = extracted_years
+                self.qa_metrics["skill_year_hits"] += 1
 
         if answer is None:
             heuristic_ans = self._heuristic_fallback(q)
             if heuristic_ans is not None:
                 answer = heuristic_ans
+                self.qa_metrics["heuristic_hits"] += 1
 
         # Zero-shot AI/LLM fallback when available
         if answer is None and hasattr(self, "llm_client") and self.llm_client.is_available():
@@ -348,6 +487,7 @@ class AutoAnswer:
             ai_answer = self.llm_client.answer_question(q, self._build_profile_context())
             if ai_answer:
                 answer = ai_answer
+                self.qa_metrics["llm_hits"] += 1
                 self.log.info(f"AI resolved question '{q}' with answer: '{answer}'")
                 if getattr(self.llm_client, "auto_learn", True):
                     self._persist_learned_rule(q, answer)
@@ -355,9 +495,12 @@ class AutoAnswer:
         if answer is None:
             self.log.info("Not able to answer question automatically. Please provide answer")
             answer = self.cfg.get("defaults", {}).get("unknown_text", "user provided")
+            self.qa_metrics["fallback_hits"] += 1
 
         self.log.info(f"Answering question: {q} with answer: {answer}")
 
+        # Update fast cache and answers dict
+        self._question_cache[q_norm] = answer
         if q and q not in self.answers:
             self.answers[q] = answer
             if self.qa_file is not None:

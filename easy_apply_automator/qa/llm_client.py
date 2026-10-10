@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -101,6 +102,17 @@ class LLMClient:
         self.model = (model or os.getenv("AI_MODEL", "")).strip() or default_models.get(
             self.provider, ""
         )
+        self._llm_cache: dict[str, str] = {}
+        self.metrics: dict[str, int] = {
+            "llm_requests": 0,
+            "llm_cache_hits": 0,
+            "llm_cache_misses": 0,
+            "llm_latency_ms": 0,
+            "llm_timeout_count": 0,
+        }
+
+    def get_metrics(self) -> dict[str, int]:
+        return dict(self.metrics)
 
     @classmethod
     def from_env_or_config(cls, cfg: dict | None = None, log: Any = None) -> LLMClient:
@@ -177,21 +189,45 @@ class LLMClient:
         if not self.is_available() or not question:
             return None
 
+        clean_q = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", question).strip()
+        job_ctx = profile_context.get("current_job_title", "") if isinstance(profile_context, dict) else str(profile_context or "")
+        cache_key = f"{clean_q.lower()}|{job_ctx.lower().strip()}"
+        if cache_key in self._llm_cache:
+            self.metrics["llm_cache_hits"] += 1
+            return self._llm_cache[cache_key]
+
+        self.metrics["llm_cache_misses"] += 1
+        self.metrics["llm_requests"] += 1
+
         prompt = self.build_prompt(question, profile_context)
+        start_time = time.time()
+        ans = None
         try:
             if self.provider in ("openai", "groq"):
-                return self._call_openai(prompt, timeout_seconds)
-            if self.provider == "gemini":
-                return self._call_gemini(prompt, timeout_seconds)
-            if self.provider == "anthropic":
-                return self._call_anthropic(prompt, timeout_seconds)
-            if self.provider == "ollama":
-                return self._call_ollama(prompt, timeout_seconds)
+                ans = self._call_openai(prompt, timeout_seconds)
+            elif self.provider == "gemini":
+                ans = self._call_gemini(prompt, timeout_seconds)
+            elif self.provider == "anthropic":
+                ans = self._call_anthropic(prompt, timeout_seconds)
+            elif self.provider == "ollama":
+                ans = self._call_ollama(prompt, timeout_seconds)
+        except (TimeoutError, urllib.error.URLError) as exc:
+            if "timed out" in str(exc).lower():
+                self.metrics["llm_timeout_count"] += 1
+            if self.log:
+                self.log.debug(f"LLM API query timed out or failed ({self.provider}): {exc}")
+            return None
         except Exception as exc:
             if self.log:
                 self.log.debug(f"LLM API query failed ({self.provider}): {exc}")
             return None
-        return None
+        finally:
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            self.metrics["llm_latency_ms"] += elapsed_ms
+
+        if ans:
+            self._llm_cache[cache_key] = ans
+        return ans
 
     def _call_gemini(self, prompt: str, timeout_seconds: float) -> str | None:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.gemini_api_key}"

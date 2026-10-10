@@ -40,7 +40,11 @@ defaults:
 profile:
   years:
     # --- core / original set ---
-    overall_software: "2"
+    overall_software: "1"
+    work_experience: "1"
+    professional_experience: "1"
+    it_services: "1"
+    it_consulting: "1"
     ai_ml: "1"
     machine_learning: "1"
     deep_learning: "1"
@@ -299,6 +303,13 @@ rules:
       - "(?i)\\bschool\\b"
       - "(?i)\\binstitution\\b"
     answer: "University of Mumbai"
+
+  - id: completed_degree_yes_no
+    match_any:
+      - "(?i)have you completed.*(degree|education|bachelor|master|graduation)"
+      - "(?i)completed your graduation"
+      - "(?i)do you have a.*(degree|bachelor)"
+    answer: "Yes"
 
   - id: degree
     match_any:
@@ -661,7 +672,10 @@ rules:
     match_any:
       - "(?i)\\b(total|overall)\\s+(years of )?(work |professional |industry |software )?experience\\b"
       - "(?i)how many years of (total|overall) experience"
-      - "(?i)how many years of software (engineering|development) experience"
+      - "(?i)how many years of (work|professional|industry|software|relevant)?\\s*experience do you (currently )?have"
+      - "(?i)how many years of (work|professional|industry|software)\\s+experience"
+      - "(?i)how many years of (it services|it consulting).*experience"
+      - "(?i)(total|overall|relevant)?\\s*(years of )?(work|professional|industry)\\s+experience"
       - "(?i)total years of (work |professional |industry )?experience"
     answer: "{years.overall_software}"
 
@@ -907,20 +921,310 @@ rules:
       - "(?i)specify previous experiences relevant for the position"
     answer: "I have built AI-driven solutions such as the Sentinel Verify SaaS platform, which uses machine-learning and NLP pipelines to detect phishing and fraud in real time, and a terminal-based AI support triage agent created during the HackerRank Orchestrate Hackathon that integrates LLMs for ticket classification and retrieval-augmented generation. Additionally, my work as a Generative AI Engineer at Sia and my full-stack experience with Flask, FastAPI, and JavaScript enable me to design, implement, and deploy end-to-end generative AI applications."
 
-  # Auto-learned by AI on 2026-09-25 11:01:13
-  - id: ai_pdf_romil_doshi_resume_1_pdf
+  - id: english_proficiency
     match_any:
-      - '(?i)pdf\ romil\ doshi\ resume\ \(1\)\.pdf'
-    answer: "I'm unable to provide the PDF file."
+      - "(?i)proficiency in english"
+      - "(?i)english proficiency"
+      - "(?i)level of proficiency in english"
+    answer: "Professional"
 
-  # Auto-learned by AI on 2026-09-25 11:01:23
-  - id: ai_yes_no
+  - id: shift_timings
     match_any:
-      - '(?i)yes\ no'
+      - "(?i)us shift"
+      - "(?i)work timings"
+      - "(?i)night shift"
+      - "(?i)rotational shift"
+      - "(?i)work between.*(am|pm)"
     answer: "Yes"
 
-  # Auto-learned by AI on 2026-09-25 11:43:20
-  - id: ai_romil_doshi_resume_1_pdf
+  - id: commute_onsite_relocate
     match_any:
-      - '(?i)romil\ doshi\ resume\ \(1\)\.pdf'
-    answer: "My resume is attached as romil doshi resume (1).pdf."
+      - "(?i)comfortable commuting"
+      - "(?i)comfortable relocating"
+      - "(?i)relocating to"
+      - "(?i)relocate for (this|the) role"
+      - "(?i)onsite setting"
+      - "(?i)hybrid setting"
+      - "(?i)remote setting"
+      - "(?i)willing to work onsite"
+    answer: "Yes"
+
+  - id: hardware_availability
+    match_any:
+      - "(?i)have a laptop"
+      - "(?i)own laptop"
+      - "(?i)stable internet"
+      - "(?i)reliable internet"
+    answer: "Yes"
+
+  - id: internship_commitment
+    match_any:
+      - "(?i)available to commit"
+      - "(?i)commit.*hours"
+      - "(?i)unpaid internship"
+      - "(?i)full time internship"
+      - "(?i)commit.*every day"
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-01 13:11:04
+  - id: ai_0_of_20_characters
+    match_any:
+      - '(?i)0\ of\ 20\ characters'
+    answer: "N/A"
+
+  # Auto-learned by AI on 2026-10-01 13:11:41
+  - id: ai_invalid_input
+    match_any:
+      - '(?i)invalid\ input'
+    answer: "No"
+
+  # Auto-learned by AI on 2026-10-01 13:13:24
+  - id: ai_passout_year
+    match_any:
+      - '(?i)passout\ year'
+    answer: "2027"
+
+  # Auto-learned by AI on 2026-10-01 13:13:25
+  - id: ai_available_internship_duration_in_mo
+    match_any:
+      - '(?i)available\ internship\ duration\ \(in\ months\)'
+    answer: "6"
+
+  # Auto-learned by AI on 2026-10-01 13:16:07
+  - id: ai_please_select_your_total_additional
+    match_any:
+      - '(?i)please\ select\ your\ total\ additional\ months\ of\ experience:\*'
+    answer: "24"
+
+  # Auto-learned by AI on 2026-10-01 13:16:21
+  - id: ai_6_of_20_characters
+    match_any:
+      - '(?i)6\ of\ 20\ characters'
+    answer: "Ready for GreedyGame."
+
+  # Auto-learned by AI on 2026-10-01 13:18:04
+  - id: ai_how_would_you_rate_yourself_in_llm_
+    match_any:
+      - '(?i)how\ would\ you\ rate\ yourself\ in\ llm/rag\ from\ 1\ to\ 10\?'
+    answer: "7"
+
+  # Auto-learned by AI on 2026-10-01 13:27:34
+  - id: ai_how_confident_are_you_that_you_can_
+    match_any:
+      - '(?i)how\ confident\ are\ you\ that\ you\ can\ get\ a\ connect\ with\ your\ tpo/dean\?\
+  \(from\ 0\-10\)'
+    answer: "8"
+
+  # Auto-learned by AI on 2026-10-01 13:36:59
+  - id: ai_what_is_your_level_of_proficiency_i
+    match_any:
+      - '(?i)what\ is\ your\ level\ of\ proficiency\ in\ italian\?\*'
+    answer: "I have a basic level of Italian proficiency and am actively improving my skills to\
+  \ communicate effectively in a professional setting."
+
+  # Auto-learned by AI on 2026-10-01 13:45:37
+  - id: ai_what_is_your_level_of_proficiency_i
+    match_any:
+      - '(?i)what\ is\ your\ level\ of\ proficiency\ in\ german\?\*'
+    answer: "I have basic proficiency in German, allowing me to understand and translate everyday\
+  \ texts and support entry-level linguistic tasks."
+
+  # Auto-learned by AI on 2026-10-01 13:46:03
+  - id: ai_how_many_years_of_work_experience_d
+    match_any:
+      - '(?i)how\ many\ years\ of\ work\ experience\ do\ you\ have\ with\ adobe\ photoshop\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-10-01 13:49:20
+  - id: ai_province
+    match_any:
+      - '(?i)province'
+    answer: "Maharashtra"
+
+  # Auto-learned by AI on 2026-10-01 13:49:23
+  - id: ai_facebook
+    match_any:
+      - '(?i)facebook'
+    answer: "I have not worked directly with Facebook, but my experience building web applications,\
+  \ security extensions, and data pipelines equips me to quickly adapt to Facebook-related\
+  \ projects."
+
+  # Auto-learned by AI on 2026-10-01 13:49:31
+  - id: ai_the_stipend_for_this_internship_wil
+    match_any:
+      - "(?i)the\\ stipend\\ for\\ this\\ internship\\ will\\ be\\ between\\ \u20B97,000\\\
+  \ and\\ \u20B910,000\\ depends\\ on\\ interview\\.\\ are\\ you\\ able\\ to\\ join\\\
+  \ on\\ this\\ stipend\\?\\*"
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-01 13:51:46
+  - id: ai_we_are_not_hiring_undergrads_only_2
+    match_any:
+      - '(?i)we\ are\ not\ hiring\ undergrads\ \-\ only\ 2026\ or\ 2027\ pass\ out\ should\
+  apply\*'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-01 13:51:52
+  - id: ai_we_are_not_hiring_undergrads_only_2
+    match_any:
+      - '(?i)we\ are\ not\ hiring\ undergrads\ \-\ only\ 2026\ or\ 2027\ pass\ out\ should\
+  apply'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-01 13:51:54
+  - id: ai_how_many_years_of_experience_do_you
+    match_any:
+      - '(?i)how\ many\ years\ of\ experience\ do\ you\ have\ in\ writing\ technical\ content\
+  \(blogs,\ docs,\ tutorials\)\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-10-05 11:02:08
+  - id: ai_what_was_your_previous_stipend
+    match_any:
+      - '(?i)what\ was\ your\ previous\ stipend\?'
+    answer: "user provided"
+
+  # Auto-learned by AI on 2026-10-05 11:02:09
+  - id: ai_what_is_your_expected_stipend
+    match_any:
+      - '(?i)what\ is\ your\ expected\ stipend\?'
+    answer: "I am looking for a stipend that aligns with market rates for a Java Full Stack Developer\
+  \ Intern. Ideally, a monthly stipend in the range of INR 20,000-25,000 would be\
+  \ appropriate."
+
+  # Auto-learned by AI on 2026-10-05 11:02:22
+  - id: ai_1_of_20_characters
+    match_any:
+      - '(?i)1\ of\ 20\ characters'
+    answer: "Java enthusiast"
+
+  # Auto-learned by AI on 2026-10-05 11:26:46
+  - id: ai_what_are_the_top_3_expectations_you
+    match_any:
+      - '(?i)what\ are\ the\ top\ 3\ expectations\ you\ have\ from\ your\ next\ job\?'
+    answer: "I expect to gain hands-on experience in financial analysis and data-driven decision\
+  \ making, to work on cross-functional projects that leverage my data scraping, automation,\
+  \ and Excel expertise, and to receive mentorship that supports my growth at the\
+  \ intersection of finance and technology."
+
+  # Auto-learned by AI on 2026-10-05 11:28:05
+  - id: ai_how_many_ai_application_have_you_mo
+    match_any:
+      - '(?i)how\ many\ ai\ application\ have\ you\ moved\ to\ production\?'
+    answer: "0"
+
+  # Auto-learned by AI on 2026-10-05 11:30:34
+  - id: ai_timings_of_the_shift_is_from_2pm_to
+    match_any:
+      - '(?i)timings\ of\ the\ shift\ is\ from\ 2pm\ to\ 12am,\ are\ you\ comfortable\ with\
+  the\ same\?\ \*'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-05 11:30:40
+  - id: ai_timings_of_the_shift_is_from_2pm_to
+    match_any:
+      - '(?i)timings\ of\ the\ shift\ is\ from\ 2pm\ to\ 12am,\ are\ you\ comfortable\ with\
+  the\ same\?'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-06 14:41:54
+  - id: ai_29_of_100_characters
+    match_any:
+      - '(?i)29\ of\ 100\ characters'
+    answer: "I apply data-driven SEO strategies and technical skills to enhance MTAB's online\
+  \ visibility."
+
+  # Auto-learned by AI on 2026-10-08 14:59:07
+  - id: ai_this_is_a_non_paid_role_are_you_coo
+    match_any:
+      - '(?i)this\ is\ a\ non\ paid\ role,\ are\ you\ cool\ to\ proceed\?\*'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-10 13:12:16
+  - id: ai_applying_for
+    match_any:
+      - '(?i)applying\ for\*'
+    answer: "Finance Executive Intern"
+
+  # Auto-learned by AI on 2026-10-10 13:12:17
+  - id: ai_stipend_isn_t_offered_would_you_lik
+    match_any:
+      - '(?i)stipend\ isn''t\ offered\.\ would\ you\ like\ to\ proceed\?\*'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-10 13:12:20
+  - id: ai_state
+    match_any:
+      - '(?i)state''\*'
+    answer: "I am a final-year Computer Engineering student with hands-on experience in web development,\
+  \ data scraping, and AI-powered cybersecurity solutions, and I am eager to apply\
+  \ my analytical and technical skills as a Finance Executive Intern at MTAB Technology\
+  \ Center."
+
+  # Auto-learned by AI on 2026-10-10 13:12:35
+  - id: ai_this_field_is_required
+    match_any:
+      - '(?i)this\ field\ is\ required'
+    answer: "I am a final-year Computer Engineering student with strong analytical and technical\
+  \ skills, proven experience in data handling, automation, and finance-related projects,\
+  \ and I am eager to apply my expertise to support MTAB Technology Center's financial\
+  \ operations."
+
+  # Auto-learned by AI on 2026-10-10 13:12:42
+  - id: ai_disclaimer_please_note_that_by_shar
+    match_any:
+      - '(?i)disclaimer\ :\ please\ note\ that\ by\ sharing\ your\ data\ with\ us,\ you\ acknowledge\
+  and\ agree\ that\ it\ may\ subject\ to\ sharing\ with\ our\ trusted\ partners\ and\
+  other\ recruiting\ organizations\.\ this\ sharing\ is\ done\ solely\ for\ the\ benefit\
+  of\ enhancing\ opportunities\ and\ prospects\ for\ your\ future\ endeavors\.\ we\
+  assure\ you\ that\ all\ shared\ information\ is\ handled\ with\ utmost\ confidentiality\
+  and\ in\ compliance\ with\ applicable\ data\ protection\ regulations\.\ if\ you\
+  have\ any\ concerns\ or\ require\ further\ information\ about\ how\ your\ data\
+  is\ used\ and\ shared,\ please\ feel\ free\ to\ contact\ us\.\ \*'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-10 13:14:19
+  - id: ai_will_you_be_available_during_market
+    match_any:
+      - '(?i)will\ you\ be\ available\ during\ market\ hours\ to\ trade\ between\ 9:15\ to\
+  3:30\?\*'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-10 13:15:50
+  - id: ai_how_many_years_of_graphic_design_ex
+    match_any:
+      - '(?i)how\ many\ years\ of\ graphic\ design\ experience\ do\ you\ currently\ have\?'
+    answer: "1"
+
+  # Auto-learned by AI on 2026-10-10 13:15:52
+  - id: ai_how_many_years_of_media_production_
+    match_any:
+      - '(?i)how\ many\ years\ of\ media\ production\ experience\ do\ you\ currently\ have\?'
+    answer: "1"
+
+  # Auto-learned by AI on 2026-10-10 13:16:40
+  - id: ai_this_is_an_unpaid_opportunity_are_y
+    match_any:
+      - '(?i)this\ is\ an\ unpaid\ opportunity,\ are\ you\ comfortable\ with\ this\ \?\*'
+    answer: "Yes"
+
+  # Auto-learned by AI on 2026-10-10 13:16:42
+  - id: ai_how_many_hours_you_can_dedicate_on_
+    match_any:
+      - '(?i)how\ many\ hours\ you\ can\ dedicate\ on\ daily\ basis\?'
+    answer: "8"
+
+  # Auto-learned by AI on 2026-10-10 13:25:20
+  - id: ai_rate_devsecops_vapt_skills_1_beginn
+    match_any:
+      - '(?i)rate\ devsecops/vapt\ skills:\ 1=beginner,\ 5=basic\ testing,\ 7=independent\
+  security\ testing\ and\ remediation,\ 10=expert\-level\ practice\.'
+    answer: "5"
+
+  # Auto-learned by AI on 2026-10-10 13:29:09
+  - id: ai_has_any_of_the_products_that_you_ha
+    match_any:
+      - '(?i)has\ any\ of\ the\ products\ that\ you\ have\ prototyped\ /\ designed\ as\ an\
+  individual\ or\ a\ team\ actually\ went\ live\ and\ is\ available\ in\ the\ market\?\
+  \*'
+    answer: "Yes"
